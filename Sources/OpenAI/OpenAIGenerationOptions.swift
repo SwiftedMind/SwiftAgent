@@ -30,7 +30,10 @@ public struct OpenAIGenerationOptions: AdapterGenerationOptions {
 
   /// Controls whether multiple tool calls can be executed in parallel during generation.
   public var allowParallelToolCalls: Bool?
-
+  
+  /// Used by OpenAI to cache responses for similar requests to optimize your cache hit rates.
+  public var promptCacheKey: String?
+  
   /// Configuration for reasoning-capable models, including effort level and summary formatting options.
   public var reasoning: ReasoningConfig?
 
@@ -61,6 +64,7 @@ public struct OpenAIGenerationOptions: AdapterGenerationOptions {
     include: [Include]? = nil,
     maxOutputTokens: UInt? = nil,
     allowParallelToolCalls: Bool? = nil,
+    promptCacheKey: String?,
     reasoning: ReasoningConfig? = nil,
     safetyIdentifier: String? = nil,
     serviceTier: ServiceTier? = nil,
@@ -73,6 +77,7 @@ public struct OpenAIGenerationOptions: AdapterGenerationOptions {
     self.include = include
     self.maxOutputTokens = maxOutputTokens
     self.allowParallelToolCalls = allowParallelToolCalls
+    self.promptCacheKey = promptCacheKey
     self.reasoning = reasoning
     self.safetyIdentifier = safetyIdentifier
     self.serviceTier = serviceTier

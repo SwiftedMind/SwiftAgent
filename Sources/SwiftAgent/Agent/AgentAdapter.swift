@@ -19,7 +19,7 @@ public protocol AgentAdapter {
     using model: Model,
     including transcript: AgentTranscript<Context>,
     options: GenerationOptions
-  ) -> AsyncThrowingStream<AgentTranscript<Context>.Entry, any Error> where Content: Generable, Context: PromptContextSource
+  ) -> AsyncThrowingStream<AgentUpdate<Context>, any Error> where Content: Generable, Context: PromptContextSource
 }
 
 // MARK: - GenerationOptions

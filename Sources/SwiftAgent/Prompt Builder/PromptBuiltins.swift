@@ -8,6 +8,12 @@ import Foundation
 @available(watchOS, unavailable)
 extension Int: PromptRepresentable {}
 
+/// Bool render using their textual description.
+@available(iOS 26.0, macOS 26.0, *)
+@available(tvOS, unavailable)
+@available(watchOS, unavailable)
+extension Bool: PromptRepresentable {}
+
 /// Doubles render using their textual description.
 @available(iOS 26.0, macOS 26.0, *)
 @available(tvOS, unavailable)

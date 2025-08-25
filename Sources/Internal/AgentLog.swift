@@ -67,6 +67,25 @@ package enum AgentLog {
     Logger.main.info("✅ \(String(localized: "Finished"))")
   }
 
+  /// Logs token usage accounting.
+  package static func tokenUsage(
+    inputTokens: Int?,
+    outputTokens: Int?,
+    totalTokens: Int?,
+    cachedTokens: Int?,
+    reasoningTokens: Int?
+  ) {
+    let input = inputTokens.map(String.init) ?? "-"
+    let output = outputTokens.map(String.init) ?? "-"
+    let total = totalTokens.map(String.init) ?? "-"
+    let cached = cachedTokens.map(String.init) ?? "-"
+    let reasoning = reasoningTokens.map(String.init) ?? "-"
+
+    Logger.main.info(
+      "🧮 \(String(localized: "Token usage")) — input=\(input, privacy: .public) | output=\(output, privacy: .public) | total=\(total, privacy: .public) | cached=\(cached, privacy: .public) | reasoning=\(reasoning, privacy: .public)"
+    )
+  }
+
   /// Logs an error during the run.
   package static func error(_ error: any Error, context: String? = nil) {
     let ctx = context ?? "-"

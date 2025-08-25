@@ -34,8 +34,8 @@ public final class OpenAIAdapter: AgentAdapter {
     using model: Model = .default,
     including transcript: Transcript<Context>,
     options: OpenAIGenerationOptions
-  ) -> AsyncThrowingStream<Transcript<Context>.Entry, any Error> where Content: Generable, Context: PromptContextSource {
-    let setup = AsyncThrowingStream<Transcript<Context>.Entry, any Error>.makeStream()
+  ) -> AsyncThrowingStream<AgentUpdate<Context>, any Error> where Content: Generable, Context: PromptContextSource {
+    let setup = AsyncThrowingStream<AgentUpdate<Context>, any Error>.makeStream()
 
     // Log start of an agent run
     AgentLog.start(
@@ -55,7 +55,13 @@ public final class OpenAIAdapter: AgentAdapter {
 
       // Run the agent
       do {
-        try await run(transcript: transcript, generating: type, using: model, options: options, continuation: setup.continuation)
+        try await run(
+          transcript: transcript,
+          generating: type,
+          using: model,
+          options: options,
+          continuation: setup.continuation
+        )
       } catch {
         // Surface a clear, user-friendly message
         AgentLog.error(error, context: "agent response")
@@ -77,7 +83,7 @@ public final class OpenAIAdapter: AgentAdapter {
     generating type: Content.Type,
     using model: Model = .default,
     options: GenerationOptions,
-    continuation: AsyncThrowingStream<Transcript<Context>.Entry, any Error>.Continuation
+    continuation: AsyncThrowingStream<AgentUpdate<Context>, any Error>.Continuation
   ) async throws where Content: Generable, Context: PromptContextSource {
     var generatedTranscript = Transcript<Context>()
     let allowedSteps = 20
@@ -105,6 +111,25 @@ public final class OpenAIAdapter: AgentAdapter {
         body: request,
         responseType: OpenAI.Response.self
       )
+      
+      // Emit token usage if available
+      if let usage = response.usage {
+        let reported = TokenUsage(
+          inputTokens: Int(usage.inputTokens),
+          outputTokens: Int(usage.outputTokens),
+          totalTokens: Int(usage.totalTokens),
+          cachedTokens: Int(usage.inputTokensDetails.cachedTokens),
+          reasoningTokens: Int(usage.outputTokensDetails.reasoningTokens)
+        )
+        AgentLog.tokenUsage(
+          inputTokens: reported.inputTokens,
+          outputTokens: reported.outputTokens,
+          totalTokens: reported.totalTokens,
+          cachedTokens: reported.cachedTokens,
+          reasoningTokens: reported.reasoningTokens
+        )
+        continuation.yield(.tokenUsage(reported))
+      }
 
       for output in response.output {
         try await handleOutput(
@@ -133,7 +158,7 @@ public final class OpenAIAdapter: AgentAdapter {
     _ output: Item.Output,
     type: Content.Type,
     generatedTranscript: inout Transcript<Context>,
-    continuation: AsyncThrowingStream<Transcript<Context>.Entry, any Error>.Continuation
+    continuation: AsyncThrowingStream<AgentUpdate<Context>, any Error>.Continuation
   ) async throws where Content: Generable, Context: PromptContextSource {
     switch output {
     case let .message(message):
@@ -164,7 +189,7 @@ public final class OpenAIAdapter: AgentAdapter {
     _ message: Message.Output,
     type: Content.Type,
     generatedTranscript: inout Transcript<Context>,
-    continuation: AsyncThrowingStream<Transcript<Context>.Entry, any Error>.Continuation
+    continuation: AsyncThrowingStream<AgentUpdate<Context>, any Error>.Continuation
   ) async throws where Content: Generable, Context: PromptContextSource {
     if type == String.self {
       try await processStringResponse(
@@ -185,7 +210,7 @@ public final class OpenAIAdapter: AgentAdapter {
   private func processStringResponse<Context>(
     _ message: Message.Output,
     generatedTranscript: inout Transcript<Context>,
-    continuation: AsyncThrowingStream<Transcript<Context>.Entry, any Error>.Continuation
+    continuation: AsyncThrowingStream<AgentUpdate<Context>, any Error>.Continuation
   ) async throws where Context: PromptContextSource {
     let response = Transcript<Context>.Response(
       id: message.id,
@@ -197,14 +222,14 @@ public final class OpenAIAdapter: AgentAdapter {
     AgentLog.outputMessage(text: text, status: String(describing: message.status))
 
     generatedTranscript.append(.response(response))
-    continuation.yield(.response(response))
+    continuation.yield(.transcript(.response(response)))
   }
 
   private func processStructuredResponse<Content, Context>(
     _ message: Message.Output,
     type: Content.Type,
     generatedTranscript: inout Transcript<Context>,
-    continuation: AsyncThrowingStream<Transcript<Context>.Entry, any Error>.Continuation
+    continuation: AsyncThrowingStream<AgentUpdate<Context>, any Error>.Continuation
   ) async throws where Content: Generable, Context: PromptContextSource {
     guard let content = message.content.first else {
       let errorContext = AgentGenerationError.EmptyMessageContentContext(expectedType: String(describing: type))
@@ -224,7 +249,7 @@ public final class OpenAIAdapter: AgentAdapter {
         AgentLog.outputStructured(json: text, status: String(describing: message.status))
 
         generatedTranscript.append(.response(response))
-        continuation.yield(.response(response))
+        continuation.yield(.transcript(.response(response)))
       } catch {
         AgentLog.error(error, context: "structured_response_parsing")
         let errorContext = AgentGenerationError.StructuredContentParsingFailedContext(
@@ -242,7 +267,7 @@ public final class OpenAIAdapter: AgentAdapter {
   private func handleFunctionCall<Context>(
     _ functionCall: Item.FunctionCall,
     generatedTranscript: inout Transcript<Context>,
-    continuation: AsyncThrowingStream<Transcript<Context>.Entry, any Error>.Continuation
+    continuation: AsyncThrowingStream<AgentUpdate<Context>, any Error>.Continuation
   ) async throws where Context: PromptContextSource {
     let generatedContent = try GeneratedContent(json: functionCall.arguments)
 
@@ -261,7 +286,7 @@ public final class OpenAIAdapter: AgentAdapter {
     )
 
     generatedTranscript.entries.append(.toolCalls(Transcript.ToolCalls(calls: [toolCall])))
-    continuation.yield(.toolCalls(Transcript.ToolCalls(calls: [toolCall])))
+    continuation.yield(.transcript(.toolCalls(Transcript.ToolCalls(calls: [toolCall]))))
 
     guard let tool = tools.first(where: { $0.name == functionCall.name }) else {
       AgentLog.error(AgentGenerationError.unsupportedToolCalled(.init(toolName: functionCall.name)), context: "tool_not_found")
@@ -273,10 +298,11 @@ public final class OpenAIAdapter: AgentAdapter {
       let output = try await callTool(tool, with: generatedContent)
 
       let toolOutputEntry = Transcript<Context>.ToolOutput(
-        id: UUID().uuidString,
+        id: functionCall.id,
         callId: functionCall.callId,
         toolName: functionCall.name,
         segment: .structure(AgentTranscript.StructuredSegment(content: output)),
+        status: transcriptStatusFromOpenAIStatus(functionCall.status),
       )
 
       let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
@@ -289,7 +315,7 @@ public final class OpenAIAdapter: AgentAdapter {
       )
 
       generatedTranscript.entries.append(transcriptEntry)
-      continuation.yield(transcriptEntry)
+      continuation.yield(.transcript(transcriptEntry))
     } catch {
       AgentLog.error(error, context: "tool_call_failed_\(tool.name)")
       throw AgentToolCallError(tool: tool, underlyingError: error)
@@ -299,7 +325,7 @@ public final class OpenAIAdapter: AgentAdapter {
   private func handleReasoning<Context>(
     _ reasoning: Item.Reasoning,
     generatedTranscript: inout Transcript<Context>,
-    continuation: AsyncThrowingStream<Transcript<Context>.Entry, any Error>.Continuation
+    continuation: AsyncThrowingStream<AgentUpdate<Context>, any Error>.Continuation
   ) async throws where Context: PromptContextSource {
     let summary = reasoning.summary.map { summary in
       switch summary {
@@ -319,7 +345,7 @@ public final class OpenAIAdapter: AgentAdapter {
 
     let entry = Transcript<Context>.Entry.reasoning(entryData)
     generatedTranscript.entries.append(entry)
-    continuation.yield(entry)
+    continuation.yield(.transcript(entry))
   }
 
   private func callTool<T: FoundationModels.Tool>(
@@ -361,7 +387,7 @@ public final class OpenAIAdapter: AgentAdapter {
       parallelToolCalls: options.allowParallelToolCalls,
       previousResponseId: nil,
       prompt: nil,
-      promptCacheKey: nil,
+      promptCacheKey: options.promptCacheKey,
       reasoning: options.reasoning,
       safetyIdentifier: options.safetyIdentifier,
       serviceTier: options.serviceTier,
@@ -471,7 +497,7 @@ public final class OpenAIAdapter: AgentAdapter {
           let item = Item.FunctionCall(
             arguments: toolCall.arguments.jsonString,
             callId: toolCall.callId,
-            id: "fc_" + toolCall.id,
+            id: toolCall.id,
             name: toolCall.toolName,
             status: transcriptStatusToFunctionCallStatus(toolCall.status)
           )
@@ -489,8 +515,8 @@ public final class OpenAIAdapter: AgentAdapter {
         }()
 
         let item = Item.FunctionCallOutput(
-          id: "fc_" + toolOutput.id,
-          status: nil,
+          id: toolOutput.id,
+          status: transcriptStatusToFunctionCallStatus(toolOutput.status),
           callId: toolOutput.callId,
           output: output
         )

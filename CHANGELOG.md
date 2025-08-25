@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.6.0]
+
+### Added
+
+- **Session Management Methods**: Added `clearTranscript()` and `resetTokenUsage()` methods to ModelSession for better session lifecycle management.
+
+  ```swift
+  // Clear the conversation transcript while keeping the session configuration
+  session.clearTranscript()
+  
+  // Reset cumulative token usage counter
+  session.resetTokenUsage()
+  
+  // Both methods can be used independently or together
+  session.clearTranscript()
+  session.resetTokenUsage()
+  ```
+
+- **Token Usage Tracking and Reporting**: Added comprehensive token usage monitoring across all AI interactions with both per-response and session-level tracking.
+
+  ```swift
+  let response = try await session.respond(to: "What's the weather?")
+  
+  // Access aggregated token usage from the individual response
+  if let usage = response.tokenUsage {
+    print("Response tokens used: \(usage.totalTokens ?? 0)")
+    print("Response input tokens: \(usage.inputTokens ?? 0)")
+    print("Response output tokens: \(usage.outputTokens ?? 0)")
+    print("Response cached tokens: \(usage.cachedTokens ?? 0)")
+    print("Response reasoning tokens: \(usage.reasoningTokens ?? 0)")
+  }
+  
+  // Access cumulative token usage across the entire session
+  print("Session total tokens: \(session.tokenUsage.totalTokens ?? 0)")
+  print("Session input tokens: \(session.tokenUsage.inputTokens ?? 0)")
+  print("Session output tokens: \(session.tokenUsage.outputTokens ?? 0)")
+  
+  // Session token usage updates in real-time during streaming responses
+  // Perfect for @Observable integration in SwiftUI for live usage monitoring
+  ```
+
+### Fixed
+
+- **Transcript ID Handling**: Fixed issue where transcript IDs were not properly converting back to original OpenAI IDs, removing unnecessary manual addition of "fc_" prefix from function call IDs.
+- **Tool Output Status Tracking**: Added missing `status` field to `ToolOutput` in `AgentTranscript` for better tool execution tracking and consistency.
+- **JSON Encoding Determinism**: Enabled sorted keys in OpenAI JSON encoder to ensure consistent property ordering in tool schemas, preventing cache misses and improving prompt caching effectiveness.
+
 ## [0.5.0]
 
 ### Added

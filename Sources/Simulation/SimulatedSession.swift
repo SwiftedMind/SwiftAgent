@@ -30,26 +30,38 @@ public extension ModelSession {
     )
     var responseContent: [String] = []
     var addedEntities: [Transcript.Entry] = []
+    var aggregatedUsage: TokenUsage?
 
-    for try await entry in stream {
-      transcript.append(entry)
-      addedEntities.append(entry)
+    for try await update in stream {
+      switch update {
+      case let .transcript(entry):
+        transcript.append(entry)
+        addedEntities.append(entry)
 
-      if case let .response(response) = entry {
-        for segment in response.segments {
-          switch segment {
-          case let .text(textSegment):
-            responseContent.append(textSegment.content)
-          case .structure:
-            break
+        if case let .response(response) = entry {
+          for segment in response.segments {
+            switch segment {
+            case let .text(textSegment):
+              responseContent.append(textSegment.content)
+            case .structure:
+              break
+            }
           }
+        }
+      case let .tokenUsage(usage):
+        if var current = aggregatedUsage {
+          current.merge(usage)
+          aggregatedUsage = current
+        } else {
+          aggregatedUsage = usage
         }
       }
     }
 
     return AgentResponse<Adapter, Context, String>(
       content: responseContent.joined(separator: "\n"),
-      addedEntries: addedEntities
+      addedEntries: addedEntities,
+      tokenUsage: aggregatedUsage
     )
   }
 
@@ -69,22 +81,34 @@ public extension ModelSession {
       generations: generations
     )
     var addedEntities: [Transcript.Entry] = []
+    var aggregatedUsage: TokenUsage?
 
-    for try await entry in stream {
-      transcript.append(entry)
-      addedEntities.append(entry)
+    for try await update in stream {
+      switch update {
+      case let .transcript(entry):
+        transcript.append(entry)
+        addedEntities.append(entry)
 
-      if case let .response(response) = entry {
-        for segment in response.segments {
-          switch segment {
-          case .text:
-            break
-          case let .structure(structuredSegment):
-            return try AgentResponse<Adapter, Context, Content>(
-              content: Content(structuredSegment.content),
-              addedEntries: addedEntities
-            )
+        if case let .response(response) = entry {
+          for segment in response.segments {
+            switch segment {
+            case .text:
+              break
+            case let .structure(structuredSegment):
+              return try AgentResponse<Adapter, Context, Content>(
+                content: Content(structuredSegment.content),
+                addedEntries: addedEntities,
+                tokenUsage: aggregatedUsage
+              )
+            }
           }
+        }
+      case let .tokenUsage(usage):
+        if var current = aggregatedUsage {
+          current.merge(usage)
+          aggregatedUsage = current
+        } else {
+          aggregatedUsage = usage
         }
       }
     }

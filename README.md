@@ -343,6 +343,7 @@ The simulation system provides:
 - **Predictable responses** for consistent UI testing  
 - **Tool execution simulation** with mock data
 - **Complete transcript compatibility** - simulated responses work exactly like real ones
+- **Structured output support** - any `@Generable` struct used with `simulateResponse(generating:)` must conform to `MockableGenerable` for mock generation
 
 ## 🔧 Configuration
 

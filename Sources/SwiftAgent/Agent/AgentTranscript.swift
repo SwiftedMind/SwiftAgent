@@ -175,17 +175,20 @@ public extension AgentTranscript {
     public var callId: String
     public var toolName: String
     public var segment: Segment
+    public var status: Status
 
     public init(
       id: String,
       callId: String,
       toolName: String,
       segment: Segment,
+      status: Status
     ) {
       self.id = id
       self.callId = callId
       self.toolName = toolName
       self.segment = segment
+      self.status = status
     }
   }
 
