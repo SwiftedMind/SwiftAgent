@@ -294,29 +294,52 @@ public final class OpenAIAdapter: AgentAdapter {
 			throw AgentGenerationError.unsupportedToolCalled(errorContext)
 		}
 
-		do {
-			let output = try await callTool(tool, with: generatedContent)
+                do {
+                        let output = try await callTool(tool, with: generatedContent)
 
-			let toolOutputEntry = Transcript<Context>.ToolOutput(
-				id: functionCall.id,
-				callId: functionCall.callId,
-				toolName: functionCall.name,
-				segment: .structure(AgentTranscript.StructuredSegment(content: output)),
-				status: transcriptStatusFromOpenAIStatus(functionCall.status),
-			)
+                        let toolOutputEntry = Transcript<Context>.ToolOutput(
+                                id: functionCall.id,
+                                callId: functionCall.callId,
+                                toolName: functionCall.name,
+                                segment: .structure(AgentTranscript.StructuredSegment(content: output)),
+                                status: transcriptStatusFromOpenAIStatus(functionCall.status),
+                        )
 
-			let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
+                        let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
 
-			// Try to log as JSON if possible
-			AgentLog.toolOutput(
-				name: tool.name,
-				callId: functionCall.callId,
-				outputJSONOrText: output.generatedContent.jsonString,
-			)
+                        // Try to log as JSON if possible
+                        AgentLog.toolOutput(
+                                name: tool.name,
+                                callId: functionCall.callId,
+                                outputJSONOrText: output.generatedContent.jsonString,
+                        )
 
-			generatedTranscript.entries.append(transcriptEntry)
-			continuation.yield(.transcript(transcriptEntry))
-		} catch {
+                        generatedTranscript.entries.append(transcriptEntry)
+                        continuation.yield(.transcript(transcriptEntry))
+                } catch let recoverableError as RecoverableToolError {
+                        let toolOutputEntry = Transcript<Context>.ToolOutput(
+                                id: functionCall.id,
+                                callId: functionCall.callId,
+                                toolName: functionCall.name,
+                                segment: .structure(
+                                        AgentTranscript.StructuredSegment(
+                                                content: recoverableError.generatedContent
+                                        )
+                                ),
+                                status: transcriptStatusFromOpenAIStatus(functionCall.status),
+                        )
+
+                        let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
+
+                        AgentLog.toolOutput(
+                                name: tool.name,
+                                callId: functionCall.callId,
+                                outputJSONOrText: recoverableError.generatedContent.jsonString,
+                        )
+
+                        generatedTranscript.entries.append(transcriptEntry)
+                        continuation.yield(.transcript(transcriptEntry))
+                } catch {
 			AgentLog.error(error, context: "tool_call_failed_\(tool.name)")
 			throw AgentToolCallError(tool: tool, underlyingError: error)
 		}
