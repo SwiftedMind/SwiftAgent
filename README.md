@@ -133,7 +133,11 @@ struct WeatherTool: AgentTool {
 
 ### Handling Recoverable Tool Errors
 
-If a tool call fails in a way the agent can correct (such as an unknown identifier or other validation issue), throw a `ToolRunProblem`. The OpenAI adapter forwards the `@Generable` content you provide to the model without aborting the loop so the agent can adjust its next action.
+If a tool call fails in a way the agent can correct (such as an unknown identifier or other validation issue), throw a `ToolRunProblem`. The OpenAI adapter forwards the structured content you provide to the model without aborting the loop so the agent can adjust its next action.
+
+SwiftAgent always wraps your payload in a standardized envelope that includes `error: true` and the `reason` string so the agent can reliably detect recoverable problems.
+
+For quick cases, attach string-keyed details with the convenience initializer:
 
 ```swift
 struct CustomerLookupTool: AgentTool {
@@ -141,7 +145,7 @@ struct CustomerLookupTool: AgentTool {
     guard let customer = try await directory.loadCustomer(id: arguments.customerId) else {
       throw ToolRunProblem(
         reason: "Customer not found",
-        content: [
+        details: [
           "issue": "customerNotFound",
           "customerId": arguments.customerId
         ]
@@ -151,6 +155,26 @@ struct CustomerLookupTool: AgentTool {
     return Output(summary: customer.summary)
   }
 }
+```
+
+For richer payloads, pass any `@Generable` type via the `content:` initializer to return structured data:
+
+```swift
+@Generable
+struct CustomerLookupProblemDetails {
+  var issue: String
+  var customerId: String
+  var suggestions: [String]
+}
+
+throw ToolRunProblem(
+  reason: "Customer not found",
+  content: CustomerLookupProblemDetails(
+    issue: "customerNotFound",
+    customerId: arguments.customerId,
+    suggestions: ["Ask the user to confirm the identifier"]
+  )
+)
 ```
 
 Reserve `ToolRunError` (`Sources/SwiftAgent/Agent/ToolRunError.swift`) for fatal situations the agent cannot recover from—such as missing credentials or offline dependencies. Throwing `ToolRunError` stops the agent loop immediately so you can surface the failure to the user.

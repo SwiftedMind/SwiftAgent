@@ -17,14 +17,18 @@ public struct ToolRunProblem: Error, LocalizedError, Sendable {
 	/// A human-readable description of the recoverable problem.
 	public let reason: String?
 
+	private static let fallbackReason = "Recoverable tool problem"
+
 	/// Creates a recoverable tool problem from arbitrary generated content.
 	///
 	/// - Parameters:
 	///   - reason: Optional description explaining the failure. Defaults to `nil`.
 	///   - content: Any value that can be converted into ``GeneratedContent``.
 	public init(reason: String? = nil, content: some ConvertibleToGeneratedContent) {
-		generatedContent = content.generatedContent
-		self.reason = reason
+		let resolvedReason = reason ?? Self.fallbackReason
+		let problemReport = ProblemReport(reason: resolvedReason, details: content.generatedContent)
+		generatedContent = problemReport.generatedContent
+		self.reason = resolvedReason
 	}
 
 	/// Creates a recoverable tool problem from pre-built generated content.
@@ -33,11 +37,45 @@ public struct ToolRunProblem: Error, LocalizedError, Sendable {
 	///   - reason: Optional description explaining the failure. Defaults to `nil`.
 	///   - generatedContent: The payload to forward to the model.
 	public init(reason: String? = nil, generatedContent: GeneratedContent) {
-		self.generatedContent = generatedContent
+		let resolvedReason = reason ?? Self.fallbackReason
+		let problemReport = ProblemReport(reason: resolvedReason, details: generatedContent)
+		self.generatedContent = problemReport.generatedContent
+		self.reason = resolvedReason
+	}
+
+	/// Convenience initializer that wraps string-keyed details into a structured payload.
+	///
+	/// - Parameters:
+	///   - reason: Description of the failure that the agent can surface to the user.
+	///   - details: Optional machine-readable information that helps the agent recover.
+	public init(reason: String, details: [String: String]? = nil) {
+		let detailsContent = details.flatMap(Self.generateDetailsContent)
+		let problemReport = ProblemReport(reason: reason, details: detailsContent)
+		generatedContent = problemReport.generatedContent
 		self.reason = reason
 	}
 
 	public var errorDescription: String? {
-		reason ?? "Recoverable tool problem"
+		reason ?? Self.fallbackReason
+	}
+}
+
+@Generable
+private struct ProblemReport {
+	var error: Bool = true
+	var reason: String
+	var details: GeneratedContent?
+}
+
+private extension ToolRunProblem {
+	static func generateDetailsContent(from details: [String: String]) -> GeneratedContent? {
+		let encoder = JSONEncoder()
+		encoder.outputFormatting = [.sortedKeys]
+
+		guard let data = try? encoder.encode(details), let jsonString = String(data: data, encoding: .utf8) else {
+			return nil
+		}
+
+		return try? GeneratedContent(json: jsonString)
 	}
 }
