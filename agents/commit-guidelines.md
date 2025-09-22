@@ -4,9 +4,11 @@ Keep commits small, buildable, and easy to understand.
 
 ## Core expectations
 
-- Make one logical change per commit and ensure the project still builds before and after the commit.
+- Make one logical change per commit. Humans should ensure the project still builds before and after the commit; agents must assume this has already been verified and should not attempt to build or run formatting.
 - Use Conventional Commits: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Add a scope when it clarifies the affected area. Mark breaking changes as `type(scope)!` and include a `BREAKING CHANGE:` line in the body.
 - Write an imperative subject line no longer than 72 characters and without a trailing period. Add a short body that explains why the change is needed whenever it is not obvious from the diff.
+
+- **Do not** build the project or run any code-formatting tools as part of this workflow. Assume those checks have already completed and start directly with the commit preparation and creation steps.
 
 ## Grouping rules
 
@@ -15,6 +17,8 @@ Keep commits small, buildable, and easy to understand.
 - Follow project hygiene: respect `.gitignore`, do not commit secrets or large generated artifacts, and keep lockfiles in their own `chore(deps)` commit when possible.
 
 ## Simple workflow
+
+*skip build/formatting; begin with the Git steps below.*
 
 1. Review the diff (`git status`, `git diff`) and decide which files belong in the same commit.
 2. Pick the Conventional commit type and optional scope that best describe the change.
@@ -27,7 +31,3 @@ Keep commits small, buildable, and easy to understand.
 - `feat(payments): add card brand display`
 - `fix(networking): retry 504 responses with jitter`
 - `chore(deps): update Stripe SDK`
-
-## Notes
-
-- You don't need to build the project first; you can assume it builds successfully when I give you the task to commit.
