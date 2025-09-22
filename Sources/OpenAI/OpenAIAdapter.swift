@@ -89,7 +89,7 @@ public final class OpenAIAdapter: AgentAdapter {
 		let allowedSteps = 20
 		var currentStep = 0
 
-		for _ in 0..<allowedSteps {
+		for _ in 0 ..< allowedSteps {
 			currentStep += 1
 			AgentLog.stepRequest(step: currentStep)
 
@@ -294,52 +294,48 @@ public final class OpenAIAdapter: AgentAdapter {
 			throw AgentGenerationError.unsupportedToolCalled(errorContext)
 		}
 
-                do {
-                        let output = try await callTool(tool, with: generatedContent)
+		do {
+			let output = try await callTool(tool, with: generatedContent)
 
-                        let toolOutputEntry = Transcript<Context>.ToolOutput(
-                                id: functionCall.id,
-                                callId: functionCall.callId,
-                                toolName: functionCall.name,
-                                segment: .structure(AgentTranscript.StructuredSegment(content: output)),
-                                status: transcriptStatusFromOpenAIStatus(functionCall.status),
-                        )
+			let toolOutputEntry = Transcript<Context>.ToolOutput(
+				id: functionCall.id,
+				callId: functionCall.callId,
+				toolName: functionCall.name,
+				segment: .structure(AgentTranscript.StructuredSegment(content: output)),
+				status: transcriptStatusFromOpenAIStatus(functionCall.status),
+			)
 
-                        let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
+			let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
 
-                        // Try to log as JSON if possible
-                        AgentLog.toolOutput(
-                                name: tool.name,
-                                callId: functionCall.callId,
-                                outputJSONOrText: output.generatedContent.jsonString,
-                        )
+			// Try to log as JSON if possible
+			AgentLog.toolOutput(
+				name: tool.name,
+				callId: functionCall.callId,
+				outputJSONOrText: output.generatedContent.jsonString,
+			)
 
-                        generatedTranscript.entries.append(transcriptEntry)
-                        continuation.yield(.transcript(transcriptEntry))
-                } catch let recoverableError as RecoverableToolError {
-                        let toolOutputEntry = Transcript<Context>.ToolOutput(
-                                id: functionCall.id,
-                                callId: functionCall.callId,
-                                toolName: functionCall.name,
-                                segment: .structure(
-                                        AgentTranscript.StructuredSegment(
-                                                content: recoverableError.generatedContent
-                                        )
-                                ),
-                                status: transcriptStatusFromOpenAIStatus(functionCall.status),
-                        )
+			generatedTranscript.entries.append(transcriptEntry)
+			continuation.yield(.transcript(transcriptEntry))
+		} catch let recoverableError as RecoverableToolError {
+			let toolOutputEntry = Transcript<Context>.ToolOutput(
+				id: functionCall.id,
+				callId: functionCall.callId,
+				toolName: functionCall.name,
+				segment: .structure(AgentTranscript.StructuredSegment(content: recoverableError.generatedContent)),
+				status: transcriptStatusFromOpenAIStatus(functionCall.status),
+			)
 
-                        let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
+			let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
 
-                        AgentLog.toolOutput(
-                                name: tool.name,
-                                callId: functionCall.callId,
-                                outputJSONOrText: recoverableError.generatedContent.jsonString,
-                        )
+			AgentLog.toolOutput(
+				name: tool.name,
+				callId: functionCall.callId,
+				outputJSONOrText: recoverableError.generatedContent.jsonString,
+			)
 
-                        generatedTranscript.entries.append(transcriptEntry)
-                        continuation.yield(.transcript(transcriptEntry))
-                } catch {
+			generatedTranscript.entries.append(transcriptEntry)
+			continuation.yield(.transcript(transcriptEntry))
+		} catch {
 			AgentLog.error(error, context: "tool_call_failed_\(tool.name)")
 			throw AgentToolCallError(tool: tool, underlyingError: error)
 		}
@@ -458,7 +454,9 @@ public final class OpenAIAdapter: AgentAdapter {
 	private func transcriptStatusFromOpenAIStatus<Context>(
 		_ status: Item.Reasoning.Status?,
 	) -> Transcript<Context>.Status? where Context: PromptContextSource {
-		guard let status else { return nil }
+		guard let status else {
+			return nil
+		}
 
 		switch status {
 		case .completed: return .completed
@@ -490,7 +488,9 @@ public final class OpenAIAdapter: AgentAdapter {
 	private func transcriptStatusToReasoningStatus(
 		_ status: Transcript<some PromptContextSource>.Status?,
 	) -> Item.Reasoning.Status? {
-		guard let status else { return nil }
+		guard let status else {
+			return nil
+		}
 
 		switch status {
 		case .completed: return .completed

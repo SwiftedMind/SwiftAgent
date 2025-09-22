@@ -141,50 +141,50 @@ public struct SimulationAdapter {
 
 		continuation.yield(.transcript(.toolCalls(Transcript.ToolCalls(calls: [toolCall]))))
 
-                do {
-                        let output = try await toolMock.mockOutput()
+		do {
+			let output = try await toolMock.mockOutput()
 
-                        let toolOutputEntry = Transcript<Context>.ToolOutput(
-                                id: UUID().uuidString,
-                                callId: callId,
-                                toolName: toolMock.tool.name,
-                                segment: .structure(AgentTranscript.StructuredSegment(content: output)),
-                                status: .completed,
-                        )
+			let toolOutputEntry = Transcript<Context>.ToolOutput(
+				id: UUID().uuidString,
+				callId: callId,
+				toolName: toolMock.tool.name,
+				segment: .structure(AgentTranscript.StructuredSegment(content: output)),
+				status: .completed,
+			)
 
-                        let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
+			let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
 
-                        // Try to log as JSON if possible
-                        AgentLog.toolOutput(
-                                name: toolMock.tool.name,
-                                callId: callId,
-                                outputJSONOrText: output.generatedContent.jsonString,
-                        )
+			// Try to log as JSON if possible
+			AgentLog.toolOutput(
+				name: toolMock.tool.name,
+				callId: callId,
+				outputJSONOrText: output.generatedContent.jsonString,
+			)
 
-                        continuation.yield(.transcript(transcriptEntry))
-                } catch let recoverableError as RecoverableToolError {
-                        let toolOutputEntry = Transcript<Context>.ToolOutput(
-                                id: UUID().uuidString,
-                                callId: callId,
-                                toolName: toolMock.tool.name,
-                                segment: .structure(
-                                        AgentTranscript.StructuredSegment(
-                                                content: recoverableError.generatedContent
-                                        )
-                                ),
-                                status: .completed,
-                        )
+			continuation.yield(.transcript(transcriptEntry))
+		} catch let recoverableError as RecoverableToolError {
+			let toolOutputEntry = Transcript<Context>.ToolOutput(
+				id: UUID().uuidString,
+				callId: callId,
+				toolName: toolMock.tool.name,
+				segment: .structure(
+					AgentTranscript.StructuredSegment(
+						content: recoverableError.generatedContent
+					)
+				),
+				status: .completed,
+			)
 
-                        let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
+			let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
 
-                        AgentLog.toolOutput(
-                                name: toolMock.tool.name,
-                                callId: callId,
-                                outputJSONOrText: recoverableError.generatedContent.jsonString,
-                        )
+			AgentLog.toolOutput(
+				name: toolMock.tool.name,
+				callId: callId,
+				outputJSONOrText: recoverableError.generatedContent.jsonString,
+			)
 
-                        continuation.yield(.transcript(transcriptEntry))
-                } catch {
+			continuation.yield(.transcript(transcriptEntry))
+		} catch {
 			AgentLog.error(error, context: "tool_call_failed_\(toolMock.tool.name)")
 			throw AgentToolCallError(tool: toolMock.tool, underlyingError: error)
 		}
