@@ -131,6 +131,30 @@ struct WeatherTool: AgentTool {
 }
 ```
 
+### Handling Recoverable Tool Errors
+
+If a tool call fails in a way the agent can correct (such as an unknown identifier or other validation issue), throw a `ToolRunProblem`. The OpenAI adapter forwards the `@Generable` content you provide to the model without aborting the loop so the agent can adjust its next action.
+
+```swift
+struct CustomerLookupTool: AgentTool {
+  func call(arguments: Arguments) async throws -> Output {
+    guard let customer = try await directory.loadCustomer(id: arguments.customerId) else {
+      throw ToolRunProblem(
+        reason: "Customer not found",
+        content: [
+          "issue": "customerNotFound",
+          "customerId": arguments.customerId
+        ]
+      )
+    }
+
+    return Output(summary: customer.summary)
+  }
+}
+```
+
+Reserve `ToolRunError` (`Sources/SwiftAgent/Agent/ToolRunError.swift`) for fatal situations the agent cannot recover from—such as missing credentials or offline dependencies. Throwing `ToolRunError` stops the agent loop immediately so you can surface the failure to the user.
+
 ## 📖 Advanced Usage
 
 ### Prompt Context

@@ -39,9 +39,12 @@
   }
   ```
 
+- **Recoverable Tool Problems**: Added a `ToolRunProblem` error type (`Sources/SwiftAgent/Agent/ToolRunProblem.swift`) so tools can return a recoverable issue back to the agent without stopping the loop; the OpenAI adapter (`Sources/OpenAI/OpenAIAdapter.swift`) now reads these problem objects to decide when a tool should retry or provide alternate output.
+
 ### Enhanced
 
 - **Code Cleanup**: Removed unused `Array<PromptContextLinkPreview>` extension that was adding unnecessary complexity to the prompt context API surface.
+- **Tool Error Type Rename**: Renamed the core tool error type to `ToolRunError` (`Sources/SwiftAgent/Agent/ToolRunError.swift`) so recoverable problems stay separate from fatal failures and the agent loop only stops when necessary.
 
 ### Fixed
 
