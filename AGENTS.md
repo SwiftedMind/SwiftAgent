@@ -6,21 +6,30 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
 
 ## General Instructions
 
+- **IMPORTANT: When making changes to the code, ALWAYS build the project to check for compilation errors**
+- **IMPORTANT: When committing changes to the repository, always follow the commit guidelines**
+- **IMPORTANT: Whenever you are done with editing files, ALWAYS run `swiftformat --config ".swiftformat" {file1} {file2} ...` at the end to format all the files you have added or modified!**
+
 - Always follow the best practices of naming things in Swift
 - ALWAYS use clear names for types and variables, don't just use single letters or abbreviations. Clarity is key!
-- Use clean formatting
-- Always make use of todo lists to keep track of your plan and work, unless the task is trivial or very quick
-- When making changes to the code, ALWAYS build the SDK to check for compilation errors
-- When making changes to code used in the app, always consider if any of the @guidelines/ files have to be updated
 - Use 2 spaces for indentation and tabs
 - In SwiftUI views, always place private properties on top of the non-private ones, and the non-private ones directly above the initializer
-- Whenever you are done with editing files, ALWAYS run `swiftformat --config "{project_root}/.swiftformat" {file1} {file2} ...` at the end to format all the files you have added or modified!
 
 ## Resources
 
-- @guidelines/modern-swift.md - Guidelines on modern SwiftUI and how to build things with it
-- @guidelines/swift-testing.md - An overview of the Swift Testing framework
-- @guidelines/tests.md - Guidelines on writing unit tests for the SDK
+- ALWAYS look through the available resources below, read the files that are relevant to your task and follow their instructions and guidelines.
+
+### Internal Resources
+
+- agents/commit-guidelines.md - Guidelines for committing changes to the repository
+- agents/changelog-guidelines.md - Guidelines for maintaining the changelog
+- agents/modern-swift.md - Guidelines on modern SwiftUI and how to build things with it
+- agents/swift-testing.md - An overview of the Swift Testing framework
+- agents/tests.md - Guidelines on writing unit tests for the SDK
+
+### External Tools
+
+- `sosumi` tool - Access to Apple's documentation for all Swift and SwiftUI APIs, guidelines and best practices. Use this to complement or fix/enhance your potentially outdated knowledge of these APIs.
 
 ## Development Commands
 
