@@ -29,15 +29,6 @@
       }
     },
     {
-      "identity" : "swift-openai-responses",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SwiftedMind/swift-openai-responses",
-      "state" : {
-        "branch" : "main",
-        "revision" : "fd6c3f6a0909266bb50e6d16cec3a9fbf79245d7"
-      }
-    },
-    {
       "identity" : "swift-syntax",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swiftlang/swift-syntax.git",
