@@ -3,18 +3,19 @@
 import Foundation
 import FoundationModels
 
-public struct AgentToolCallError: Error, LocalizedError {
+/// An error that indicates a tool run failed and cannot be recovered automatically.
+public struct ToolRunError: Error, LocalizedError {
 	/// The tool that produced the error.
 	public var tool: any FoundationModels.Tool
 
-	/// The underlying error that was thrown during a tool call.
+	/// The underlying error that was thrown during the tool run.
 	public var underlyingError: any Error
 
-	/// Creates a tool call error
+	/// Creates an unrecoverable tool run error.
 	///
 	/// - Parameters:
 	///   - tool: The tool that produced the error.
-	///   - underlyingError: The underlying error.
+	///   - underlyingError: The underlying error thrown by the tool run.
 	public init(tool: any Tool, underlyingError: any Error) {
 		self.tool = tool
 		self.underlyingError = underlyingError
@@ -23,7 +24,8 @@ public struct AgentToolCallError: Error, LocalizedError {
 	/// A string representation of the error description.
 	public var errorDescription: String? {
 		let toolName = String(describing: type(of: tool))
-		let underlyingDescription = (underlyingError as? LocalizedError)?.errorDescription ?? underlyingError.localizedDescription
+		let underlyingDescription = (underlyingError as? LocalizedError)?.errorDescription ?? underlyingError
+			.localizedDescription
 		return "Tool '\(toolName)' failed: \(underlyingDescription)"
 	}
 }

@@ -162,16 +162,12 @@ public struct SimulationAdapter {
 			)
 
 			continuation.yield(.transcript(transcriptEntry))
-		} catch let recoverableError as RecoverableToolError {
+		} catch let toolRunProblem as ToolRunProblem {
 			let toolOutputEntry = Transcript<Context>.ToolOutput(
 				id: UUID().uuidString,
 				callId: callId,
 				toolName: toolMock.tool.name,
-				segment: .structure(
-					AgentTranscript.StructuredSegment(
-						content: recoverableError.generatedContent
-					)
-				),
+				segment: .structure(AgentTranscript.StructuredSegment(content: toolRunProblem.generatedContent)),
 				status: .completed,
 			)
 
@@ -180,13 +176,13 @@ public struct SimulationAdapter {
 			AgentLog.toolOutput(
 				name: toolMock.tool.name,
 				callId: callId,
-				outputJSONOrText: recoverableError.generatedContent.jsonString,
+				outputJSONOrText: toolRunProblem.generatedContent.jsonString,
 			)
 
 			continuation.yield(.transcript(transcriptEntry))
 		} catch {
 			AgentLog.error(error, context: "tool_call_failed_\(toolMock.tool.name)")
-			throw AgentToolCallError(tool: toolMock.tool, underlyingError: error)
+			throw ToolRunError(tool: toolMock.tool, underlyingError: error)
 		}
 	}
 

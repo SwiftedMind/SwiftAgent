@@ -3,21 +3,21 @@
 import Foundation
 import FoundationModels
 
-/// An error that indicates a tool call produced a recoverable failure.
+/// An error that indicates a tool run produced a recoverable problem.
 ///
 /// Throw this error from a tool's ``AgentTool/call(arguments:)`` implementation when the
 /// invocation cannot be completed successfully but the agent should be able to recover by
 /// inspecting the returned payload and taking another action. Instead of aborting the agent run,
 /// SwiftAgent will forward the provided ``GeneratedContent`` back to the model as the tool output.
-public struct RecoverableToolError: Error, LocalizedError, Sendable {
+public struct ToolRunProblem: Error, LocalizedError, Sendable {
 	/// A machine-readable payload describing the failure. This content is forwarded to the model
 	/// exactly like a successful tool output, allowing the model to reason about the failure.
 	public let generatedContent: GeneratedContent
 
-	/// A human-readable description of the recoverable failure.
+	/// A human-readable description of the recoverable problem.
 	public let reason: String?
 
-	/// Creates a recoverable tool error from arbitrary generated content.
+	/// Creates a recoverable tool problem from arbitrary generated content.
 	///
 	/// - Parameters:
 	///   - reason: Optional description explaining the failure. Defaults to `nil`.
@@ -27,7 +27,7 @@ public struct RecoverableToolError: Error, LocalizedError, Sendable {
 		self.reason = reason
 	}
 
-	/// Creates a recoverable tool error from pre-built generated content.
+	/// Creates a recoverable tool problem from pre-built generated content.
 	///
 	/// - Parameters:
 	///   - reason: Optional description explaining the failure. Defaults to `nil`.
@@ -38,6 +38,6 @@ public struct RecoverableToolError: Error, LocalizedError, Sendable {
 	}
 
 	public var errorDescription: String? {
-		reason ?? "Recoverable tool error"
+		reason ?? "Recoverable tool problem"
 	}
 }

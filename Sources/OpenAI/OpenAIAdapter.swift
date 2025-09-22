@@ -89,7 +89,7 @@ public final class OpenAIAdapter: AgentAdapter {
 		let allowedSteps = 20
 		var currentStep = 0
 
-		for _ in 0 ..< allowedSteps {
+		for _ in 0..<allowedSteps {
 			currentStep += 1
 			AgentLog.stepRequest(step: currentStep)
 
@@ -289,7 +289,10 @@ public final class OpenAIAdapter: AgentAdapter {
 		continuation.yield(.transcript(.toolCalls(Transcript.ToolCalls(calls: [toolCall]))))
 
 		guard let tool = tools.first(where: { $0.name == functionCall.name }) else {
-			AgentLog.error(AgentGenerationError.unsupportedToolCalled(.init(toolName: functionCall.name)), context: "tool_not_found")
+			AgentLog.error(
+				AgentGenerationError.unsupportedToolCalled(.init(toolName: functionCall.name)),
+				context: "tool_not_found",
+			)
 			let errorContext = AgentGenerationError.UnsupportedToolCalledContext(toolName: functionCall.name)
 			throw AgentGenerationError.unsupportedToolCalled(errorContext)
 		}
@@ -316,12 +319,12 @@ public final class OpenAIAdapter: AgentAdapter {
 
 			generatedTranscript.entries.append(transcriptEntry)
 			continuation.yield(.transcript(transcriptEntry))
-		} catch let recoverableError as RecoverableToolError {
+		} catch let toolRunProblem as ToolRunProblem {
 			let toolOutputEntry = Transcript<Context>.ToolOutput(
 				id: functionCall.id,
 				callId: functionCall.callId,
 				toolName: functionCall.name,
-				segment: .structure(AgentTranscript.StructuredSegment(content: recoverableError.generatedContent)),
+				segment: .structure(AgentTranscript.StructuredSegment(content: toolRunProblem.generatedContent)),
 				status: transcriptStatusFromOpenAIStatus(functionCall.status),
 			)
 
@@ -330,14 +333,14 @@ public final class OpenAIAdapter: AgentAdapter {
 			AgentLog.toolOutput(
 				name: tool.name,
 				callId: functionCall.callId,
-				outputJSONOrText: recoverableError.generatedContent.jsonString,
+				outputJSONOrText: toolRunProblem.generatedContent.jsonString,
 			)
 
 			generatedTranscript.entries.append(transcriptEntry)
 			continuation.yield(.transcript(transcriptEntry))
 		} catch {
 			AgentLog.error(error, context: "tool_call_failed_\(tool.name)")
-			throw AgentToolCallError(tool: tool, underlyingError: error)
+			throw ToolRunError(tool: tool, underlyingError: error)
 		}
 	}
 
