@@ -2,6 +2,7 @@
 
 import Foundation
 import FoundationModels
+import Internal
 
 /// A thin wrapper around Apple's `FoundationModels.Tool` protocol that provides essential functionality
 /// for SwiftAgent's tool calling system.
@@ -48,7 +49,9 @@ import FoundationModels
 ///
 /// - Note: The ``ResolvedToolRun`` associated type allows you to return any type that represents
 ///   the resolved tool execution, enabling seamless integration with your application's domain models.
-public protocol AgentTool<ResolvedToolRun>: FoundationModels.Tool, Encodable where Output: ConvertibleToGeneratedContent, Output: ConvertibleFromGeneratedContent {
+public protocol AgentTool<ResolvedToolRun>: FoundationModels.Tool,
+	Encodable where Output: ConvertibleToGeneratedContent,
+	Output: ConvertibleFromGeneratedContent {
 	/// The type returned when this tool is resolved.
 	///
 	/// Defaults to `Void` for tools that don't need custom resolution logic.
@@ -96,7 +99,21 @@ public extension AgentTool {
 	/// - Returns: A typed AgentToolRun instance
 	/// - Throws: Conversion errors if content cannot be parsed
 	private func run(for arguments: GeneratedContent, output: GeneratedContent?) throws -> AgentToolRun<Self> {
-		try AgentToolRun(arguments: self.arguments(from: arguments), output: self.output(from: output))
+		let parsedArguments = try self.arguments(from: arguments)
+
+		guard let output else {
+			return AgentToolRun(arguments: parsedArguments)
+		}
+
+		do {
+			return try AgentToolRun(arguments: parsedArguments, output: self.output(from: output))
+		} catch {
+			guard let problem = problem(from: output) else {
+				throw error
+			}
+
+			return AgentToolRun(arguments: parsedArguments, problem: problem)
+		}
 	}
 
 	/// Converts raw GeneratedContent to strongly typed Arguments.
@@ -119,6 +136,20 @@ public extension AgentTool {
 		}
 
 		return try toolType.Output(generatedContent)
+	}
+
+	private func problem(from generatedContent: GeneratedContent) -> AgentToolRun<Self>.Problem? {
+		guard
+			let problemReport = try? ProblemReport(generatedContent),
+			problemReport.error else {
+			return nil
+		}
+
+		return AgentToolRun<Self>.Problem(
+			reason: problemReport.reason,
+			json: generatedContent.jsonString,
+			values: GeneratedContentFallbackParser.values(from: generatedContent),
+		)
 	}
 }
 
@@ -155,6 +186,29 @@ public extension AgentTool where ResolvedToolRun == Void {
 /// }
 /// ```
 public struct AgentToolRun<Tool: AgentTool> {
+	/// Recoverable problem information returned when the tool output cannot be decoded into `Tool.Output`.
+	public struct Problem: Sendable, Equatable, Hashable {
+		/// The human-readable reason describing the problem.
+		public let reason: String
+
+		/// The raw JSON string returned by the tool.
+		public let json: String
+
+		/// A flattened representation of the payload for quick inspection.
+		public let values: [String: String]
+
+		public init(reason: String, json: String, values: [String: String]) {
+			self.reason = reason
+			self.json = json
+			self.values = values
+		}
+
+		/// Generates the original `GeneratedContent` value, when needed.
+		public var generatedContent: GeneratedContent? {
+			try? GeneratedContent(json: json)
+		}
+	}
+
 	/// The strongly typed inputs for this invocation.
 	///
 	/// These arguments are automatically parsed from the AI model's JSON tool call
@@ -167,14 +221,36 @@ public struct AgentToolRun<Tool: AgentTool> {
 	/// no corresponding output is found in the conversation transcript.
 	public var output: Tool.Output?
 
-	/// Creates a new tool run with the given arguments and optional output.
+	/// Contains the recoverable problem information when decoding `Tool.Output` fails.
+	///
+	/// This commonly occurs when a tool throws ``ToolRunProblem`` and the adapter forwards
+	/// arbitrary ``GeneratedContent``. For example, a custom `@Generable` payload, that cannot be
+	/// represented by the tool's declared output type.
+	public var problem: Problem?
+
+	/// Indicates whether the tool run has produced a typed output.
+	public var hasResolvedOutput: Bool { output != nil }
+
+	/// Indicates whether a problem payload is available.
+	public var hasProblem: Bool { problem != nil }
+
+	/// Indicates that the tool run is still awaiting an output.
+	public var isAwaitingOutput: Bool { output == nil && problem == nil }
+
+	/// Creates a new tool run with the given arguments, optional output, and optional problem payload.
 	///
 	/// - Parameters:
 	///   - arguments: The parsed tool arguments
 	///   - output: The tool's output, if available
-	public init(arguments: Tool.Arguments, output: Tool.Output? = nil) {
+	///   - problem: The problem payload provided when `Tool.Output` decoding fails
+	public init(
+		arguments: Tool.Arguments,
+		output: Tool.Output? = nil,
+		problem: Problem? = nil,
+	) {
 		self.arguments = arguments
 		self.output = output
+		self.problem = problem
 	}
 }
 

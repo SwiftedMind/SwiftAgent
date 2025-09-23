@@ -61,7 +61,7 @@ public struct ToolRunProblem: Error, LocalizedError, Sendable {
 }
 
 @Generable
-private struct ProblemReport {
+package struct ProblemReport {
 	var error: Bool = true
 	var reason: String
 	var details: GeneratedContent?
