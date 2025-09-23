@@ -8,9 +8,8 @@ package enum ProblemReportDetailsExtractor {
 	///
 	/// The extractor keeps recoverable payloads accessible when strongly typed decoding fails.
 	package static func values(from generatedContent: GeneratedContent) -> [String: String] {
-		guard
-			let jsonData = generatedContent.jsonString.data(using: .utf8),
-			let jsonObject = try? JSONSerialization.jsonObject(with: jsonData) else {
+		guard let jsonData = generatedContent.jsonString.data(using: .utf8),
+		      let jsonObject = try? JSONSerialization.jsonObject(with: jsonData) else {
 			return ["value": generatedContent.jsonString]
 		}
 
@@ -48,15 +47,13 @@ package enum ProblemReportDetailsExtractor {
 			return numberValue.stringValue
 		}
 
-		if
-			let dictionaryValue = value as? [String: Any],
-			let jsonStringValue = serializedJSONString(fromJSONObject: dictionaryValue) {
+		if let dictionaryValue = value as? [String: Any],
+		   let jsonStringValue = serializedJSONString(fromJSONObject: dictionaryValue) {
 			return jsonStringValue
 		}
 
-		if
-			let arrayValue = value as? [Any],
-			let jsonStringValue = serializedJSONString(fromJSONObject: arrayValue) {
+		if let arrayValue = value as? [Any],
+		   let jsonStringValue = serializedJSONString(fromJSONObject: arrayValue) {
 			return jsonStringValue
 		}
 
@@ -64,9 +61,8 @@ package enum ProblemReportDetailsExtractor {
 	}
 
 	private static func serializedJSONString(fromJSONObject jsonObject: Any) -> String? {
-		guard
-			JSONSerialization.isValidJSONObject(jsonObject),
-			let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.sortedKeys]) else {
+		guard JSONSerialization.isValidJSONObject(jsonObject),
+		      let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [.sortedKeys]) else {
 			return nil
 		}
 

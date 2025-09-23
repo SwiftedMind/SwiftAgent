@@ -148,7 +148,7 @@ public extension AgentTool {
 		return AgentToolRun<Self>.Problem(
 			reason: problemReport.reason,
 			json: generatedContent.jsonString,
-			details: ProblemReportDetailsExtractor.values(from: generatedContent),
+			details: ProblemReportDetailsExtractor.values(from: generatedContent)
 		)
 	}
 }
@@ -246,7 +246,7 @@ public struct AgentToolRun<Tool: AgentTool> {
 	public init(
 		arguments: Tool.Arguments,
 		output: Tool.Output? = nil,
-		problem: Problem? = nil,
+		problem: Problem? = nil
 	) {
 		self.arguments = arguments
 		self.output = output
