@@ -11,7 +11,7 @@ let package = Package(
 		.library(name: "OpenAISession", targets: ["OpenAISession", "SimulatedSession", "SwiftAgent"]),
 	],
 	dependencies: [
-		.package(url: "https://github.com/SwiftedMind/swift-openai-responses", branch: "main"),
+		.package(url: "https://github.com/MacPaw/OpenAI.git", branch: "main"),
 	],
 	targets: [
 		.target(
@@ -25,7 +25,7 @@ let package = Package(
 			name: "OpenAISession",
 			dependencies: [
 				"SwiftAgent",
-				.product(name: "OpenAI", package: "swift-openai-responses"),
+				"OpenAI",
 			],
 			path: "Sources/OpenAI",
 		),
@@ -34,7 +34,7 @@ let package = Package(
 			dependencies: [
 				"SwiftAgent",
 				"Internal",
-				.product(name: "OpenAI", package: "swift-openai-responses"),
+				"OpenAI",
 			],
 			path: "Sources/Simulation",
 		),

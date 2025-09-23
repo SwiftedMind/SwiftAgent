@@ -8,7 +8,7 @@ import OSLog
 import SwiftAgent
 
 public final class OpenAIAdapter: AgentAdapter {
-	public typealias Model = OpenAI.Model
+	public typealias Model = OpenAIModel
 	public typealias Transcript<Context: PromptContextSource> = AgentTranscript<Context>
 	public typealias ConfigurationError = OpenAIGenerationOptionsError
 
@@ -93,7 +93,7 @@ public final class OpenAIAdapter: AgentAdapter {
 			currentStep += 1
 			AgentLog.stepRequest(step: currentStep)
 
-			let request = request(
+			let request = try request(
 				including: Transcript<Context>(entries: transcript.entries + generatedTranscript.entries),
 				generating: type,
 				using: model,
@@ -109,7 +109,7 @@ public final class OpenAIAdapter: AgentAdapter {
 				queryItems: nil,
 				headers: nil,
 				body: request,
-				responseType: OpenAI.Response.self,
+				responseType: ResponseObject.self,
 			)
 
 			// Emit token usage if available
@@ -140,8 +140,8 @@ public final class OpenAIAdapter: AgentAdapter {
 				)
 			}
 
-			let outputFunctionCalls = response.output.compactMap { output -> Item.FunctionCall? in
-				guard case let .functionCall(functionCall) = output else { return nil }
+			let outputFunctionCalls = response.output.compactMap { output -> Components.Schemas.FunctionToolCall? in
+				guard case let .functionToolCall(functionCall) = output else { return nil }
 
 				return functionCall
 			}
@@ -155,20 +155,20 @@ public final class OpenAIAdapter: AgentAdapter {
 	}
 
 	private func handleOutput<Context>(
-		_ output: Item.Output,
+		_ output: OutputItem,
 		type: (some Generable).Type,
 		generatedTranscript: inout Transcript<Context>,
 		continuation: AsyncThrowingStream<AgentUpdate<Context>, any Error>.Continuation,
 	) async throws where Context: PromptContextSource {
 		switch output {
-		case let .message(message):
+		case let .outputMessage(message):
 			try await handleMessage(
 				message,
 				type: type,
 				generatedTranscript: &generatedTranscript,
 				continuation: continuation,
 			)
-		case let .functionCall(functionCall):
+		case let .functionToolCall(functionCall):
 			try await handleFunctionCall(
 				functionCall,
 				generatedTranscript: &generatedTranscript,
@@ -186,7 +186,7 @@ public final class OpenAIAdapter: AgentAdapter {
 	}
 
 	private func handleMessage<Context>(
-		_ message: Message.Output,
+		_ message: Components.Schemas.OutputMessage,
 		type: (some Generable).Type,
 		generatedTranscript: inout Transcript<Context>,
 		continuation: AsyncThrowingStream<AgentUpdate<Context>, any Error>.Continuation,
@@ -208,71 +208,140 @@ public final class OpenAIAdapter: AgentAdapter {
 	}
 
 	private func processStringResponse<Context>(
-		_ message: Message.Output,
+		_ message: Components.Schemas.OutputMessage,
 		generatedTranscript: inout Transcript<Context>,
 		continuation: AsyncThrowingStream<AgentUpdate<Context>, any Error>.Continuation,
 	) async throws where Context: PromptContextSource {
+		let expectedTypeName = String(describing: String.self)
+		let status: Transcript<Context>.Status = transcriptStatusFromOpenAIStatus(message.status)
+
+		var textFragments: [String] = []
+		var refusalMessage: String?
+
+		for content in message.content {
+			switch content.extractedTextSegment {
+			case let .text(text):
+				textFragments.append(text)
+			case let .refusal(reason):
+				refusalMessage = reason
+			case .none:
+				break
+			}
+		}
+
+		if let refusalMessage {
+			let refusalSegments = [Transcript<Context>.Segment.text(Transcript.TextSegment(content: refusalMessage))]
+			let refusalResponse = Transcript<Context>.Response(
+				id: message.id,
+				segments: refusalSegments,
+				status: status,
+			)
+
+			AgentLog.outputMessage(text: refusalMessage, status: String(describing: message.status))
+
+			generatedTranscript.append(.response(refusalResponse))
+			continuation.yield(.transcript(.response(refusalResponse)))
+
+			let errorContext = AgentGenerationError.ContentRefusalContext(expectedType: expectedTypeName, reason: refusalMessage)
+			throw AgentGenerationError.contentRefusal(errorContext)
+		}
+
+		guard !textFragments.isEmpty else {
+			let errorContext = AgentGenerationError.EmptyMessageContentContext(expectedType: expectedTypeName)
+			throw AgentGenerationError.emptyMessageContent(errorContext)
+		}
+
+		let responseSegments = textFragments.map { fragment in
+			Transcript<Context>.Segment.text(Transcript.TextSegment(content: fragment))
+		}
 		let response = Transcript<Context>.Response(
 			id: message.id,
-			segments: message.content.compactMap(\.asText).map { .text(Transcript.TextSegment(content: $0)) },
-			status: transcriptStatusFromOpenAIStatus(message.status),
+			segments: responseSegments,
+			status: status,
 		)
 
-		let text = message.content.compactMap(\.asText).joined(separator: "\n")
-		AgentLog.outputMessage(text: text, status: String(describing: message.status))
+		let joinedText = textFragments.joined(separator: "\n")
+		AgentLog.outputMessage(text: joinedText, status: String(describing: message.status))
 
 		generatedTranscript.append(.response(response))
 		continuation.yield(.transcript(.response(response)))
 	}
 
 	private func processStructuredResponse<Context>(
-		_ message: Message.Output,
+		_ message: Components.Schemas.OutputMessage,
 		type: (some Generable).Type,
 		generatedTranscript: inout Transcript<Context>,
 		continuation: AsyncThrowingStream<AgentUpdate<Context>, any Error>.Continuation,
 	) async throws where Context: PromptContextSource {
-		guard let content = message.content.first else {
-			let errorContext = AgentGenerationError.EmptyMessageContentContext(expectedType: String(describing: type))
+		let expectedTypeName = String(describing: type)
+		let status: Transcript<Context>.Status = transcriptStatusFromOpenAIStatus(message.status)
+
+		var aggregatedFragments: [String] = []
+		var refusalMessage: String?
+
+		for content in message.content {
+			switch content {
+			case let .OutputTextContent(textContent):
+				aggregatedFragments.append(textContent.text)
+			case let .RefusalContent(refusal):
+				refusalMessage = refusal.refusal
+			}
+		}
+
+		if let refusalMessage {
+			let refusalResponse = Transcript<Context>.Response(
+				id: message.id,
+				segments: [.text(Transcript.TextSegment(content: refusalMessage))],
+				status: status,
+			)
+
+			AgentLog.outputMessage(text: refusalMessage, status: String(describing: message.status))
+
+			generatedTranscript.append(.response(refusalResponse))
+			continuation.yield(.transcript(.response(refusalResponse)))
+
+			let errorContext = AgentGenerationError.ContentRefusalContext(expectedType: expectedTypeName, reason: refusalMessage)
+			throw AgentGenerationError.contentRefusal(errorContext)
+		}
+
+		guard !aggregatedFragments.isEmpty else {
+			let errorContext = AgentGenerationError.EmptyMessageContentContext(expectedType: expectedTypeName)
 			throw AgentGenerationError.emptyMessageContent(errorContext)
 		}
 
-		switch content {
-		case let .text(text, _, _):
-			do {
-				let generatedContent = try GeneratedContent(json: text)
-				let response = Transcript<Context>.Response(
-					id: message.id,
-					segments: [.structure(Transcript.StructuredSegment(content: generatedContent))],
-					status: transcriptStatusFromOpenAIStatus(message.status),
-				)
+		let combinedJSON = aggregatedFragments.joined()
 
-				AgentLog.outputStructured(json: text, status: String(describing: message.status))
+		do {
+			let generatedContent = try GeneratedContent(json: combinedJSON)
+			let response = Transcript<Context>.Response(
+				id: message.id,
+				segments: [.structure(Transcript.StructuredSegment(content: generatedContent))],
+				status: status,
+			)
 
-				generatedTranscript.append(.response(response))
-				continuation.yield(.transcript(.response(response)))
-			} catch {
-				AgentLog.error(error, context: "structured_response_parsing")
-				let errorContext = AgentGenerationError.StructuredContentParsingFailedContext(
-					rawContent: text,
-					underlyingError: error,
-				)
-				throw AgentGenerationError.structuredContentParsingFailed(errorContext)
-			}
-		case .refusal:
-			let errorContext = AgentGenerationError.ContentRefusalContext(expectedType: String(describing: type))
-			throw AgentGenerationError.contentRefusal(errorContext)
+			AgentLog.outputStructured(json: combinedJSON, status: String(describing: message.status))
+
+			generatedTranscript.append(.response(response))
+			continuation.yield(.transcript(.response(response)))
+		} catch {
+			AgentLog.error(error, context: "structured_response_parsing")
+			let errorContext = AgentGenerationError.StructuredContentParsingFailedContext(
+				rawContent: combinedJSON,
+				underlyingError: error,
+			)
+			throw AgentGenerationError.structuredContentParsingFailed(errorContext)
 		}
 	}
 
 	private func handleFunctionCall<Context>(
-		_ functionCall: Item.FunctionCall,
+		_ functionCall: Components.Schemas.FunctionToolCall,
 		generatedTranscript: inout Transcript<Context>,
 		continuation: AsyncThrowingStream<AgentUpdate<Context>, any Error>.Continuation,
 	) async throws where Context: PromptContextSource {
 		let generatedContent = try GeneratedContent(json: functionCall.arguments)
 
 		let toolCall = Transcript<Context>.ToolCall(
-			id: functionCall.id,
+			id: functionCall.id ?? UUID().uuidString,
 			callId: functionCall.callId,
 			toolName: functionCall.name,
 			arguments: generatedContent,
@@ -301,7 +370,7 @@ public final class OpenAIAdapter: AgentAdapter {
 			let output = try await callTool(tool, with: generatedContent)
 
 			let toolOutputEntry = Transcript<Context>.ToolOutput(
-				id: functionCall.id,
+				id: functionCall.id ?? UUID().uuidString,
 				callId: functionCall.callId,
 				toolName: functionCall.name,
 				segment: .structure(AgentTranscript.StructuredSegment(content: output)),
@@ -321,7 +390,7 @@ public final class OpenAIAdapter: AgentAdapter {
 			continuation.yield(.transcript(transcriptEntry))
 		} catch let toolRunProblem as ToolRunProblem {
 			let toolOutputEntry = Transcript<Context>.ToolOutput(
-				id: functionCall.id,
+				id: functionCall.id ?? UUID().uuidString,
 				callId: functionCall.callId,
 				toolName: functionCall.name,
 				segment: .structure(AgentTranscript.StructuredSegment(content: toolRunProblem.generatedContent)),
@@ -345,15 +414,12 @@ public final class OpenAIAdapter: AgentAdapter {
 	}
 
 	private func handleReasoning<Context>(
-		_ reasoning: Item.Reasoning,
+		_ reasoning: Components.Schemas.ReasoningItem,
 		generatedTranscript: inout Transcript<Context>,
 		continuation: AsyncThrowingStream<AgentUpdate<Context>, any Error>.Continuation,
 	) async throws where Context: PromptContextSource {
 		let summary = reasoning.summary.map { summary in
-			switch summary {
-			case let .text(text):
-				text
-			}
+			summary.text
 		}
 
 		let entryData = Transcript<Context>.Reasoning(
@@ -383,35 +449,34 @@ public final class OpenAIAdapter: AgentAdapter {
 		generating type: (some Generable).Type,
 		using model: Model,
 		options: GenerationOptions,
-	) -> OpenAI.Request {
-		let textConfig: TextConfig? = {
+	) throws -> CreateModelResponseQuery {
+		let textConfig: CreateModelResponseQuery.TextResponseConfigurationOptions? = {
 			if type == String.self {
 				return nil
 			}
 
-			let format = TextConfig.Format.generationSchema(
-				schema: type.generationSchema,
+			let config = CreateModelResponseQuery.TextResponseConfigurationOptions.OutputFormat.StructuredOutputsConfig(
 				name: snakeCaseName(for: type),
+				schema: .dynamicJsonSchema(type.generationSchema),
+				description: nil,
 				strict: false,
 			)
 
-			return TextConfig(format: format)
+			return CreateModelResponseQuery.TextResponseConfigurationOptions.jsonSchema(config)
 		}()
 
-		return Request(
-			model: model,
-			input: .list(transcriptToListItems(transcript)),
-			background: nil,
+		return try CreateModelResponseQuery(
+			input: .inputItemList(transcriptToListItems(transcript)),
+			model: model.rawValue,
 			include: options.include,
+			background: nil,
 			instructions: instructions,
 			maxOutputTokens: options.maxOutputTokens,
 			metadata: nil,
 			parallelToolCalls: options.allowParallelToolCalls,
 			previousResponseId: nil,
 			prompt: nil,
-			promptCacheKey: options.promptCacheKey,
 			reasoning: options.reasoning,
-			safetyIdentifier: options.safetyIdentifier,
 			serviceTier: options.serviceTier,
 			store: false,
 			stream: nil,
@@ -419,23 +484,25 @@ public final class OpenAIAdapter: AgentAdapter {
 			text: textConfig,
 			toolChoice: options.toolChoice,
 			tools: tools.map { tool in
-				.function(
-					name: tool.name,
-					description: tool.description,
-					parameters: tool.parameters,
-					strict: false, // Important because GenerationSchema doesn't produce a compliant strict schema for OpenAI!
+				try .functionTool(
+					FunctionTool(
+						name: tool.name,
+						description: tool.description,
+						parameters: tool.parameters.asJSONSchema(),
+						strict: false, // GenerationSchema doesn't produce a compliant strict schema for OpenAI
+					),
 				)
 			},
-			topLogprobs: options.topLogProbs,
 			topP: options.topP,
 			truncation: options.truncation,
+			user: options.safetyIdentifier,
 		)
 	}
 
 	// MARK: - Helpers
 
 	private func transcriptStatusFromOpenAIStatus<Context>(
-		_ status: Message.Status,
+		_ status: Components.Schemas.OutputMessage.StatusPayload,
 	) -> Transcript<Context>.Status where Context: PromptContextSource {
 		switch status {
 		case .completed: .completed
@@ -445,17 +512,21 @@ public final class OpenAIAdapter: AgentAdapter {
 	}
 
 	private func transcriptStatusFromOpenAIStatus<Context>(
-		_ status: Item.FunctionCall.Status,
-	) -> Transcript<Context>.Status where Context: PromptContextSource {
+		_ status: Components.Schemas.FunctionToolCall.StatusPayload?,
+	) -> Transcript<Context>.Status? where Context: PromptContextSource {
+		guard let status else {
+			return nil
+		}
+
 		switch status {
-		case .completed: .completed
-		case .incomplete: .incomplete
-		case .inProgress: .inProgress
+		case .completed: return .completed
+		case .incomplete: return .incomplete
+		case .inProgress: return .inProgress
 		}
 	}
 
 	private func transcriptStatusFromOpenAIStatus<Context>(
-		_ status: Item.Reasoning.Status?,
+		_ status: Components.Schemas.ReasoningItem.StatusPayload?,
 	) -> Transcript<Context>.Status? where Context: PromptContextSource {
 		guard let status else {
 			return nil
@@ -470,7 +541,7 @@ public final class OpenAIAdapter: AgentAdapter {
 
 	private func transcriptStatusToMessageStatus(
 		_ status: Transcript<some PromptContextSource>.Status,
-	) -> Message.Status {
+	) -> Components.Schemas.OutputMessage.StatusPayload {
 		switch status {
 		case .completed: .completed
 		case .incomplete: .incomplete
@@ -479,18 +550,8 @@ public final class OpenAIAdapter: AgentAdapter {
 	}
 
 	private func transcriptStatusToFunctionCallStatus(
-		_ status: Transcript<some PromptContextSource>.Status,
-	) -> Item.FunctionCall.Status {
-		switch status {
-		case .completed: .completed
-		case .incomplete: .incomplete
-		case .inProgress: .inProgress
-		}
-	}
-
-	private func transcriptStatusToReasoningStatus(
 		_ status: Transcript<some PromptContextSource>.Status?,
-	) -> Item.Reasoning.Status? {
+	) -> Components.Schemas.FunctionToolCall.StatusPayload? {
 		guard let status else {
 			return nil
 		}
@@ -502,33 +563,66 @@ public final class OpenAIAdapter: AgentAdapter {
 		}
 	}
 
-	func transcriptToListItems(_ transcript: Transcript<some PromptContextSource>) -> [Input.ListItem] {
-		var listItems: [Input.ListItem] = []
+	private func transcriptStatusToFunctionCallOutputStatus(
+		_ status: Transcript<some PromptContextSource>.Status?,
+	) -> Components.Schemas.FunctionCallOutputItemParam.StatusPayload? {
+		guard let status else {
+			return nil
+		}
+
+		switch status {
+		case .completed: return .init(value1: .completed)
+		case .incomplete: return .init(value1: .incomplete)
+		case .inProgress: return .init(value1: .inProgress)
+		}
+	}
+
+	private func transcriptStatusToReasoningStatus(
+		_ status: Transcript<some PromptContextSource>.Status?,
+	) -> Components.Schemas.ReasoningItem.StatusPayload? {
+		guard let status else {
+			return nil
+		}
+
+		switch status {
+		case .completed: return .completed
+		case .incomplete: return .incomplete
+		case .inProgress: return .inProgress
+		}
+	}
+
+	func transcriptToListItems(_ transcript: Transcript<some PromptContextSource>) -> [InputItem] {
+		var listItems: [InputItem] = []
 
 		for entry in transcript {
 			switch entry {
 			case let .prompt(prompt):
-				listItems.append(Input.ListItem.message(role: .user, content: .text(prompt.embeddedPrompt)))
+				listItems.append(InputItem.inputMessage(EasyInputMessage(
+					role: .user,
+					content: .textInput(prompt.embeddedPrompt),
+				)))
 			case let .reasoning(reasoning):
-				let item = Item.Reasoning(
+				let item = Components.Schemas.ReasoningItem(
+					_type: .reasoning,
 					id: reasoning.id,
+					encryptedContent: reasoning.encryptedReasoning,
 					summary: [],
 					status: transcriptStatusToReasoningStatus(reasoning.status),
-					encryptedContent: reasoning.encryptedReasoning,
 				)
 
-				listItems.append(Input.ListItem.item(.reasoning(item)))
+				listItems.append(InputItem.item(.reasoningItem(item)))
 			case let .toolCalls(toolCalls):
 				for toolCall in toolCalls {
-					let item = Item.FunctionCall(
-						arguments: toolCall.arguments.jsonString,
-						callId: toolCall.callId,
+					let item = Components.Schemas.FunctionToolCall(
 						id: toolCall.id,
+						_type: .functionCall,
+						callId: toolCall.callId,
 						name: toolCall.toolName,
+						arguments: toolCall.arguments.jsonString,
 						status: transcriptStatusToFunctionCallStatus(toolCall.status),
 					)
 
-					listItems.append(Input.ListItem.item(.functionCall(item)))
+					listItems.append(InputItem.item(.functionToolCall(item)))
 				}
 			case let .toolOutput(toolOutput):
 				let output: String = switch toolOutput.segment {
@@ -538,58 +632,49 @@ public final class OpenAIAdapter: AgentAdapter {
 					structuredSegment.content.generatedContent.jsonString
 				}
 
-				let item = Item.FunctionCallOutput(
-					id: toolOutput.id,
-					status: transcriptStatusToFunctionCallStatus(toolOutput.status),
+				let item = Components.Schemas.FunctionCallOutputItemParam(
+					id: .init(value1: toolOutput.id),
 					callId: toolOutput.callId,
+					_type: .functionCallOutput,
 					output: output,
+					status: transcriptStatusToFunctionCallOutputStatus(toolOutput.status),
 				)
 
-				listItems.append(Input.ListItem.item(.functionCallOutput(item)))
+				listItems.append(InputItem.item(.functionCallOutputItemParam(item)))
 			case let .response(response):
-				let item = Message.Output(
+				let item = Components.Schemas.OutputMessage(
+					id: response.id,
+					_type: .message,
+					role: .assistant,
 					content: response.segments.compactMap { segment in
 						switch segment {
 						case let .text(textSegment):
-							Item.Output.Content.text(text: textSegment.content, annotations: [], logprobs: [])
-						case .structure:
-							// Not supported right now
-							nil
+							Components.Schemas.OutputContent
+								.OutputTextContent(
+									Components.Schemas.OutputTextContent(
+										_type: .outputText,
+										text: textSegment.content,
+										annotations: [],
+									),
+								)
+						case let .structure(structuredSegment):
+							Components.Schemas.OutputContent
+								.OutputTextContent(
+									Components.Schemas.OutputTextContent(
+										_type: .outputText,
+										text: structuredSegment.content.generatedContent.jsonString,
+										annotations: [],
+									),
+								)
 						}
 					},
-					id: response.id,
-					role: .assistant,
 					status: transcriptStatusToMessageStatus(response.status),
 				)
 
-				listItems.append(Input.ListItem.item(.outputMessage(item)))
+				listItems.append(InputItem.item(.outputMessage(item)))
 			}
 		}
 
 		return listItems
-	}
-}
-
-extension OpenAI.Model: AdapterModel {
-	public static var `default`: Self {
-		.gpt5
-	}
-
-	public var isReasoning: Bool {
-		switch self {
-		case .gpt5,
-		     .gpt5_mini,
-		     .gpt5_nano,
-		     .o1,
-		     .o1Pro,
-		     .o1Mini,
-		     .o3,
-		     .o3Pro,
-		     .o3Mini,
-		     .o4Mini,
-		     .o4MiniDeepResearch:
-			true
-		default: false
-		}
 	}
 }

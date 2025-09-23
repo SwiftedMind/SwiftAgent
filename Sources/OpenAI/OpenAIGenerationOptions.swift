@@ -5,18 +5,18 @@ import Internal
 import OpenAI
 
 public struct OpenAIGenerationOptions: AdapterGenerationOptions {
-	public typealias Model = OpenAI.Model
+	public typealias Model = OpenAIModel
 	public typealias GenerationOptionsError = OpenAIGenerationOptionsError
-	public typealias Include = OpenAI.Request.Include
-	public typealias ReasoningConfig = OpenAI.ReasoningConfig
-	public typealias ToolChoice = OpenAI.Tool.Choice
-	public typealias Truncation = OpenAI.Truncation
+	public typealias Include = CreateModelResponseQuery.Schemas.Includable
+	public typealias ReasoningConfig = CreateModelResponseQuery.Schemas.Reasoning
+	public typealias ToolChoice = CreateModelResponseQuery.ResponseProperties.ToolChoicePayload
+	public typealias Truncation = String
 
 	public static func automatic(for model: Model) -> OpenAIGenerationOptions {
 		var options = OpenAIGenerationOptions()
 
 		if model.isReasoning {
-			options.include = [.encryptedReasoning]
+			options.include = [.reasoning_encryptedContent]
 		}
 
 		return options
@@ -26,13 +26,10 @@ public struct OpenAIGenerationOptions: AdapterGenerationOptions {
 	public var include: [Include]?
 
 	/// The maximum number of tokens that the model can generate in its response.
-	public var maxOutputTokens: UInt?
+	public var maxOutputTokens: Int?
 
 	/// Controls whether multiple tool calls can be executed in parallel during generation.
 	public var allowParallelToolCalls: Bool?
-
-	/// Used by OpenAI to cache responses for similar requests to optimize your cache hit rates.
-	public var promptCacheKey: String?
 
 	/// Configuration for reasoning-capable models, including effort level and summary formatting options.
 	public var reasoning: ReasoningConfig?
@@ -62,34 +59,30 @@ public struct OpenAIGenerationOptions: AdapterGenerationOptions {
 
 	public init(
 		include: [Include]? = nil,
-		maxOutputTokens: UInt? = nil,
+		maxOutputTokens: Int? = nil,
 		allowParallelToolCalls: Bool? = nil,
-		promptCacheKey: String?,
 		reasoning: ReasoningConfig? = nil,
 		safetyIdentifier: String? = nil,
 		serviceTier: ServiceTier? = nil,
 		temperature: Double? = nil,
 		toolChoice: ToolChoice? = nil,
-		topLogProbs: UInt? = nil,
 		topP: Double? = nil,
 		truncation: Truncation? = nil,
 	) {
 		self.include = include
 		self.maxOutputTokens = maxOutputTokens
 		self.allowParallelToolCalls = allowParallelToolCalls
-		self.promptCacheKey = promptCacheKey
 		self.reasoning = reasoning
 		self.safetyIdentifier = safetyIdentifier
 		self.serviceTier = serviceTier
 		self.temperature = temperature
 		self.toolChoice = toolChoice
-		self.topLogProbs = topLogProbs
 		self.topP = topP
 		self.truncation = truncation
 	}
 
 	public func validate(for model: Model) throws(OpenAIGenerationOptionsError) {
-		if model.isReasoning, include?.contains(.encryptedReasoning) != true {
+		if model.isReasoning, include?.contains(.reasoning_encryptedContent) != true {
 			throw GenerationOptionsError.missingEncryptedReasoningForReasoningModel
 		}
 

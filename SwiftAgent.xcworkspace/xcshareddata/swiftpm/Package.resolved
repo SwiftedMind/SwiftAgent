@@ -1,49 +1,31 @@
 {
-  "originHash" : "9719ae2a1d04d682eecdb3d760e4f37d604a5db98e0ea4d076111a607bbf4807",
+  "originHash" : "1bcf21b81c8400cc0d84cc1bf9eb5945a5c1dcdda86f01bf105b851001811834",
   "pins" : [
     {
-      "identity" : "metacodable",
+      "identity" : "openai",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SwiftyLab/MetaCodable.git",
-      "state" : {
-        "revision" : "e2b09b4ceed09c972adb7f48572446d07a1c0e16",
-        "version" : "1.5.0"
-      }
-    },
-    {
-      "identity" : "swift-argument-parser",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-argument-parser.git",
-      "state" : {
-        "revision" : "309a47b2b1d9b5e991f36961c983ecec72275be3",
-        "version" : "1.6.1"
-      }
-    },
-    {
-      "identity" : "swift-collections",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-collections.git",
-      "state" : {
-        "revision" : "8c0c0a8b49e080e54e5e328cc552821ff07cd341",
-        "version" : "1.2.1"
-      }
-    },
-    {
-      "identity" : "swift-openai-responses",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SwiftedMind/swift-openai-responses",
+      "location" : "https://github.com/MacPaw/OpenAI.git",
       "state" : {
         "branch" : "main",
-        "revision" : "e61ca50bf98d4e8bcbb713ea52865d10b0076317"
+        "revision" : "a6e2f87cd13ba062110af9880a40313b7ba860fc"
       }
     },
     {
-      "identity" : "swift-syntax",
+      "identity" : "swift-http-types",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "location" : "https://github.com/apple/swift-http-types",
       "state" : {
-        "revision" : "f99ae8aa18f0cf0d53481901f88a0991dc3bd4a2",
-        "version" : "601.0.1"
+        "revision" : "a0a57e949a8903563aba4615869310c0ebf14c03",
+        "version" : "1.4.0"
+      }
+    },
+    {
+      "identity" : "swift-openapi-runtime",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-openapi-runtime",
+      "state" : {
+        "revision" : "7722cf8eac05c1f1b5b05895b04cfcc29576d9be",
+        "version" : "1.8.3"
       }
     }
   ],

@@ -153,14 +153,14 @@ public extension AgentTranscript {
 		public var callId: String
 		public var toolName: String
 		public var arguments: GeneratedContent
-		public var status: Status
+		public var status: Status?
 
 		package init(
 			id: String,
 			callId: String,
 			toolName: String,
 			arguments: GeneratedContent,
-			status: Status,
+			status: Status?,
 		) {
 			self.id = id
 			self.callId = callId
@@ -175,14 +175,14 @@ public extension AgentTranscript {
 		public var callId: String
 		public var toolName: String
 		public var segment: Segment
-		public var status: Status
+		public var status: Status?
 
 		public init(
 			id: String,
 			callId: String,
 			toolName: String,
 			segment: Segment,
-			status: Status,
+			status: Status?,
 		) {
 			self.id = id
 			self.callId = callId

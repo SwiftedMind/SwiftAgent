@@ -24,17 +24,20 @@ public enum AgentGenerationError: Error, LocalizedError {
 	public var errorDescription: String? {
 		switch self {
 		case .unexpectedStructuredResponse:
-			"Received unexpected structured response from model"
+			return "Received unexpected structured response from model"
 		case let .unsupportedToolCalled(context):
-			"Model called unsupported tool: \(context.toolName)"
+			return "Model called unsupported tool: \(context.toolName)"
 		case let .emptyMessageContent(context):
-			"Model returned empty content when expecting \(context.expectedType)"
+			return "Model returned empty content when expecting \(context.expectedType)"
 		case let .structuredContentParsingFailed(context):
-			"Failed to parse structured content: \(context.underlyingError)"
+			return "Failed to parse structured content: \(context.underlyingError)"
 		case let .contentRefusal(context):
-			"Model refused to generate content for \(context.expectedType)"
+			if let reason = context.reason, !reason.isEmpty {
+				return "Model refused to generate content for \(context.expectedType): \(reason)"
+			}
+			return "Model refused to generate content for \(context.expectedType)"
 		case .unknown:
-			"Unknown generation error"
+			return "Unknown generation error"
 		}
 	}
 }
@@ -84,9 +87,12 @@ public extension AgentGenerationError {
 	struct ContentRefusalContext: Sendable {
 		/// The type that was being generated when content was refused.
 		var expectedType: String
+		/// The human-readable reason provided by the model, if available.
+		var reason: String?
 
-		public init(expectedType: String) {
+		public init(expectedType: String, reason: String? = nil) {
 			self.expectedType = expectedType
+			self.reason = reason
 		}
 	}
 }

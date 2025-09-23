@@ -39,15 +39,34 @@
   }
   ```
 
-- **Recoverable Tool Problems**: Added a `ToolRunProblem` error type (`Sources/SwiftAgent/Agent/ToolRunProblem.swift`) so tools can return a recoverable issue back to the agent without stopping the loop; the OpenAI adapter (`Sources/OpenAI/OpenAIAdapter.swift`) now reads these problem objects to decide when a tool should retry or provide alternate output.
+- **Recoverable Tool Problems**: Added a `ToolRunProblem` error type so tools can return a recoverable issue back to the agent without stopping the loop; the OpenAI adapter now reads these problem objects to decide when a tool should retry or provide alternate output. `AgentToolRun` also exposes `problem` and `isAwaitingOutput` so resolvers can surface the problem payload forwarded by the adapter whenever `Tool.Output` decoding fails.
+
+  ```swift
+  struct CustomerLookupTool: AgentTool {
+    func call(arguments: Arguments) async throws -> Output {
+      guard let customer = try await directory.loadCustomer(id: arguments.customerIdentifier) else {
+        throw ToolRunProblem(
+          reason: "Customer not found",
+          details: [
+            "issue" : "customerNotFound",
+            "customerIdentifier" : arguments.customerIdentifier
+          ]
+        )
+      }
+
+      return Output(summary: customer.summary)
+    }
+  }
+  ```
 
 ### Enhanced
-
+- **MacPaw OpenAI SDK Migration**: Adopted MacPaw's `OpenAI` Swift package for request execution and removed the `MetaCodable` macro dependency, simplifying adapter maintenance and eliminating macro build overhead.
 - **Code Cleanup**: Removed unused `Array<PromptContextLinkPreview>` extension that was adding unnecessary complexity to the prompt context API surface.
 - **Tool Error Type Rename**: Renamed the core tool error type to `ToolRunError` (`Sources/SwiftAgent/Agent/ToolRunError.swift`) so recoverable problems stay separate from fatal failures and the agent loop only stops when necessary.
 
 ### Fixed
 
+- **Problem Report Validation**: Tool output decoding errors now propagate unless the payload matches the recoverable `ToolRunProblem` report structure, preventing silent failures in custom tools.
 - **URL Metadata Crash (LPMetadataProvider one-shot)**: Fixed a crash when fetching link preview metadata multiple times where a single `LPMetadataProvider` instance was reused. `LPMetadataProvider` is a one-shot object and must not be started more than once. `URLMetadataProvider` now creates a fresh provider per request, preventing the "Trying to start fetching on an LPMetadataProvider that has already started" error and making concurrent URL fetches safe.
 
 ## [0.6.0]

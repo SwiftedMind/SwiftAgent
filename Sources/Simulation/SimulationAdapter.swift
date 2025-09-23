@@ -9,7 +9,7 @@ import SwiftAgent
 
 @MainActor
 public struct SimulationAdapter {
-	public typealias Model = OpenAI.Model
+	public typealias Model = SimulationModel
 	public typealias Transcript<Context: PromptContextSource> = AgentTranscript<Context>
 
 	public struct Configuration: Sendable {

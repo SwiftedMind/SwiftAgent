@@ -8,8 +8,8 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
 
 - **IMPORTANT**: Before starting to work on tasks, ALWAYS check if you should read a resource or guideline
 - **IMPORTANT**: When making changes to the code, ALWAYS build the project to check for compilation errors
-- **IMPORTANT**: When committing changes to the repository, always follow the commit guidelines
-- **IMPORTANT**: When writing to the CHANGELOG.md, always follow the changelog guidelines
+- **IMPORTANT**: When committing changes to the repository, always read and understand the commit guidelines before doing anything!
+- **IMPORTANT**: When updating the changelog, always read and understand the changelog guidelines before doing anything!
 - **IMPORTANT**: Whenever you are done with editing .swift files, ALWAYS run `swiftformat --config ".swiftformat" {file1} {file2} ...` at the end to format all the files you have written to!
 
 - Always follow the best practices of naming things in Swift
@@ -23,15 +23,17 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
 
 ### Internal Resources
 
-- agents/commit-guidelines.md - Guidelines for committing changes to the repository
-- agents/changelog-guidelines.md - Guidelines for maintaining the changelog
-- agents/modern-swift.md - Guidelines on modern SwiftUI and how to build things with it
-- agents/swift-testing.md - An overview of the Swift Testing framework
-- agents/tests.md - Guidelines on writing unit tests for the SDK
+- agents/guidelines/commit.md - Guidelines for committing changes to the repository
+- agents/guidelines/changelog.md - Guidelines for maintaining the changelog
+- agents/swift/swiftui.md - Guidelines on modern SwiftUI and how to build things with it
+- agents/swift/swift-testing.md - An overview of the Swift Testing framework
+- agents.local/tests.md - Guidelines on writing unit tests for the SDK
 
 ### External Tools
 
 - `sosumi` tool - Access to Apple's documentation for all Swift and SwiftUI APIs, guidelines and best practices. Use this to complement or fix/enhance your potentially outdated knowledge of these APIs.
+- `context7` - Access to documentation for a large amount of libraries and SDKs, including:
+	- MacPaw: "OpenAI Swift" - Swift implementation of the OpenAI API (Responses API)
 
 ## Development Commands
 
