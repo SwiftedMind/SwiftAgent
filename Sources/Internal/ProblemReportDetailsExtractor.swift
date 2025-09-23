@@ -3,11 +3,10 @@
 import Foundation
 import FoundationModels
 
-package enum GeneratedContentFallbackParser {
-	/// Converts arbitrary generated content into a flat dictionary of string values.
+package enum ProblemReportDetailsExtractor {
+	/// Extracts fallback detail values from problem report generated content.
 	///
-	/// This helper allows callers to surface recoverable tool payloads even when
-	/// strongly typed decoding fails.
+	/// The extractor keeps recoverable payloads accessible when strongly typed decoding fails.
 	package static func values(from generatedContent: GeneratedContent) -> [String: String] {
 		guard
 			let jsonData = generatedContent.jsonString.data(using: .utf8),

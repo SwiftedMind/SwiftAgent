@@ -148,7 +148,7 @@ public extension AgentTool {
 		return AgentToolRun<Self>.Problem(
 			reason: problemReport.reason,
 			json: generatedContent.jsonString,
-			values: GeneratedContentFallbackParser.values(from: generatedContent),
+			details: ProblemReportDetailsExtractor.values(from: generatedContent),
 		)
 	}
 }
@@ -195,12 +195,12 @@ public struct AgentToolRun<Tool: AgentTool> {
 		public let json: String
 
 		/// A flattened representation of the payload for quick inspection.
-		public let values: [String: String]
+		public let details: [String: String]
 
-		public init(reason: String, json: String, values: [String: String]) {
+		public init(reason: String, json: String, details: [String: String]) {
 			self.reason = reason
 			self.json = json
-			self.values = values
+			self.details = details
 		}
 
 		/// Generates the original `GeneratedContent` value, when needed.
