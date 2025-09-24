@@ -72,7 +72,7 @@ public extension AgentTranscript {
 			id: String = UUID().uuidString,
 			input: String,
 			context: PromptContext<Context> = .empty,
-			embeddedPrompt: String,
+			embeddedPrompt: String
 		) {
 			self.id = id
 			self.input = input
@@ -91,7 +91,7 @@ public extension AgentTranscript {
 			id: String,
 			summary: [String],
 			encryptedReasoning: String?,
-			status: Status? = nil,
+			status: Status? = nil
 		) {
 			self.id = id
 			self.summary = summary
@@ -142,7 +142,10 @@ extension AgentTranscript.ToolCalls: RandomAccessCollection, RangeReplaceableCol
 		calls = []
 	}
 
-	public mutating func replaceSubrange(_ subrange: Range<Int>, with newElements: some Collection<AgentTranscript<Context>.ToolCall>) {
+	public mutating func replaceSubrange(
+		_ subrange: Range<Int>,
+		with newElements: some Collection<AgentTranscript<Context>.ToolCall>
+	) {
 		calls.replaceSubrange(subrange, with: newElements)
 	}
 }
@@ -160,7 +163,7 @@ public extension AgentTranscript {
 			callId: String,
 			toolName: String,
 			arguments: GeneratedContent,
-			status: Status?,
+			status: Status?
 		) {
 			self.id = id
 			self.callId = callId
@@ -182,7 +185,7 @@ public extension AgentTranscript {
 			callId: String,
 			toolName: String,
 			segment: Segment,
-			status: Status?,
+			status: Status?
 		) {
 			self.id = id
 			self.callId = callId
@@ -200,7 +203,7 @@ public extension AgentTranscript {
 		public init(
 			id: String,
 			segments: [Segment],
-			status: Status,
+			status: Status
 		) {
 			self.id = id
 			self.segments = segments
@@ -245,5 +248,106 @@ public extension AgentTranscript {
 			self.id = id
 			self.content = content.generatedContent
 		}
+	}
+}
+
+public extension AgentTranscript {
+	/// Returns a transcript view with resolved tool runs attached to each tool call entry.
+	///
+	/// This method provides a progressive enhancement on top of the base transcript. When you
+	/// need strongly typed tool results, call this method to receive a typed view while keeping
+	/// the underlying transcript unchanged. If you do not need tool resolution, simply work with
+	/// ``AgentTranscript`` directly—no additional generics or APIs get in the way.
+	///
+	/// - Parameter tools: The tools used during the session, sharing the same `ResolvedToolRun` type.
+	/// - Returns: A resolved transcript view that preserves the original entries and adds resolved runs.
+	func resolved<ResolvedToolRun>(using tools: [any AgentTool<ResolvedToolRun>]) -> Resolved<ResolvedToolRun> {
+		Resolved(transcript: self, tools: tools)
+	}
+
+	/// A transcript view that augments tool call entries with resolved tool runs.
+	///
+	/// The resolved transcript keeps the original transcript intact for full reproduction of the
+	/// provider conversation, while offering type-safe access to resolved tool runs alongside each
+	/// tool call.
+	struct Resolved<ResolvedToolRun> {
+		/// The original transcript that backs this view.
+		public let originalTranscript: AgentTranscript<Context>
+
+		/// All transcript entries with resolved tool runs attached where available.
+		public package(set) var entries: [Entry]
+
+		init(transcript: AgentTranscript<Context>, tools: [any AgentTool<ResolvedToolRun>]) {
+			self.originalTranscript = transcript
+			let resolver = AgentToolResolver(tools: tools, in: transcript)
+			self.entries = []
+			
+			for entry in transcript.entries {
+				switch entry {
+				case let .prompt(prompt):
+					entries.append(.prompt(prompt))
+				case let .reasoning(reasoning):
+					entries.append(.reasoning(reasoning))
+				case let .response(response):
+					entries.append(.response(response))
+				case let .toolCalls(toolCalls):
+					for call in toolCalls {
+						let resolvedToolRun = try! resolver.resolve(call)
+						entries.append(.toolRun(resolvedToolRun))
+					}
+				case .toolOutput:
+					// Handled already by the .toolCalls cases
+					break
+				}
+			}
+		}
+
+		/// Transcript entry augmented with resolved tool runs.
+		public enum Entry: Identifiable {
+			case prompt(AgentTranscript<Context>.Prompt)
+			case reasoning(AgentTranscript<Context>.Reasoning)
+			case toolRun(ResolvedToolRun)
+			case response(AgentTranscript<Context>.Response)
+
+			public var id: String {
+				switch self {
+				case let .prompt(prompt):
+					prompt.id
+				case let .reasoning(reasoning):
+					reasoning.id
+				case let .toolRun(toolRun):
+					// TODO: Fix this
+					"toolRun.id"
+				case let .response(response):
+					response.id
+				}
+			}
+		}
+	}
+}
+
+extension AgentTranscript.Resolved: RandomAccessCollection, RangeReplaceableCollection {
+	public var startIndex: Int { entries.startIndex }
+	public var endIndex: Int { entries.endIndex }
+
+	public init() {
+		entries = []
+		self.originalTranscript = AgentTranscript()
+	}
+	
+	public subscript(position: Int) -> Entry {
+		entries[position]
+	}
+
+	public func index(after i: Int) -> Int {
+		entries.index(after: i)
+	}
+
+	public func index(before i: Int) -> Int {
+		entries.index(before: i)
+	}
+	
+	public mutating func replaceSubrange(_ subrange: Range<Int>, with newElements: some Collection<Entry>) {
+		entries.replaceSubrange(subrange, with: newElements)
 	}
 }
