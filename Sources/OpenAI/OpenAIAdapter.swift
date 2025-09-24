@@ -9,16 +9,16 @@ import SwiftAgent
 
 public final class OpenAIAdapter: AgentAdapter {
 	public typealias Model = OpenAIModel
-	public typealias Transcript<Context: PromptContextSource> = AgentTranscript<Context>
+	public typealias Transcript<Context: PromptContextSource> = SwiftAgent.Transcript<Context>
 	public typealias ConfigurationError = OpenAIGenerationOptionsError
 
-	private var tools: [any AgentTool]
+	private var tools: [any SwiftAgent.Tool]
 	private var instructions: String = ""
 	private let httpClient: HTTPClient
 	private let responsesPath: String
 
 	public init(
-		tools: [any AgentTool],
+		tools: [any SwiftAgent.Tool],
 		instructions: String,
 		configuration: OpenAIConfiguration,
 	) {
@@ -368,12 +368,12 @@ public final class OpenAIAdapter: AgentAdapter {
 
 		do {
 			let output = try await callTool(tool, with: generatedContent)
-
+			
 			let toolOutputEntry = Transcript<Context>.ToolOutput(
 				id: functionCall.id ?? UUID().uuidString,
 				callId: functionCall.callId,
 				toolName: functionCall.name,
-				segment: .structure(AgentTranscript.StructuredSegment(content: output)),
+				segment: .structure(Transcript<Context>.StructuredSegment(content: output)),
 				status: transcriptStatusFromOpenAIStatus(functionCall.status),
 			)
 
@@ -393,7 +393,7 @@ public final class OpenAIAdapter: AgentAdapter {
 				id: functionCall.id ?? UUID().uuidString,
 				callId: functionCall.callId,
 				toolName: functionCall.name,
-				segment: .structure(AgentTranscript.StructuredSegment(content: toolRunProblem.generatedContent)),
+				segment: .structure(Transcript<Context>.StructuredSegment(content: toolRunProblem.generatedContent)),
 				status: transcriptStatusFromOpenAIStatus(functionCall.status),
 			)
 

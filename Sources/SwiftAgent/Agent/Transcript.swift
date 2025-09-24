@@ -3,7 +3,7 @@
 import Foundation
 import FoundationModels
 
-public struct AgentTranscript<Context: PromptContextSource>: Sendable, Equatable {
+public struct Transcript<Context: PromptContextSource>: Sendable, Equatable {
 	public var entries: [Entry]
 
 	public init(entries: [Entry] = []) {
@@ -13,7 +13,7 @@ public struct AgentTranscript<Context: PromptContextSource>: Sendable, Equatable
 
 // MARK: - RandomAccessCollection Conformance
 
-extension AgentTranscript: RandomAccessCollection, RangeReplaceableCollection {
+extension Transcript: RandomAccessCollection, RangeReplaceableCollection {
 	public var startIndex: Int { entries.startIndex }
 	public var endIndex: Int { entries.endIndex }
 
@@ -38,7 +38,7 @@ extension AgentTranscript: RandomAccessCollection, RangeReplaceableCollection {
 	}
 }
 
-public extension AgentTranscript {
+public extension SwiftAgent.Transcript {
 	enum Entry: Sendable, Identifiable, Equatable {
 		case prompt(Prompt)
 		case reasoning(Reasoning)
@@ -121,11 +121,11 @@ public extension AgentTranscript {
 
 // MARK: - ToolCalls RandomAccessCollection Conformance
 
-extension AgentTranscript.ToolCalls: RandomAccessCollection, RangeReplaceableCollection {
+extension Transcript.ToolCalls: RandomAccessCollection, RangeReplaceableCollection {
 	public var startIndex: Int { calls.startIndex }
 	public var endIndex: Int { calls.endIndex }
 
-	public subscript(position: Int) -> AgentTranscript<Context>.ToolCall {
+	public subscript(position: Int) -> Transcript<Context>.ToolCall {
 		calls[position]
 	}
 
@@ -144,13 +144,13 @@ extension AgentTranscript.ToolCalls: RandomAccessCollection, RangeReplaceableCol
 
 	public mutating func replaceSubrange(
 		_ subrange: Range<Int>,
-		with newElements: some Collection<AgentTranscript<Context>.ToolCall>,
+		with newElements: some Collection<Transcript<Context>.ToolCall>,
 	) {
 		calls.replaceSubrange(subrange, with: newElements)
 	}
 }
 
-public extension AgentTranscript {
+public extension Transcript {
 	struct ToolCall: Sendable, Identifiable, Equatable {
 		public var id: String
 		public var callId: String

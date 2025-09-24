@@ -7,7 +7,7 @@ import SwiftAgent
 /// A protocol that defines the interface for creating mockable versions of agent tools
 /// in the SwiftAgent simulation system.
 ///
-/// This protocol enables the creation of mock implementations of `AgentTool` instances
+/// This protocol enables the creation of mock implementations of `Tool` instances
 /// for testing and simulation purposes. It provides a way to generate predictable
 /// arguments and outputs without making actual tool calls during testing.
 ///
@@ -35,9 +35,9 @@ import SwiftAgent
 public protocol MockableAgentTool<Tool>: Sendable where Tool.Arguments: Encodable {
 	/// The associated agent tool type that this mock represents.
 	///
-	/// This type must conform to `AgentTool` and its `Arguments` type must be `Encodable`
+	/// This type must conform to `Tool` and its `Arguments` type must be `Encodable`
 	/// to support JSON serialization in the simulation system.
-	associatedtype Tool: AgentTool
+	associatedtype Tool: SwiftAgent.Tool
 
 	/// The actual tool instance that this mock wraps.
 	///

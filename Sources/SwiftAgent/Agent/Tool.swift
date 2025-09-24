@@ -36,7 +36,7 @@ import Internal
 ///   }
 /// }
 /// ```
-public protocol AgentTool<ResolutionType>: FoundationModels.Tool,
+public protocol Tool<ResolutionType>: FoundationModels.Tool,
 	Encodable where Output: ConvertibleToGeneratedContent,
 	Output: ConvertibleFromGeneratedContent {
 	/// The type returned when this tool is resolved.
@@ -58,7 +58,7 @@ public protocol AgentTool<ResolutionType>: FoundationModels.Tool,
 
 // MARK: - Default Resolution
 
-public extension AgentTool where ResolutionType == Void {
+public extension Tool where ResolutionType == Void {
 	/// Default implementation for tools that don't need custom resolution logic.
 	///
 	/// This implementation is automatically provided for tools where `Resolution`
@@ -70,9 +70,9 @@ public extension AgentTool where ResolutionType == Void {
 	}
 }
 
-// MARK: - AgentTool Implementation
+// MARK: - Tool Implementation
 
-package extension AgentTool {
+package extension Tool {
 	var toolType: Self.Type { Self.self }
 
 	/// Resolves a tool with raw GeneratedContent arguments and output.
@@ -162,14 +162,14 @@ package extension AgentTool {
 /// ## Usage
 ///
 /// Tool runs are created internally by the framework and passed to your tool's
-/// ``AgentTool/resolve(_:)->_`` method:
+/// ``Tool/resolve(_:)->_`` method:
 ///
 /// ```swift
 /// func resolve(_ run: AgentToolRun<Self>) -> MyToolResolution {
 ///   .mySpecificTool(run)
 /// }
 /// ```
-public struct AgentToolRun<Tool: AgentTool> {
+public struct AgentToolRun<Tool: SwiftAgent.Tool> {
 	/// The strongly typed inputs for this invocation.
 	///
 	/// These arguments are automatically parsed from the AI model's JSON tool call

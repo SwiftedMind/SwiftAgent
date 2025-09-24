@@ -7,9 +7,9 @@ import OSLog
 
 // MARK: - Tool Resolver
 
-public extension AgentTranscript {
+public extension Transcript {
 	/// Creates a tool resolver for type-safe tool call resolution.
-	func toolResolver<ResolutionType>(using tools: [any AgentTool<ResolutionType>])
+	func toolResolver<ResolutionType>(using tools: [any Tool<ResolutionType>])
 		-> AgentToolResolver<Context, ResolutionType> {
 		AgentToolResolver(tools: tools, in: self)
 	}
@@ -20,7 +20,7 @@ public extension AgentTranscript {
 /// ``AgentToolResolver`` bridges the gap between AI model tool calls and your application's
 /// domain logic by providing type-safe resolution of tool invocations. It matches tool calls
 /// with their outputs from the conversation transcript and converts them into strongly typed
-/// instances of ``AgentTool/Resolution``.
+/// instances of ``Tool/Resolution``.
 ///
 /// ## Overview
 ///
@@ -29,7 +29,7 @@ public extension AgentTranscript {
 /// 2. Extracting all tool outputs from the conversation transcript
 /// 3. Matching tool calls with their corresponding outputs by call ID
 /// 4. Converting raw `GeneratedContent` into strongly typed tool runs
-/// 5. Calling each tool's ``AgentTool/resolve(_:)->_`` method to produce the final result
+/// 5. Calling each tool's ``Tool/resolve(_:)->_`` method to produce the final result
 ///
 /// ## Usage
 ///
@@ -43,7 +43,7 @@ public extension AgentTranscript {
 /// }
 ///
 /// // Create tools and resolver
-/// let tools: [any AgentTool<ToolResolution>] = [WeatherTool(), CalculatorTool()]
+/// let tools: [any Tool<ToolResolution>] = [WeatherTool(), CalculatorTool()]
 /// let resolver = session.transcript.toolResolver(using: tools)
 ///
 /// // Resolve tool calls
@@ -61,7 +61,7 @@ public extension AgentTranscript {
 /// }
 /// ```
 ///
-/// - Tip: You can also use ``AgentTranscript/resolved(using:)`` to embed the tool runs directly into the transcript
+/// - Tip: You can also use ``Transcript/resolved(using:)`` to embed the tool runs directly into the transcript
 /// entries.
 ///
 /// ## Error Handling
@@ -77,20 +77,20 @@ public extension AgentTranscript {
 /// compile-time safety when handling different tool types in a unified way.
 public struct AgentToolResolver<Context: PromptContextSource, ResolutionType> {
 	/// The tool call type from the associated transcript.
-	public typealias ToolCall = AgentTranscript<Context>.ToolCall
+	public typealias ToolCall = Transcript<Context>.ToolCall
 
 	/// Dictionary mapping tool names to their implementations for fast lookup.
-	private let toolsByName: [String: any AgentTool<ResolutionType>]
+	private let toolsByName: [String: any Tool<ResolutionType>]
 
 	/// All tool outputs extracted from the conversation transcript.
-	private let transcriptToolOutputs: [AgentTranscript<Context>.ToolOutput]
+	private let transcriptToolOutputs: [Transcript<Context>.ToolOutput]
 
 	/// Creates a new tool resolver for the given tools and transcript.
 	///
 	/// - Parameters:
 	///   - tools: The tools that can be resolved, all sharing the same `Resolution` type
 	///   - transcript: The conversation transcript containing tool calls and outputs
-	init(tools: [any AgentTool<ResolutionType>], in transcript: AgentTranscript<Context>) {
+	init(tools: [any Tool<ResolutionType>], in transcript: Transcript<Context>) {
 		toolsByName = Dictionary(uniqueKeysWithValues: tools.map { ($0.name, $0) })
 		transcriptToolOutputs = transcript.compactMap { entry in
 			switch entry {

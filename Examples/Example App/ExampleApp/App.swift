@@ -27,7 +27,7 @@ enum ContextSource: PromptContextSource {
 
 // MARK: - Tools
 
-struct CalculatorTool: AgentTool {
+struct CalculatorTool: SwiftAgent.Tool {
 	let name = "calculator"
 	let description = "Performs basic mathematical calculations"
 
@@ -78,7 +78,7 @@ struct CalculatorTool: AgentTool {
 	}
 }
 
-struct WeatherTool: AgentTool {
+struct WeatherTool: SwiftAgent.Tool {
 	let name = "get_weather"
 	let description = "Gets current weather information for a location"
 

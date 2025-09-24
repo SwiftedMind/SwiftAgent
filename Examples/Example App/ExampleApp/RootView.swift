@@ -1,6 +1,5 @@
 // By Dennis Müller
 
-import FoundationModels
 import OpenAISession
 import SimulatedSession
 import SwiftUI
@@ -15,7 +14,7 @@ struct RootView: View {
 
 	// MARK: - Tools
 
-	private var tools: [any AgentTool<ResolvedToolRun>] = [
+	private var tools: [any Tool<ResolvedToolRun>] = [
 		CalculatorTool(),
 		WeatherTool(),
 	]

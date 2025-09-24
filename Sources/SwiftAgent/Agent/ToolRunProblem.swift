@@ -5,7 +5,7 @@ import FoundationModels
 
 /// An error that indicates a tool run produced a recoverable problem.
 ///
-/// Throw this error from a tool's ``AgentTool/call(arguments:)`` implementation when the
+/// Throw this error from a tool's ``Tool/call(arguments:)`` implementation when the
 /// invocation cannot be completed successfully but the agent should be able to recover by
 /// inspecting the returned payload and taking another action. Instead of aborting the agent run,
 /// SwiftAgent will forward the provided ``GeneratedContent`` back to the model as the tool output.

@@ -10,7 +10,7 @@ import SwiftAgent
 @MainActor
 public struct SimulationAdapter {
 	public typealias Model = SimulationModel
-	public typealias Transcript<Context: PromptContextSource> = AgentTranscript<Context>
+	public typealias Transcript<Context: PromptContextSource> = SwiftAgent.Transcript<Context>
 
 	public struct Configuration: Sendable {
 		/// The delay between simulated model generations. Defaults to 2 seconds.
@@ -148,7 +148,7 @@ public struct SimulationAdapter {
 				id: UUID().uuidString,
 				callId: callId,
 				toolName: toolMock.tool.name,
-				segment: .structure(AgentTranscript.StructuredSegment(content: output)),
+				segment: .structure(Transcript.StructuredSegment(content: output)),
 				status: .completed,
 			)
 
@@ -167,7 +167,7 @@ public struct SimulationAdapter {
 				id: UUID().uuidString,
 				callId: callId,
 				toolName: toolMock.tool.name,
-				segment: .structure(AgentTranscript.StructuredSegment(content: toolRunProblem.generatedContent)),
+				segment: .structure(Transcript.StructuredSegment(content: toolRunProblem.generatedContent)),
 				status: .completed,
 			)
 

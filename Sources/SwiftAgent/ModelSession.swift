@@ -71,7 +71,7 @@ import Internal
 @Observable @MainActor
 public final class ModelSession<Adapter: AgentAdapter, Context: PromptContextSource> {
 	/// The transcript type for this session, containing the conversation history.
-	public typealias Transcript = AgentTranscript<Context>
+	public typealias Transcript = SwiftAgent.Transcript<Context>
 
 	/// The context type for this session, containing additional prompt context.
 	public typealias Context = PromptContext<Context>

@@ -3,7 +3,7 @@
 import Foundation
 import FoundationModels
 
-public extension AgentTranscript {
+public extension Transcript {
 	/// Builds a *resolved transcript* — an immutable, read‑only **projection** of this transcript in which
 	/// tool‑related events are materialized as strongly-typed runs.
 	///
@@ -38,18 +38,18 @@ public extension AgentTranscript {
 	///
 	/// - Parameter tools: The tools available during resolution. All must share the same resolution type.
 	/// - Returns: A read‑only projection that layers resolved tool runs over the original entries, or `nil` on failure.
-	func resolved<ResolvedToolRun>(using tools: [any AgentTool<ResolvedToolRun>]) -> Resolved<ResolvedToolRun>? {
+	func resolved<ResolvedToolRun>(using tools: [any Tool<ResolvedToolRun>]) -> Resolved<ResolvedToolRun>? {
 		try? Resolved(transcript: self, tools: tools)
 	}
 
 	/// An immutable **projection** of a transcript with tool runs resolved.
 	///
-	/// You can obtain instances via ``AgentTranscript/resolved(using:)``.
+	/// You can obtain instances via ``Transcript/resolved(using:)``.
 	struct Resolved<ResolutionType> {
 		/// All transcript entries with resolved tool runs attached where available.
 		public package(set) var entries: [Entry]
 
-		init(transcript: AgentTranscript<Context>, tools: [any AgentTool<ResolutionType>]) throws {
+		init(transcript: Transcript<Context>, tools: [any Tool<ResolutionType>]) throws {
 			let resolver = AgentToolResolver(tools: tools, in: transcript)
 			entries = []
 
@@ -75,10 +75,10 @@ public extension AgentTranscript {
 
 		/// Transcript entry augmented with resolved tool runs.
 		public enum Entry: Identifiable {
-			case prompt(AgentTranscript<Context>.Prompt)
-			case reasoning(AgentTranscript<Context>.Reasoning)
+			case prompt(Transcript<Context>.Prompt)
+			case reasoning(Transcript<Context>.Reasoning)
 			case toolRun(ResolvedToolRun)
-			case response(AgentTranscript<Context>.Response)
+			case response(Transcript<Context>.Response)
 
 			public var id: String {
 				switch self {
@@ -96,7 +96,7 @@ public extension AgentTranscript {
 
 		/// A resolved tool run.
 		public struct ResolvedToolRun: Identifiable {
-			private let call: AgentTranscript<Context>.ToolCall
+			private let call: Transcript<Context>.ToolCall
 
 			/// The identifier of this run.
 			public var id: String { call.id }
@@ -107,7 +107,7 @@ public extension AgentTranscript {
 			/// The tool name captured within the original call, convenient for switching logic.
 			public var toolName: String { call.toolName }
 
-			init(call: AgentTranscript<Context>.ToolCall, resolution: ResolutionType) {
+			init(call: Transcript<Context>.ToolCall, resolution: ResolutionType) {
 				self.call = call
 				self.resolution = resolution
 			}
@@ -115,7 +115,7 @@ public extension AgentTranscript {
 	}
 }
 
-extension AgentTranscript.Resolved: RandomAccessCollection, RangeReplaceableCollection {
+extension Transcript.Resolved: RandomAccessCollection, RangeReplaceableCollection {
 	public var startIndex: Int { entries.startIndex }
 	public var endIndex: Int { entries.endIndex }
 

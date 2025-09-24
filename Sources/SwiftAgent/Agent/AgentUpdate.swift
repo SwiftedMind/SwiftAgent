@@ -9,7 +9,7 @@ import Foundation
 /// they are considered an SDK-internal mechanism.
 public enum AgentUpdate<Context: PromptContextSource>: Sendable, Equatable {
 	/// A transcript entry produced during generation (reasoning, tool calls, outputs, responses...).
-	case transcript(AgentTranscript<Context>.Entry)
+	case transcript(Transcript<Context>.Entry)
 
 	/// Token usage information for a request/step. Optional today; may be provided by adapters.
 	case tokenUsage(TokenUsage)

@@ -11,13 +11,13 @@ public protocol AgentAdapter {
 	associatedtype Configuration: AdapterConfiguration
 	associatedtype ConfigurationError: Error & LocalizedError
 
-	init(tools: [any AgentTool], instructions: String, configuration: Configuration)
+	init(tools: [any SwiftAgent.Tool], instructions: String, configuration: Configuration)
 
 	func respond<Context>(
-		to prompt: AgentTranscript<Context>.Prompt,
+		to prompt: Transcript<Context>.Prompt,
 		generating type: (some Generable).Type,
 		using model: Model,
-		including transcript: AgentTranscript<Context>,
+		including transcript: Transcript<Context>,
 		options: GenerationOptions,
 	) -> AsyncThrowingStream<AgentUpdate<Context>, any Error> where Context: PromptContextSource
 }
