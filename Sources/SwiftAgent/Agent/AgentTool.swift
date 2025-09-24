@@ -36,27 +36,14 @@ import Internal
 ///   }
 /// }
 /// ```
-///
-/// ## Tool Resolution
-///
-/// Tools are resolved through the ``AgentToolResolver`` which:
-/// 1. Matches tool calls by name
-/// 2. Converts `GeneratedContent` to strongly typed arguments
-/// 3. Finds corresponding outputs from the conversation transcript
-/// 4. Calls the tool's `resolve(_:)` method to produce the final result
-///
-/// For more information, see ``AgentToolResolver``.
-///
-/// - Note: The ``ResolvedToolRun`` associated type allows you to return any type that represents
-///   the resolved tool execution, enabling seamless integration with your application's domain models.
-public protocol AgentTool<ResolvedToolRun>: FoundationModels.Tool,
+public protocol AgentTool<ResolutionType>: FoundationModels.Tool,
 	Encodable where Output: ConvertibleToGeneratedContent,
 	Output: ConvertibleFromGeneratedContent {
 	/// The type returned when this tool is resolved.
 	///
 	/// Defaults to `Void` for tools that don't need custom resolution logic.
 	/// Override to return domain-specific types that represent the resolved tool execution.
-	associatedtype ResolvedToolRun = Void
+	associatedtype ResolutionType = Void
 
 	/// Resolves a tool run into a domain-specific result.
 	///
@@ -66,28 +53,39 @@ public protocol AgentTool<ResolvedToolRun>: FoundationModels.Tool,
 	///
 	/// - Parameter run: The tool run containing typed arguments and optional output
 	/// - Returns: A resolved representation of the tool execution
-	func resolve(_ run: AgentToolRun<Self>) -> ResolvedToolRun
+	func resolve(_ run: AgentToolRun<Self>) -> ResolutionType
+}
+
+// MARK: - Default Resolution
+
+public extension AgentTool where ResolutionType == Void {
+	/// Default implementation for tools that don't need custom resolution logic.
+	///
+	/// This implementation is automatically provided for tools where `Resolution`
+	/// is `Void`, making the `resolve(_:)` method optional for simple tools.
+	///
+	/// - Parameter run: The tool run (unused in default implementation)
+	func resolve(_ run: AgentToolRun<Self>) {
+		()
+	}
 }
 
 // MARK: - AgentTool Implementation
 
-public extension AgentTool {
-	package var toolType: Self.Type { Self.self }
+package extension AgentTool {
+	var toolType: Self.Type { Self.self }
 
 	/// Resolves a tool with raw GeneratedContent arguments and output.
 	///
 	/// This is the internal bridge method that converts between Apple's FoundationModels
 	/// content representation and SwiftAgent's strongly typed tool system.
 	///
-	/// - Note: You typically do not implement or interact with this method overload directly.
-	/// This is handled by the SDK.
-	///
 	/// - Parameters:
 	///   - arguments: The raw arguments from the AI model
 	///   - output: The raw output content, if available
 	/// - Returns: The resolved tool result
 	/// - Throws: Conversion or resolution errors
-	func resolvedTool(arguments: GeneratedContent, output: GeneratedContent?) throws -> ResolvedToolRun {
+	func resolve(arguments: GeneratedContent, output: GeneratedContent?) throws -> ResolutionType {
 		try resolve(run(for: arguments, output: output))
 	}
 
@@ -153,20 +151,6 @@ public extension AgentTool {
 	}
 }
 
-// MARK: - Default Resolution
-
-public extension AgentTool where ResolvedToolRun == Void {
-	/// Default implementation for tools that don't need custom resolution logic.
-	///
-	/// This implementation is automatically provided for tools where `ResolvedToolRun`
-	/// is `Void`, making the `resolve(_:)` method optional for simple tools.
-	///
-	/// - Parameter run: The tool run (unused in default implementation)
-	func resolve(_ run: AgentToolRun<Self>) {
-		()
-	}
-}
-
 // MARK: - AgentToolRun
 
 /// Represents a single tool execution with strongly typed arguments and output.
@@ -178,37 +162,14 @@ public extension AgentTool where ResolvedToolRun == Void {
 /// ## Usage
 ///
 /// Tool runs are created internally by the framework and passed to your tool's
-/// `resolve(_:)` method:
+/// ``AgentTool/resolve(_:)->_`` method:
 ///
 /// ```swift
-/// func resolve(_ run: AgentToolRun<Self>) -> MyResolvedAgentTool {
+/// func resolve(_ run: AgentToolRun<Self>) -> MyToolResolution {
 ///   .mySpecificTool(run)
 /// }
 /// ```
 public struct AgentToolRun<Tool: AgentTool> {
-	/// Recoverable problem information returned when the tool output cannot be decoded into `Tool.Output`.
-	public struct Problem: Sendable, Equatable, Hashable {
-		/// The human-readable reason describing the problem.
-		public let reason: String
-
-		/// The raw JSON string returned by the tool.
-		public let json: String
-
-		/// A flattened representation of the payload for quick inspection.
-		public let details: [String: String]
-
-		public init(reason: String, json: String, details: [String: String]) {
-			self.reason = reason
-			self.json = json
-			self.details = details
-		}
-
-		/// Generates the original `GeneratedContent` value, when needed.
-		public var generatedContent: GeneratedContent? {
-			try? GeneratedContent(json: json)
-		}
-	}
-
 	/// The strongly typed inputs for this invocation.
 	///
 	/// These arguments are automatically parsed from the AI model's JSON tool call
@@ -223,19 +184,26 @@ public struct AgentToolRun<Tool: AgentTool> {
 
 	/// Contains the recoverable problem information when decoding `Tool.Output` fails.
 	///
-	/// This commonly occurs when a tool throws ``ToolRunProblem`` and the adapter forwards
-	/// arbitrary ``GeneratedContent``. For example, a custom `@Generable` payload, that cannot be
-	/// represented by the tool's declared output type.
+	/// This happens when a tool execution throws ``ToolRunProblem`` and the adapter forwards
+	/// arbitrary ``GeneratedContent`` back to the agent. That content cannot be strongly typed
+	/// and is different from the planned output of the tool. You can read the problem's payload
+	/// via this property.
 	public var problem: Problem?
 
 	/// Indicates whether the tool run has produced a typed output.
-	public var hasResolvedOutput: Bool { output != nil }
+	public var hasOutput: Bool {
+		output != nil
+	}
 
 	/// Indicates whether a problem payload is available.
-	public var hasProblem: Bool { problem != nil }
+	public var hasProblem: Bool {
+		problem != nil
+	}
 
 	/// Indicates that the tool run is still awaiting an output.
-	public var isAwaitingOutput: Bool { output == nil && problem == nil }
+	public var isPending: Bool {
+		output == nil && problem == nil
+	}
 
 	/// Creates a new tool run with the given arguments, optional output, and optional problem payload.
 	///
@@ -243,7 +211,7 @@ public struct AgentToolRun<Tool: AgentTool> {
 	///   - arguments: The parsed tool arguments
 	///   - output: The tool's output, if available
 	///   - problem: The problem payload provided when `Tool.Output` decoding fails
-	public init(
+	package init(
 		arguments: Tool.Arguments,
 		output: Tool.Output? = nil,
 		problem: Problem? = nil,
@@ -254,23 +222,31 @@ public struct AgentToolRun<Tool: AgentTool> {
 	}
 }
 
+public extension AgentToolRun {
+	/// Recoverable problem information returned when the tool output cannot be decoded into `Tool.Output`.
+	struct Problem: Sendable, Equatable, Hashable {
+		/// The human-readable reason describing the problem.
+		public let reason: String
+
+		/// The raw JSON string returned by the tool.
+		public let json: String
+
+		/// A flattened representation of the payload for quick inspection.
+		public let details: [String: String]
+
+		package init(reason: String, json: String, details: [String: String]) {
+			self.reason = reason
+			self.json = json
+			self.details = details
+		}
+
+		/// Generates the original `GeneratedContent` value, when needed.
+		public var generatedContent: GeneratedContent? {
+			try? GeneratedContent(json: json)
+		}
+	}
+}
+
 extension AgentToolRun: Sendable where Tool.Arguments: Sendable, Tool.Output: Sendable {}
 extension AgentToolRun: Equatable where Tool.Arguments: Equatable, Tool.Output: Equatable {}
 extension AgentToolRun: Hashable where Tool.Arguments: Hashable, Tool.Output: Hashable {}
-
-// MARK: - Encoding
-
-private enum AgentToolCodingKeys: String, CodingKey {
-	case name
-	case description
-	case parameters
-}
-
-public extension AgentTool {
-	func encode(to encoder: any Encoder) throws {
-		var container = encoder.container(keyedBy: AgentToolCodingKeys.self)
-		try container.encode(name, forKey: .name)
-		try container.encode(description, forKey: .description)
-		try container.encode(parameters, forKey: .parameters)
-	}
-}

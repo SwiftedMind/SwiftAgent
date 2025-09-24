@@ -62,7 +62,8 @@
 ### Enhanced
 - **MacPaw OpenAI SDK Migration**: Adopted MacPaw's `OpenAI` Swift package for request execution and removed the `MetaCodable` macro dependency, simplifying adapter maintenance and eliminating macro build overhead.
 - **Code Cleanup**: Removed unused `Array<PromptContextLinkPreview>` extension that was adding unnecessary complexity to the prompt context API surface.
-- **Tool Error Type Rename**: Renamed the core tool error type to `ToolRunError` (`Sources/SwiftAgent/Agent/ToolRunError.swift`) so recoverable problems stay separate from fatal failures and the agent loop only stops when necessary.
+- **Tool Error Type Rename**: Renamed the core tool error type to `ToolRunError`.
+- **Improved Tool Resolution**: Introduced the `AgentTranscript.Resolved` type for embedding tool runs directly into a transcript you can iterate over. You can access it through `transcript.resolved(using: tools)`.
 
 ### Fixed
 

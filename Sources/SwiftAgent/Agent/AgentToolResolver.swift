@@ -9,36 +9,8 @@ import OSLog
 
 public extension AgentTranscript {
 	/// Creates a tool resolver for type-safe tool call resolution.
-	///
-	/// The tool resolver provides a bridge between raw tool calls in the conversation transcript
-	/// and strongly typed tool runs that can be used in your application logic. It matches
-	/// tool calls by name with their corresponding outputs and converts them into domain-specific
-	/// resolved tool runs.
-	///
-	/// - Parameter tools: An array of tools that share the same `ResolvedToolRun` type
-	/// - Returns: A configured tool resolver for this transcript
-	///
-	/// ## Example
-	///
-	/// ```swift
-	/// // Create tools with shared resolved type
-	/// let tools: [any AgentTool<ResolvedToolRun>] = [WeatherTool(), CalculatorTool()]
-	///
-	/// // Get resolver from transcript
-	/// let resolver = session.transcript.toolResolver(for: tools)
-	///
-	/// // Resolve individual tool calls
-	/// for entry in session.transcript {
-	///   if case let .toolCalls(toolCalls) = entry {
-	///     for toolCall in toolCalls {
-	///       let resolved = try resolver.resolve(toolCall)
-	///       // Handle resolved tool...
-	///     }
-	///   }
-	/// }
-	/// ```
-	func toolResolver<ResolvedToolRun>(for tools: [any AgentTool<ResolvedToolRun>])
-		-> AgentToolResolver<Context, ResolvedToolRun> {
+	func toolResolver<ResolutionType>(using tools: [any AgentTool<ResolutionType>])
+		-> AgentToolResolver<Context, ResolutionType> {
 		AgentToolResolver(tools: tools, in: self)
 	}
 }
@@ -48,7 +20,7 @@ public extension AgentTranscript {
 /// ``AgentToolResolver`` bridges the gap between AI model tool calls and your application's
 /// domain logic by providing type-safe resolution of tool invocations. It matches tool calls
 /// with their outputs from the conversation transcript and converts them into strongly typed
-/// ``ResolvedToolRun`` instances.
+/// instances of ``AgentTool/Resolution``.
 ///
 /// ## Overview
 ///
@@ -65,14 +37,14 @@ public extension AgentTranscript {
 ///
 /// ```swift
 /// // Define your resolved tool run type
-/// enum ResolvedToolRun {
+/// enum ToolResolution {
 ///   case weather(AgentToolRun<WeatherTool>)
 ///   case calculator(AgentToolRun<CalculatorTool>)
 /// }
 ///
 /// // Create tools and resolver
-/// let tools: [any AgentTool<ResolvedToolRun>] = [WeatherTool(), CalculatorTool()]
-/// let resolver = session.transcript.toolResolver(for: tools)
+/// let tools: [any AgentTool<ToolResolution>] = [WeatherTool(), CalculatorTool()]
+/// let resolver = session.transcript.toolResolver(using: tools)
 ///
 /// // Resolve tool calls
 /// for entry in session.transcript {
@@ -89,8 +61,8 @@ public extension AgentTranscript {
 /// }
 /// ```
 ///
-/// - Tip: Use ``AgentTranscript/resolvingTools(with:)`` when you want resolved tool runs to appear
-///   alongside transcript entries without manually managing a resolver instance.
+/// - Tip: You can also use ``AgentTranscript/resolved(using:)`` to embed the tool runs directly into the transcript
+/// entries.
 ///
 /// ## Error Handling
 ///
@@ -101,14 +73,14 @@ public extension AgentTranscript {
 ///
 /// ## Type Safety
 ///
-/// By using a shared `ResolvedToolRun` type across all tools, the resolver ensures
+/// By using a shared `ToolResolution` type across all your tools, the resolver ensures
 /// compile-time safety when handling different tool types in a unified way.
-public struct AgentToolResolver<Context: PromptContextSource, ResolvedToolRun> {
+public struct AgentToolResolver<Context: PromptContextSource, ResolutionType> {
 	/// The tool call type from the associated transcript.
 	public typealias ToolCall = AgentTranscript<Context>.ToolCall
 
 	/// Dictionary mapping tool names to their implementations for fast lookup.
-	private let toolsByName: [String: any AgentTool<ResolvedToolRun>]
+	private let toolsByName: [String: any AgentTool<ResolutionType>]
 
 	/// All tool outputs extracted from the conversation transcript.
 	private let transcriptToolOutputs: [AgentTranscript<Context>.ToolOutput]
@@ -116,9 +88,9 @@ public struct AgentToolResolver<Context: PromptContextSource, ResolvedToolRun> {
 	/// Creates a new tool resolver for the given tools and transcript.
 	///
 	/// - Parameters:
-	///   - tools: The tools that can be resolved, all sharing the same `ResolvedToolRun` type
+	///   - tools: The tools that can be resolved, all sharing the same `Resolution` type
 	///   - transcript: The conversation transcript containing tool calls and outputs
-	init(tools: [any AgentTool<ResolvedToolRun>], in transcript: AgentTranscript<Context>) {
+	init(tools: [any AgentTool<ResolutionType>], in transcript: AgentTranscript<Context>) {
 		toolsByName = Dictionary(uniqueKeysWithValues: tools.map { ($0.name, $0) })
 		transcriptToolOutputs = transcript.compactMap { entry in
 			switch entry {
@@ -134,7 +106,7 @@ public struct AgentToolResolver<Context: PromptContextSource, ResolvedToolRun> {
 	/// ## Example
 	///
 	/// ```swift
-	/// let resolver = session.transcript.toolResolver(for: tools)
+	/// let resolver = session.transcript.toolResolver(using: tools)
 	///
 	/// for entry in session.transcript {
 	///   if case let .toolCalls(toolCalls) = entry {
@@ -158,16 +130,16 @@ public struct AgentToolResolver<Context: PromptContextSource, ResolvedToolRun> {
 	/// ```
 	///
 	/// - Parameter call: The tool call to resolve
-	/// - Returns: A resolved tool run of the specified `ResolvedToolRun` type
+	/// - Returns: A resolved tool run of the specified `Resolution` type
 	/// - Throws: ``AgentToolResolutionError/unknownTool(name:)`` if the tool is not found,
 	///           or conversion/resolution errors from the underlying tool
 	///
-	public func resolve(_ call: ToolCall) throws -> ResolvedToolRun {
+	public func resolve(_ call: ToolCall) throws -> ResolutionType {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
 			AgentLog.error(
 				AgentToolResolutionError.unknownTool(name: call.toolName),
-				context: "Tool resolution failed. Available tools: \(availableTools)"
+				context: "Tool resolution failed. Available tools: \(availableTools)",
 			)
 			throw AgentToolResolutionError.unknownTool(name: call.toolName)
 		}
@@ -175,7 +147,7 @@ public struct AgentToolResolver<Context: PromptContextSource, ResolvedToolRun> {
 		let output = findOutput(for: call)
 
 		do {
-			let resolvedTool = try tool.resolvedTool(arguments: call.arguments, output: output)
+			let resolvedTool = try tool.resolve(arguments: call.arguments, output: output)
 			return resolvedTool
 		} catch {
 			AgentLog.error(error, context: "Tool resolution for '\(call.toolName)'")
@@ -205,7 +177,7 @@ public struct AgentToolResolver<Context: PromptContextSource, ResolvedToolRun> {
 }
 
 /// Errors that can occur during tool resolution.
-public enum AgentToolResolutionError: Error, Sendable, Equatable {
+package enum AgentToolResolutionError: Error, Sendable, Equatable {
 	/// The requested tool name was not found in the resolver's tool collection.
 	///
 	/// This error occurs when a tool call references a tool that was not provided

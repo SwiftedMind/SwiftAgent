@@ -136,42 +136,25 @@ struct RootView: View {
 
 			agentResponse = response.content
 			userInput = ""
-			
-			for test in session.transcript.resolved(using: tools) {
-				switch test {
-				case .toolRun(let toolRun):
-					switch toolRun {
-					case .calculator(let agentToolRun):
-						break
-					case .weather(let agentToolRun):
-						break
+
+			if let resolvedTranscript = session.transcript.resolved(using: tools) {
+				toolCallsUsed = resolvedTranscript.compactMap { entry in
+					guard case let .toolRun(toolRun) = entry else {
+						return nil
 					}
-				default:
-					break
-				}
-			}
-			
-			let toolResolver = session.transcript.toolResolver(for: tools)
-			for entry in response.addedEntries {
-				if case let .toolCalls(toolCalls) = entry {
-					for toolCall in toolCalls.calls {
-						do {
-							let resolvedTool = try toolResolver.resolve(toolCall)
-							switch resolvedTool {
-							case let .calculator(run):
-								if let output = run.output {
-									toolCallsUsed.append("Calculator: \(output.expression)")
-								}
-							case let .weather(run):
-								if let output = run.output {
-									toolCallsUsed.append(
-										"Weather: \(output.location) - \(output.temperature)°C, \(output.condition)",
-									)
-								}
-							}
-						} catch {
-							print(error)
+
+					switch toolRun.resolution {
+					case let .calculator(run):
+						if let output = run.output {
+							return "Calculator: \(output.expression)"
 						}
+						return "Calculator: \(run.arguments.firstNumber) \(run.arguments.operation) \(run.arguments.secondNumber)"
+					case let .weather(run):
+						guard let output = run.output else {
+							return "Weather: fetching conditions for \(run.arguments.location)…"
+						}
+
+						return "Weather: \(output.location) - \(output.temperature)°C, \(output.condition)"
 					}
 				}
 			}

@@ -235,29 +235,70 @@ for entry in session.transcript {
 
 ### Tool Resolver
 
-Get type-safe access to tool runs in your UI code by combining tool calls with their outputs:
+`AgentTranscript.Resolved` rebuilds the transcript you already consume, but replaces each
+`.toolCalls` and `.toolOutput` pair with a `.toolRun` that carries your typed resolution. You still
+walk the transcript the same way, now with a single case per tool.
 
 ```swift
-// Define a resolved tool run enum for type-safe tool grouping
+// Enumerate all tools you want to handle in the UI
+enum ToolResolution {
+  case weather(AgentToolRun<WeatherTool>)
+  case calculator(AgentToolRun<CalculatorTool>)
+}
+
+extension WeatherTool {
+  // Map the raw run into your enum case
+  func resolve(_ run: AgentToolRun<WeatherTool>) -> ToolResolution {
+    .weather(run)
+  }
+}
+
+let tools: [any AgentTool<ToolResolution>] = [WeatherTool(), CalculatorTool()]
+let configuration = OpenAIConfiguration.direct(apiKey: "sk-...")
+let session = ModelSession.openAI(tools: tools, instructions: "...", configuration: configuration)
+
+if let resolvedTranscript = session.transcript.resolved(using: tools) {
+  for entry in resolvedTranscript {
+    switch entry {
+    case let .toolRun(toolRun):
+      // React to the merged tool run
+      switch toolRun.resolution {
+      case let .weather(run):
+        print("Weather loaded for \(run.arguments.city)")
+      case let .calculator(run):
+        print("Calculator finished: \(run.arguments.expression)")
+      }
+    default:
+      break
+    }
+  }
+}
+```
+
+The resolved transcript rebuilds itself from `AgentTranscript`, so create it when you need to render
+tool runs and discard it afterward.
+
+#### Tool Resolver Instances
+
+Prefer a reusable resolver object when you want to resolve individual tool calls on demand.
+
+```swift
 enum ResolvedToolRun {
   case weather(AgentToolRun<WeatherTool>)
   case calculator(AgentToolRun<CalculatorTool>)
 }
 
-// Implement the resolve method in your tools
 extension WeatherTool {
   func resolve(_ run: AgentToolRun<WeatherTool>) -> ResolvedToolRun {
     .weather(run)
   }
 }
 
-// Use the tool resolver to get compile-time safe tool access
 let tools: [any AgentTool<ResolvedToolRun>] = [WeatherTool(), CalculatorTool()]
 let configuration = OpenAIConfiguration.direct(apiKey: "sk-...")
 let session = ModelSession.openAI(tools: tools, instructions: "...", configuration: configuration)
 
-// After the agent runs, resolve tool calls for UI display
-let toolResolver = session.transcript.toolResolver(for: tools)
+let toolResolver = session.transcript.toolResolver(using: tools)
 
 for entry in session.transcript {
   if case let .toolCalls(toolCalls) = entry {
@@ -280,32 +321,6 @@ for entry in session.transcript {
   }
 }
 ```
-
-#### Resolved Transcript View
-
-When you want resolved tool runs directly alongside transcript entries, create a resolved view:
-
-```swift
-let resolvedTranscript = session.transcript.resolvingTools(with: tools)
-
-for entry in resolvedTranscript {
-  switch entry {
-  case let .toolRun(toolRun):
-    if let resolved = try? toolRun.get() {
-      print("Tool \(toolRun.call.toolName) succeeded with: \(resolved)")
-    } else if let error = toolRun.error {
-      print("Tool \(toolRun.call.toolName) failed: \(error)")
-    }
-  default:
-    break
-  }
-}
-
-// Access the original transcript at any time
-resolvedTranscript.transcript
-```
-
-This additive view keeps the provider transcript intact while progressively layering on resolved tool runs, so opting out is as easy as working with `AgentTranscript` directly.
 
 ### Structured Output Generation
 
