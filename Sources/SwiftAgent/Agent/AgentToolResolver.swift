@@ -37,7 +37,8 @@ public extension AgentTranscript {
 	///   }
 	/// }
 	/// ```
-	func toolResolver<ResolvedToolRun>(for tools: [any AgentTool<ResolvedToolRun>]) -> AgentToolResolver<Context, ResolvedToolRun> {
+	func toolResolver<ResolvedToolRun>(for tools: [any AgentTool<ResolvedToolRun>])
+		-> AgentToolResolver<Context, ResolvedToolRun> {
 		AgentToolResolver(tools: tools, in: self)
 	}
 }
@@ -87,6 +88,9 @@ public extension AgentTranscript {
 ///   }
 /// }
 /// ```
+///
+/// - Tip: Use ``AgentTranscript/resolvingTools(with:)`` when you want resolved tool runs to appear
+///   alongside transcript entries without manually managing a resolver instance.
 ///
 /// ## Error Handling
 ///
@@ -163,7 +167,7 @@ public struct AgentToolResolver<Context: PromptContextSource, ResolvedToolRun> {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
 			AgentLog.error(
 				AgentToolResolutionError.unknownTool(name: call.toolName),
-				context: "Tool resolution failed. Available tools: \(availableTools)",
+				context: "Tool resolution failed. Available tools: \(availableTools)"
 			)
 			throw AgentToolResolutionError.unknownTool(name: call.toolName)
 		}
@@ -187,8 +191,7 @@ public struct AgentToolResolver<Context: PromptContextSource, ResolvedToolRun> {
 	/// - Parameter call: The tool call to find output for
 	/// - Returns: The generated content from the tool's output, or `nil` if no output found
 	private func findOutput(for call: ToolCall) -> GeneratedContent? {
-		guard let toolOutput = transcriptToolOutputs.first(
-			where: { $0.callId == call.callId }) else {
+		guard let toolOutput = transcriptToolOutputs.first(where: { $0.callId == call.callId }) else {
 			return nil
 		}
 

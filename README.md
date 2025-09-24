@@ -263,7 +263,7 @@ for entry in session.transcript {
   if case let .toolCalls(toolCalls) = entry {
     for toolCall in toolCalls {
       let resolvedTool = try toolResolver.resolve(toolCall)
-      
+
       switch resolvedTool {
       case let .weather(run):
         print("Weather for: \(run.arguments.city)")
@@ -280,6 +280,32 @@ for entry in session.transcript {
   }
 }
 ```
+
+#### Resolved Transcript View
+
+When you want resolved tool runs directly alongside transcript entries, create a resolved view:
+
+```swift
+let resolvedTranscript = session.transcript.resolvingTools(with: tools)
+
+for entry in resolvedTranscript {
+  switch entry {
+  case let .toolRun(toolRun):
+    if let resolved = try? toolRun.get() {
+      print("Tool \(toolRun.call.toolName) succeeded with: \(resolved)")
+    } else if let error = toolRun.error {
+      print("Tool \(toolRun.call.toolName) failed: \(error)")
+    }
+  default:
+    break
+  }
+}
+
+// Access the original transcript at any time
+resolvedTranscript.transcript
+```
+
+This additive view keeps the provider transcript intact while progressively layering on resolved tool runs, so opting out is as easy as working with `AgentTranscript` directly.
 
 ### Structured Output Generation
 
