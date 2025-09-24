@@ -35,9 +35,9 @@ public struct SimulationAdapter {
 		to prompt: Transcript<Context>.Prompt,
 		generating type: Content.Type,
 		generations: [SimulatedGeneration<Content>],
-	) -> AsyncThrowingStream<AgentUpdate<Context>, any Error>
+	) -> AsyncThrowingStream<AdapterUpdate<Context>, any Error>
 		where Content: MockableGenerable, Context: PromptContextSource {
-		let setup = AsyncThrowingStream<AgentUpdate<Context>, any Error>.makeStream()
+		let setup = AsyncThrowingStream<AdapterUpdate<Context>, any Error>.makeStream()
 
 		// Log the start of a simulated run for visibility
 		AgentLog.start(
@@ -102,7 +102,7 @@ public struct SimulationAdapter {
 
 	private func handleReasoning<Context>(
 		summary: String,
-		continuation: AsyncThrowingStream<AgentUpdate<Context>, any Error>.Continuation,
+		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
 	) async throws where Context: PromptContextSource {
 		let entryData = Transcript<Context>.Reasoning(
 			id: UUID().uuidString,
@@ -119,7 +119,7 @@ public struct SimulationAdapter {
 
 	private func handleToolRun<Context>(
 		_ toolMock: some MockableAgentTool,
-		continuation: AsyncThrowingStream<AgentUpdate<Context>, any Error>.Continuation,
+		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
 	) async throws where Context: PromptContextSource {
 		let callId = UUID().uuidString
 		let argumentsJSON = try toolMock.mockArguments().jsonString()
@@ -188,7 +188,7 @@ public struct SimulationAdapter {
 
 	private func handleStringResponse<Context>(
 		_ content: String,
-		continuation: AsyncThrowingStream<AgentUpdate<Context>, any Error>.Continuation,
+		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
 	) async throws where Context: PromptContextSource {
 		let response = Transcript<Context>.Response(
 			id: UUID().uuidString,
@@ -202,7 +202,7 @@ public struct SimulationAdapter {
 
 	private func handleStructuredResponse<Context>(
 		_ content: some MockableGenerable,
-		continuation: AsyncThrowingStream<AgentUpdate<Context>, any Error>.Continuation,
+		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
 	) async throws where Context: PromptContextSource {
 		let generatedContent = GeneratedContent(content)
 

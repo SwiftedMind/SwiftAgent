@@ -113,8 +113,8 @@ public extension ModelSession {
 			}
 		}
 
-		let errorContext = AgentGenerationError.UnexpectedStructuredResponseContext()
-		throw AgentGenerationError.unexpectedStructuredResponse(errorContext)
+		let errorContext = GenerationError.UnexpectedStructuredResponseContext()
+		throw GenerationError.unexpectedStructuredResponse(errorContext)
 	}
 
 	@discardableResult

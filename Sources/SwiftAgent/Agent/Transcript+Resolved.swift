@@ -50,7 +50,7 @@ public extension Transcript {
 		public package(set) var entries: [Entry]
 
 		init(transcript: Transcript<Context>, tools: [any Tool<ResolutionType>]) throws {
-			let resolver = AgentToolResolver(tools: tools, in: transcript)
+			let resolver = ToolResolver(tools: tools, in: transcript)
 			entries = []
 
 			for entry in transcript.entries {

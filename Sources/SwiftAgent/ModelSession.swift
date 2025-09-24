@@ -69,7 +69,7 @@ import Internal
 ///
 /// - Note: ModelSession is `@MainActor` isolated and `@Observable` for SwiftUI integration.
 @Observable @MainActor
-public final class ModelSession<Adapter: AgentAdapter, Context: PromptContextSource> {
+public final class ModelSession<Adapter: SwiftAgent.Adapter, Context: PromptContextSource> {
 	/// The transcript type for this session, containing the conversation history.
 	public typealias Transcript = SwiftAgent.Transcript<Context>
 
@@ -125,7 +125,7 @@ public final class ModelSession<Adapter: AgentAdapter, Context: PromptContextSou
 	/// - Returns: An ``AgentResponse`` containing the generated text,
 	///   transcript entries added during generation, and aggregated token usage.
 	///
-	/// - Throws: ``AgentGenerationError`` or adapter-specific errors if generation fails.
+	/// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
 	private func processStringResponse(
 		from prompt: Transcript.Prompt,
 		using model: Adapter.Model,
@@ -197,7 +197,7 @@ public final class ModelSession<Adapter: AgentAdapter, Context: PromptContextSou
 	/// - Returns: An ``AgentResponse`` containing the generated
 	///   structured content, transcript entries, and token usage.
 	///
-	/// - Throws: ``AgentGenerationError/unexpectedStructuredResponse(_:)`` if no structured
+	/// - Throws: ``GenerationError/unexpectedStructuredResponse(_:)`` if no structured
 	///   content is received, or other adapter-specific errors.
 	private func processStructuredResponse<Content>(
 		from prompt: Transcript.Prompt,
@@ -255,8 +255,8 @@ public final class ModelSession<Adapter: AgentAdapter, Context: PromptContextSou
 			}
 		}
 
-		let errorContext = AgentGenerationError.UnexpectedStructuredResponseContext()
-		throw AgentGenerationError.unexpectedStructuredResponse(errorContext)
+		let errorContext = GenerationError.UnexpectedStructuredResponseContext()
+		throw GenerationError.unexpectedStructuredResponse(errorContext)
 	}
 
 	/// Fetches metadata for URLs found in the input text to create link previews.
@@ -378,7 +378,7 @@ public extension ModelSession {
 	/// - Returns: An ``AgentResponse`` containing the generated text, transcript entries,
 	///   and token usage information.
 	///
-	/// - Throws: ``AgentGenerationError`` or adapter-specific errors if generation fails.
+	/// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
 	@discardableResult
 	func respond(
 		to prompt: String,
@@ -412,7 +412,7 @@ public extension ModelSession {
 	///
 	/// - Returns: An ``AgentResponse`` containing the generated text and metadata.
 	///
-	/// - Throws: ``AgentGenerationError`` or adapter-specific errors if generation fails.
+	/// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
 	@discardableResult
 	func respond(
 		to prompt: Prompt,
@@ -445,7 +445,7 @@ public extension ModelSession {
 	///
 	/// - Returns: An ``AgentResponse`` containing the generated text and metadata.
 	///
-	/// - Throws: ``AgentGenerationError`` or adapter-specific errors if generation fails.
+	/// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
 	@discardableResult
 	func respond(
 		using model: Adapter.Model = .default,
@@ -490,7 +490,7 @@ public extension ModelSession {
 	///
 	/// - Returns: An ``AgentResponse`` containing the generated structured content.
 	///
-	/// - Throws: ``AgentGenerationError`` or adapter-specific errors if generation fails.
+	/// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
 	@discardableResult
 	func respond<Content>(
 		to prompt: String,
@@ -530,7 +530,7 @@ public extension ModelSession {
 	///
 	/// - Returns: An ``AgentResponse`` containing the generated structured content.
 	///
-	/// - Throws: ``AgentGenerationError`` or adapter-specific errors if generation fails.
+	/// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
 	@discardableResult
 	func respond<Content>(
 		to prompt: Prompt,
@@ -569,7 +569,7 @@ public extension ModelSession {
 	///
 	/// - Returns: An ``AgentResponse`` containing the generated structured content.
 	///
-	/// - Throws: ``AgentGenerationError`` or adapter-specific errors if generation fails.
+	/// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
 	@discardableResult
 	func respond<Content>(
 		generating type: Content.Type = Content.self,
@@ -625,7 +625,7 @@ public extension ModelSession {
 	/// - Returns: An ``AgentResponse`` containing the generated text and metadata.
 	///   The transcript entry will maintain separation between input and context.
 	///
-	/// - Throws: ``AgentGenerationError`` or adapter-specific errors if generation fails.
+	/// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
 	@discardableResult
 	func respond(
 		to input: String,
@@ -685,7 +685,7 @@ public extension ModelSession {
 	///
 	/// - Returns: An ``AgentResponse`` containing the generated structured content and metadata.
 	///
-	/// - Throws: ``AgentGenerationError`` or adapter-specific errors if generation fails.
+	/// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
 	@discardableResult
 	func respond<Content>(
 		to input: String,
@@ -759,7 +759,7 @@ public extension ModelSession {
 /// print("Used \(response.tokenUsage?.totalTokens ?? 0) tokens")
 /// print("Added \(response.addedEntries.count) transcript entries")
 /// ```
-public struct AgentResponse<Adapter: AgentAdapter, Context: PromptContextSource, Content> where Content: Generable {
+public struct AgentResponse<Adapter: SwiftAgent.Adapter, Context: PromptContextSource, Content> where Content: Generable {
 	/// The generated content from the AI model.
 	///
 	/// For text responses, this will be a `String`. For structured responses,

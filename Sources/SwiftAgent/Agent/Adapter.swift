@@ -5,7 +5,7 @@ import FoundationModels
 import Internal
 
 @MainActor
-public protocol AgentAdapter {
+public protocol Adapter {
 	associatedtype GenerationOptions: AdapterGenerationOptions<Model>
 	associatedtype Model: AdapterModel
 	associatedtype Configuration: AdapterConfiguration
@@ -19,7 +19,7 @@ public protocol AgentAdapter {
 		using model: Model,
 		including transcript: Transcript<Context>,
 		options: GenerationOptions,
-	) -> AsyncThrowingStream<AgentUpdate<Context>, any Error> where Context: PromptContextSource
+	) -> AsyncThrowingStream<AdapterUpdate<Context>, any Error> where Context: PromptContextSource
 }
 
 // MARK: - GenerationOptions

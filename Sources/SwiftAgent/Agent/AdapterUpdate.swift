@@ -7,7 +7,7 @@ import Foundation
 /// These updates are translated by `ModelSession` into public-facing state
 /// (e.g., transcript updates and responses). While public for type exposure,
 /// they are considered an SDK-internal mechanism.
-public enum AgentUpdate<Context: PromptContextSource>: Sendable, Equatable {
+public enum AdapterUpdate<Context: PromptContextSource>: Sendable, Equatable {
 	/// A transcript entry produced during generation (reasoning, tool calls, outputs, responses...).
 	case transcript(Transcript<Context>.Entry)
 

@@ -6,7 +6,7 @@ import Foundation
 ///
 /// These errors represent various failure scenarios when a `ModelSession` attempts to generate content,
 /// including tool calling failures, content parsing issues, and model refusals.
-public enum AgentGenerationError: Error, LocalizedError {
+public enum GenerationError: Error, LocalizedError {
 	/// The model returned structured content when none was expected.
 	case unexpectedStructuredResponse(UnexpectedStructuredResponseContext)
 	/// The model attempted to call a tool that is not supported or registered.
@@ -42,7 +42,7 @@ public enum AgentGenerationError: Error, LocalizedError {
 	}
 }
 
-public extension AgentGenerationError {
+public extension GenerationError {
 	/// Context information for unsupported tool call errors.
 	struct UnsupportedToolCalledContext: Sendable {
 		/// The name of the tool that the model tried to call.
@@ -54,7 +54,7 @@ public extension AgentGenerationError {
 	}
 }
 
-public extension AgentGenerationError {
+public extension GenerationError {
 	/// Context information for unexpected structured response errors.
 	struct UnexpectedStructuredResponseContext: Sendable {
 		public init() {}

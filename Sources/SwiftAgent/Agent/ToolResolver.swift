@@ -10,14 +10,14 @@ import OSLog
 public extension Transcript {
 	/// Creates a tool resolver for type-safe tool call resolution.
 	func toolResolver<ResolutionType>(using tools: [any Tool<ResolutionType>])
-		-> AgentToolResolver<Context, ResolutionType> {
-		AgentToolResolver(tools: tools, in: self)
+		-> ToolResolver<Context, ResolutionType> {
+		ToolResolver(tools: tools, in: self)
 	}
 }
 
 /// A type-safe resolver for converting raw tool calls into strongly typed tool runs.
 ///
-/// ``AgentToolResolver`` bridges the gap between AI model tool calls and your application's
+/// ``ToolResolver`` bridges the gap between AI model tool calls and your application's
 /// domain logic by providing type-safe resolution of tool invocations. It matches tool calls
 /// with their outputs from the conversation transcript and converts them into strongly typed
 /// instances of ``Tool/Resolution``.
@@ -75,7 +75,7 @@ public extension Transcript {
 ///
 /// By using a shared `ToolResolution` type across all your tools, the resolver ensures
 /// compile-time safety when handling different tool types in a unified way.
-public struct AgentToolResolver<Context: PromptContextSource, ResolutionType> {
+public struct ToolResolver<Context: PromptContextSource, ResolutionType> {
 	/// The tool call type from the associated transcript.
 	public typealias ToolCall = Transcript<Context>.ToolCall
 
