@@ -11,7 +11,7 @@ public protocol Adapter {
 	associatedtype Configuration: AdapterConfiguration
 	associatedtype ConfigurationError: Error & LocalizedError
 
-	init(tools: [any SwiftAgent.Tool], instructions: String, configuration: Configuration)
+	init(tools: [any SwiftAgentTool], instructions: String, configuration: Configuration)
 
 	func respond<Context>(
 		to prompt: Transcript<Context>.Prompt,

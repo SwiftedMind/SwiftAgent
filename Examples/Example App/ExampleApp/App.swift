@@ -32,7 +32,7 @@ enum ToolResolution {
 	case weather(AgentToolRun<WeatherTool>)
 }
 
-struct CalculatorTool: SwiftAgent.Tool {
+struct CalculatorTool: SwiftAgentTool {
 	let name = "calculator"
 	let description = "Performs basic mathematical calculations"
 
@@ -83,7 +83,7 @@ struct CalculatorTool: SwiftAgent.Tool {
 	}
 }
 
-struct WeatherTool: SwiftAgent.Tool {
+struct WeatherTool: SwiftAgentTool {
 	let name = "get_weather"
 	let description = "Gets current weather information for a location"
 

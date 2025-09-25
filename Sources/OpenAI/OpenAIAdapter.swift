@@ -12,13 +12,13 @@ public final class OpenAIAdapter: Adapter {
 	public typealias Transcript<Context: PromptContextSource> = SwiftAgent.Transcript<Context>
 	public typealias ConfigurationError = OpenAIGenerationOptionsError
 
-	private var tools: [any SwiftAgent.Tool]
+	private var tools: [any SwiftAgentTool]
 	private var instructions: String = ""
 	private let httpClient: HTTPClient
 	private let responsesPath: String
 
 	public init(
-		tools: [any SwiftAgent.Tool],
+		tools: [any SwiftAgentTool],
 		instructions: String,
 		configuration: OpenAIConfiguration,
 	) {

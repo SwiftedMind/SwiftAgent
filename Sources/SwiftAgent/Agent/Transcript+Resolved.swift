@@ -38,7 +38,7 @@ public extension Transcript {
 	///
 	/// - Parameter tools: The tools available during resolution. All must share the same resolution type.
 	/// - Returns: A read‑only projection that layers resolved tool runs over the original entries, or `nil` on failure.
-	func resolved<ResolvedToolRun>(using tools: [any Tool<ResolvedToolRun>]) -> Resolved<ResolvedToolRun>? {
+	func resolved<ResolvedToolRun>(using tools: [any SwiftAgentTool<ResolvedToolRun>]) -> Resolved<ResolvedToolRun>? {
 		try? Resolved(transcript: self, tools: tools)
 	}
 
@@ -49,7 +49,7 @@ public extension Transcript {
 		/// All transcript entries with resolved tool runs attached where available.
 		public package(set) var entries: [Entry]
 
-		init(transcript: Transcript<Context>, tools: [any Tool<ResolutionType>]) throws {
+		init(transcript: Transcript<Context>, tools: [any SwiftAgentTool<ResolutionType>]) throws {
 			let resolver = ToolResolver(tools: tools, in: transcript)
 			entries = []
 

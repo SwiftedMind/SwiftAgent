@@ -16,7 +16,7 @@ public struct ToolRunError: Error, LocalizedError {
 	/// - Parameters:
 	///   - tool: The tool that produced the error.
 	///   - underlyingError: The underlying error thrown by the tool run.
-	public init(tool: any Tool, underlyingError: any Error) {
+	public init(tool: any SwiftAgentTool, underlyingError: any Error) {
 		self.tool = tool
 		self.underlyingError = underlyingError
 	}

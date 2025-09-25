@@ -64,7 +64,7 @@ public extension ModelSession {
 	/// )
 	/// ```
 	@MainActor static func openAI(
-		tools: [any SwiftAgent.Tool] = [],
+		tools: [any SwiftAgentTool] = [],
 		instructions: String = "",
 		apiKey: String
 	) -> OpenAISession where Adapter == OpenAIAdapter, Context == NoContext {
@@ -95,7 +95,7 @@ public extension ModelSession {
 	/// )
 	/// ```
 	@MainActor static func openAI(
-		tools: [any SwiftAgent.Tool] = [],
+		tools: [any SwiftAgentTool] = [],
 		instructions: String = "",
 		configuration: OpenAIConfiguration,
 	) -> OpenAISession where Adapter == OpenAIAdapter, Context == NoContext {
@@ -136,7 +136,7 @@ public extension ModelSession {
 	/// )
 	/// ```
 	@MainActor static func openAI(
-		tools: [any SwiftAgent.Tool] = [],
+		tools: [any SwiftAgentTool] = [],
 		instructions: String = "",
 		context: Context.Type,
 		configuration: OpenAIConfiguration,
@@ -176,7 +176,7 @@ public extension ModelSession {
 	/// )
 	/// ```
 	@MainActor static func openAI(
-		tools: [any SwiftAgent.Tool] = [],
+		tools: [any SwiftAgentTool] = [],
 		instructions: String = "",
 		context: Context.Type,
 		apiKey: String,

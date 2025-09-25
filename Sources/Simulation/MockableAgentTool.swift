@@ -37,7 +37,7 @@ public protocol MockableAgentTool<Tool>: Sendable where Tool.Arguments: Encodabl
 	///
 	/// This type must conform to `Tool` and its `Arguments` type must be `Encodable`
 	/// to support JSON serialization in the simulation system.
-	associatedtype Tool: SwiftAgent.Tool
+	associatedtype Tool: SwiftAgentTool
 
 	/// The actual tool instance that this mock wraps.
 	///

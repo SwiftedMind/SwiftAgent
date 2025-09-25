@@ -9,7 +9,7 @@ import OSLog
 
 public extension Transcript {
 	/// Creates a tool resolver for type-safe tool call resolution.
-	func toolResolver<ResolutionType>(using tools: [any Tool<ResolutionType>])
+	func toolResolver<ResolutionType>(using tools: [any SwiftAgentTool<ResolutionType>])
 		-> ToolResolver<Context, ResolutionType> {
 		ToolResolver(tools: tools, in: self)
 	}
@@ -80,7 +80,7 @@ public struct ToolResolver<Context: PromptContextSource, ResolutionType> {
 	public typealias ToolCall = Transcript<Context>.ToolCall
 
 	/// Dictionary mapping tool names to their implementations for fast lookup.
-	private let toolsByName: [String: any Tool<ResolutionType>]
+	private let toolsByName: [String: any SwiftAgentTool<ResolutionType>]
 
 	/// All tool outputs extracted from the conversation transcript.
 	private let transcriptToolOutputs: [Transcript<Context>.ToolOutput]
@@ -90,7 +90,7 @@ public struct ToolResolver<Context: PromptContextSource, ResolutionType> {
 	/// - Parameters:
 	///   - tools: The tools that can be resolved, all sharing the same `Resolution` type
 	///   - transcript: The conversation transcript containing tool calls and outputs
-	init(tools: [any Tool<ResolutionType>], in transcript: Transcript<Context>) {
+	init(tools: [any SwiftAgentTool<ResolutionType>], in transcript: Transcript<Context>) {
 		toolsByName = Dictionary(uniqueKeysWithValues: tools.map { ($0.name, $0) })
 		transcriptToolOutputs = transcript.compactMap { entry in
 			switch entry {

@@ -36,7 +36,7 @@ import Internal
 ///   }
 /// }
 /// ```
-public protocol Tool<ResolutionType>: FoundationModels.Tool,
+public protocol SwiftAgentTool<ResolutionType>: FoundationModels.Tool,
 	Encodable where Output: ConvertibleToGeneratedContent,
 	Output: ConvertibleFromGeneratedContent {
 	/// The type returned when this tool is resolved.
@@ -58,7 +58,7 @@ public protocol Tool<ResolutionType>: FoundationModels.Tool,
 
 // MARK: - Default Resolution
 
-public extension Tool where ResolutionType == Void {
+public extension SwiftAgentTool where ResolutionType == Void {
 	/// Default implementation for tools that don't need custom resolution logic.
 	///
 	/// This implementation is automatically provided for tools where `Resolution`
@@ -72,7 +72,7 @@ public extension Tool where ResolutionType == Void {
 
 // MARK: - Tool Implementation
 
-package extension Tool {
+package extension SwiftAgentTool {
 	var toolType: Self.Type { Self.self }
 
 	/// Resolves a tool with raw GeneratedContent arguments and output.
@@ -169,7 +169,7 @@ package extension Tool {
 ///   .mySpecificTool(run)
 /// }
 /// ```
-public struct AgentToolRun<Tool: SwiftAgent.Tool> {
+public struct AgentToolRun<Tool: SwiftAgentTool> {
 	/// The strongly typed inputs for this invocation.
 	///
 	/// These arguments are automatically parsed from the AI model's JSON tool call
