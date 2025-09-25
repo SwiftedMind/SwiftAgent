@@ -15,6 +15,15 @@ struct ExampleApp: App {
 	var body: some Scene {
 		WindowGroup {
 			RootView()
+				.task {
+					do {
+						let transcript = try await test()
+						print(transcript)
+						print(transcript.partiallyResolved(using: Tools.all))
+					} catch {
+						print("Unexpected error: \(error).")
+					}
+				}
 		}
 	}
 }
@@ -27,9 +36,44 @@ enum ContextSource: PromptContextSource {
 
 // MARK: - Tools
 
-enum ToolRunKind {
+enum Tools: ResolvableToolGroup {
+	static let all: [any ResolvableTool<Tools>] = [
+		CalculatorTool(),
+		WeatherTool()
+	]
+	
+	static let allElse: [any SwiftAgentTool] = [
+		CalculatorTool(),
+		WeatherTool()
+	]
+	
 	case calculator(ToolRun<CalculatorTool>)
 	case weather(ToolRun<WeatherTool>)
+	
+	enum Partials {
+		case calculator(PartialToolRun<CalculatorTool>)
+		case weather(PartialToolRun<WeatherTool>)
+	}
+}
+
+extension CalculatorTool: ResolvableTool {
+	func resolve(_ run: ToolRun<CalculatorTool>) -> Tools {
+		.calculator(run)
+	}
+	
+	func resolvePartially(_ run: PartialToolRun<CalculatorTool>) -> Tools.Partials {
+		.calculator(run)
+	}
+}
+
+extension WeatherTool: ResolvableTool {
+	func resolve(_ run: ToolRun<WeatherTool>) -> Tools {
+		.weather(run)
+	}
+	
+	func resolvePartially(_ run: PartialToolRun<WeatherTool>) -> Tools.Partials {
+		.weather(run)
+	}
 }
 
 struct CalculatorTool: SwiftAgentTool {
@@ -77,10 +121,6 @@ struct CalculatorTool: SwiftAgentTool {
 		let expression = "\(arguments.firstNumber) \(arguments.operation) \(arguments.secondNumber) = \(result)"
 		return Output(result: result, expression: expression)
 	}
-
-	func resolve(_ run: ToolRun<CalculatorTool>) -> ToolRunKind {
-		.calculator(run)
-	}
 }
 
 struct WeatherTool: SwiftAgentTool {
@@ -124,10 +164,6 @@ struct WeatherTool: SwiftAgentTool {
 			condition: weatherData.2,
 			humidity: weatherData.3,
 		)
-	}
-
-	func resolve(_ run: ToolRun<WeatherTool>) -> ToolRunKind {
-		.weather(run)
 	}
 }
 

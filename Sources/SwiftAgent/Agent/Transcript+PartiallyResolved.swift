@@ -3,50 +3,51 @@
 import Foundation
 import FoundationModels
 
+/*
+
+ Perspective Change: The session's transcript is not meant for direct display in the UI.
+ - Flow should be that you start with an empty ui state (or build from existing transcript) and whenever you call respond(), you take the response object and parse the added entries into your ui state
+ - With streaming it will then be the same, you just get partial data until everything has streamed in
+
+ have the transcript as the base and emit it to the user in the stream response! then:
+
+ transcript.partiallyResolved(using: tools)
+
+ enum Transcript.PartiallyResolved
+
+ case reasoning({ summary: String })
+ case toolRun(PartialToolRun)
+ case output()
+
+ */
+
+public func test() async throws -> Transcript<NoContext> {
+	print(try! GeneratedContent(json: #"{"firstNumber": 42.0,"#))
+	return try Transcript<NoContext>(
+		entries: [.toolCalls(
+			.init(
+				calls: [.init(
+					id: "id",
+					callId: "ABC",
+					toolName: "calculator",
+					arguments: GeneratedContent(json: #"{"firstNumber": 42.0,"#),
+					status: .inProgress
+				)]
+			)
+		)]
+	)
+}
 
 public extension Transcript {
-	/// Builds a *resolved transcript* — an immutable, read‑only **projection** of this transcript in which
-	/// tool‑related events are materialized as strongly-typed runs.
-	///
-	/// ### What it does
-	/// - Walks the original entries in order.
-	/// - Converts `.toolCalls` into one or more `.toolRun` entries by resolving each call with one
-	///   of the supplied tools.
-	/// - Coalesces related `.toolOutput` items into the resulting `.toolRun` and does **not** surface
-	///   separate `.toolOutput` entries in the projection.
-	///
-	/// ### When to use it
-	/// Use this when you want to *render* or *inspect* tool results in a type‑safe way without
-	/// mutating or duplicating transcript state.
-	///
-	/// ### Failure
-	/// Returns `nil` if any tool call cannot be resolved with the provided tools (for example,
-	/// no matching tool by name, or decoding arguments failed).
-	///
-	/// ### Example
-	/// ```swift
-	/// if let resolved = transcript.resolved(using: tools) {
-	///   for entry in resolved {
-	///     switch entry {
-	///     case let .toolRun(run):
-	///       render(run.resolution)
-	///     default:
-	///       break
-	///     }
-	///   }
-	/// }
-	/// ```
-	///
-	/// - Parameter tools: The tools available during resolution. All must share the same resolution type.
-	/// - Returns: A read‑only projection that layers resolved tool runs over the original entries, or `nil` on failure.
-	func resolved<Tools>(using tools: [any ResolvableTool<Tools>]) -> Resolved<Tools>? {
-		try? Resolved(transcript: self, tools: tools)
+	func partiallyResolved<Tools: ResolvableToolGroup>(using tools: [any ResolvableTool<Tools>])
+		-> PartiallyResolved<Tools>? {
+		try? PartiallyResolved(transcript: self, tools: tools)
 	}
 
 	/// An immutable **projection** of a transcript with tool runs resolved.
 	///
 	/// You can obtain instances via ``Transcript/resolved(using:)``.
-	struct Resolved<Tools: ResolvableToolGroup> {
+	struct PartiallyResolved<Tools: ResolvableToolGroup> {
 		/// All transcript entries with resolved tool runs attached where available.
 		public package(set) var entries: [Entry]
 
@@ -64,7 +65,7 @@ public extension Transcript {
 					entries.append(.response(response))
 				case let .toolCalls(toolCalls):
 					for call in toolCalls {
-						let resolution = try resolver.resolve(call)
+						let resolution = try resolver.resolvePartially(call)
 						entries.append(.toolRun(.init(call: call, resolution: resolution)))
 					}
 				case .toolOutput:
@@ -103,12 +104,12 @@ public extension Transcript {
 			public var id: String { call.id }
 
 			/// The tool resolution.
-			public let resolution: Tools
+			public let resolution: Tools.Partials
 
 			/// The tool name captured within the original call, convenient for switching logic.
 			public var toolName: String { call.toolName }
 
-			init(call: Transcript<Context>.ToolCall, resolution: Tools) {
+			init(call: Transcript<Context>.ToolCall, resolution: Tools.Partials) {
 				self.call = call
 				self.resolution = resolution
 			}
@@ -116,7 +117,7 @@ public extension Transcript {
 	}
 }
 
-extension Transcript.Resolved: RandomAccessCollection, RangeReplaceableCollection {
+extension Transcript.PartiallyResolved: RandomAccessCollection, RangeReplaceableCollection {
 	public var startIndex: Int { entries.startIndex }
 	public var endIndex: Int { entries.endIndex }
 

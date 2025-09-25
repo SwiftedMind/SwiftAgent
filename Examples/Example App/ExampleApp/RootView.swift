@@ -12,13 +12,6 @@ struct RootView: View {
 	@State private var errorMessage: String?
 	@State private var session: OpenAIContextualSession<ContextSource>?
 
-	// MARK: - Tools
-
-	private var tools: [any SwiftAgentTool<ToolRunKind>] = [
-		CalculatorTool(),
-		WeatherTool(),
-	]
-
 	// MARK: - Body
 
 	var body: some View {
@@ -92,14 +85,14 @@ struct RootView: View {
 
 	private func setupAgent() {
 		session = ModelSession.openAI(
-			tools: tools,
+			tools: Tools.all,
 			instructions: """
 			You are a helpful assistant with access to several tools.
 			Use the available tools when appropriate to help answer questions.
 			Be concise but informative in your responses.
 			""",
 			context: ContextSource.self,
-			configuration: .direct(apiKey: Secret.OpenAI.apiKey),
+			configuration: .direct(apiKey: Secret.OpenAI.apiKey)
 		)
 	}
 
@@ -136,7 +129,7 @@ struct RootView: View {
 			agentResponse = response.content
 			userInput = ""
 
-			if let resolvedTranscript = session.transcript.resolved(using: tools) {
+			if let resolvedTranscript = session.transcript.resolved(using: Tools.all) {
 				toolCallsUsed = resolvedTranscript.compactMap { entry in
 					guard case let .toolRun(toolRun) = entry else {
 						return nil

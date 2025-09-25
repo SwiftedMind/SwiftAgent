@@ -9,8 +9,7 @@ import OSLog
 
 public extension Transcript {
 	/// Creates a tool resolver for type-safe tool call resolution.
-	func toolResolver<ResolutionType>(using tools: [any SwiftAgentTool<ResolutionType>])
-		-> ToolResolver<Context, ResolutionType> {
+	func toolResolver<Tools>(using tools: [any ResolvableTool<Tools>]) -> ToolResolver<Context, Tools> {
 		ToolResolver(tools: tools, in: self)
 	}
 }
@@ -75,12 +74,12 @@ public extension Transcript {
 ///
 /// By using a shared `ToolRunKind` type across all your tools, the resolver ensures
 /// compile-time safety when handling different tool types in a unified way.
-public struct ToolResolver<Context: PromptContextSource, ResolutionType> {
+public struct ToolResolver<Context: PromptContextSource, Tools: ResolvableToolGroup> {
 	/// The tool call type from the associated transcript.
 	public typealias ToolCall = Transcript<Context>.ToolCall
 
 	/// Dictionary mapping tool names to their implementations for fast lookup.
-	private let toolsByName: [String: any SwiftAgentTool<ResolutionType>]
+	private let toolsByName: [String: any ResolvableTool<Tools>]
 
 	/// All tool outputs extracted from the conversation transcript.
 	private let transcriptToolOutputs: [Transcript<Context>.ToolOutput]
@@ -90,7 +89,7 @@ public struct ToolResolver<Context: PromptContextSource, ResolutionType> {
 	/// - Parameters:
 	///   - tools: The tools that can be resolved, all sharing the same `Resolution` type
 	///   - transcript: The conversation transcript containing tool calls and outputs
-	init(tools: [any SwiftAgentTool<ResolutionType>], in transcript: Transcript<Context>) {
+	init(tools: [any ResolvableTool<Tools>], in transcript: Transcript<Context>) {
 		toolsByName = Dictionary(uniqueKeysWithValues: tools.map { ($0.name, $0) })
 		transcriptToolOutputs = transcript.compactMap { entry in
 			switch entry {
@@ -134,7 +133,7 @@ public struct ToolResolver<Context: PromptContextSource, ResolutionType> {
 	/// - Throws: ``AgentToolRunKindError/unknownTool(name:)`` if the tool is not found,
 	///           or conversion/resolution errors from the underlying tool
 	///
-	public func resolve(_ call: ToolCall) throws -> ResolutionType {
+	public func resolve(_ call: ToolCall) throws -> Tools {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
 			AgentLog.error(
@@ -148,6 +147,28 @@ public struct ToolResolver<Context: PromptContextSource, ResolutionType> {
 
 		do {
 			let resolvedTool = try tool.resolve(arguments: call.arguments, output: output)
+			return resolvedTool
+		} catch {
+			AgentLog.error(error, context: "Tool resolution for '\(call.toolName)'")
+			throw error
+		}
+	}
+	
+	public func resolvePartially(_ call: ToolCall) throws -> Tools.Partials {
+		guard let tool = toolsByName[call.toolName] else {
+			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
+			AgentLog.error(
+				AgentToolRunKindError.unknownTool(name: call.toolName),
+				context: "Tool partial resolution failed. Available tools: \(availableTools)",
+			)
+			throw AgentToolRunKindError.unknownTool(name: call.toolName)
+		}
+		
+		let output = findOutput(for: call)
+		
+		do {
+			
+			let resolvedTool = try tool.resolvePartially(arguments: call.arguments, output: output)
 			return resolvedTool
 		} catch {
 			AgentLog.error(error, context: "Tool resolution for '\(call.toolName)'")
