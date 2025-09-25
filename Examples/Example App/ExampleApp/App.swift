@@ -19,7 +19,7 @@ struct ExampleApp: App {
 					do {
 						let transcript = try await test()
 						print(transcript)
-						print(transcript.partiallyResolved(using: Tools.all))
+						print(transcript.partiallyResolved(using: Tools.all)!)
 					} catch {
 						print("Unexpected error: \(error).")
 					}
@@ -36,59 +36,9 @@ enum ContextSource: PromptContextSource {
 
 // MARK: - Tools
 
-enum Tools: ResolvableToolGroup {
-	static let all: [any ResolvableTool<Tools>] = [
-		CalculatorTool(),
-		WeatherTool()
-	]
-	
-	case calculator(ToolRun<CalculatorTool>)
-	case weather(ToolRun<WeatherTool>)
-	
-	// Any way to "overload" these so the compiler chooses them automatically?
-	static func resolve(_ run: ToolRun<CalculatorTool>) -> Tools {
-		.calculator(run)
-	}
-	
-	static func resolve(_ run: ToolRun<WeatherTool>) -> Tools {
-		.weather(run)
-	}
-	//
-	
-	// Ugly because of force casting and switching with a default case
-	static func resolve<Tool>(_ run: ToolRun<Tool>) -> Tools where Tool : ResolvableTool {
-		switch Tool.self {
-		case is CalculatorTool.Type: return .calculator(run as! ToolRun<CalculatorTool>)
-		case is WeatherTool.Type: return .weather(run as! ToolRun<WeatherTool>)
-		default: fatalError()
-		}
-	}
-	//
-	
-	enum Partials {
-		case calculator(PartialToolRun<CalculatorTool>)
-		case weather(PartialToolRun<WeatherTool>)
-	}
-}
-
-extension CalculatorTool: ResolvableTool {
-	func resolve(_ run: ToolRun<CalculatorTool>) -> Tools {
-		.calculator(run)
-	}
-	
-	func resolvePartially(_ run: PartialToolRun<CalculatorTool>) -> Tools.Partials {
-		.calculator(run)
-	}
-}
-
-extension WeatherTool: ResolvableTool{
-	func resolve(_ run: ToolRun<WeatherTool>) -> Tools {
-		.weather(run)
-	}
-	
-	func resolvePartially(_ run: PartialToolRun<WeatherTool>) -> Tools.Partials {
-		.weather(run)
-	}
+#tools {
+	CalculatorTool()
+	WeatherTool()
 }
 
 struct CalculatorTool: SwiftAgentTool {
@@ -171,7 +121,12 @@ struct WeatherTool: SwiftAgentTool {
 
 		let locationKey = arguments.location.lowercased()
 		let weatherData = mockWeatherData[locationKey] ??
-			(arguments.location, Int.random(in: 10...30), ["Sunny", "Cloudy", "Rainy"].randomElement()!, Int.random(in: 40...90))
+			(
+				arguments.location,
+				Int.random(in: 10...30),
+				["Sunny", "Cloudy", "Rainy"].randomElement()!,
+				Int.random(in: 40...90)
+			)
 
 		return Output(
 			location: weatherData.0,

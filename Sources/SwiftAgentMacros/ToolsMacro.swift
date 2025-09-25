@@ -8,9 +8,9 @@ import SwiftSyntaxMacros
 
 @main
 struct SwiftAgentMacroPlugin: CompilerPlugin {
-  let providingMacros: [Macro.Type] = [
-    ToolsMacro.self,
-  ]
+	let providingMacros: [Macro.Type] = [
+		ToolsMacro.self,
+	]
 }
 
 public struct ToolsMacro: DeclarationMacro {
@@ -45,26 +45,27 @@ public struct ToolsMacro: DeclarationMacro {
 				context.diagnose(Syntax(expression), message: .invalidToolExpression)
 				continue
 			}
-			guard let reference = callExpression.calledExpression.as(DeclReferenceExprSyntax.self) else {
+			guard let simpleTypeName = simpleTypeName(from: callExpression.calledExpression) else {
 				context.diagnose(Syntax(expression), message: .invalidToolExpression)
 				continue
 			}
 
-			let typeName = reference.baseName.text
-			let caseName = makeCaseName(from: typeName)
+			let caseName = makeCaseName(from: simpleTypeName)
+			let wrapperName = makeWrapperName(from: simpleTypeName)
 
 			if !recordedCaseNames.insert(caseName).inserted {
 				context.diagnose(Syntax(expression), message: .duplicateCaseName(caseName))
 				continue
 			}
 
-				toolDefinitions.append(
-					ToolDefinition(
-						typeName: typeName,
-						caseName: caseName,
-						creationExpression: ExprSyntax(callExpression),
-					),
-				)
+			toolDefinitions.append(
+				ToolDefinition(
+					baseTypeDescription: callExpression.calledExpression.trimmed.description,
+					caseName: caseName,
+					wrapperName: wrapperName,
+					creationExpression: ExprSyntax(callExpression),
+				),
+			)
 		}
 
 		if toolDefinitions.isEmpty {
@@ -72,15 +73,15 @@ public struct ToolsMacro: DeclarationMacro {
 		}
 
 		let enumDecl = makeToolsEnum(for: toolDefinitions)
-		let extensions = toolDefinitions.map { makeToolExtension(for: $0) }
 
-		return [enumDecl] + extensions
+		return [enumDecl]
 	}
 }
 
 private struct ToolDefinition {
-	let typeName: String
+	let baseTypeDescription: String
 	let caseName: String
+	let wrapperName: String
 	let creationExpression: ExprSyntax
 }
 
@@ -91,46 +92,73 @@ private func makeToolsEnum(for definitions: [ToolDefinition]) -> DeclSyntax {
 
 	let lastIndex = definitions.count - 1
 
-		for (index, definition) in definitions.enumerated() {
-			let separator = index < lastIndex ? "," : ""
-			let creationDescription = definition.creationExpression.trimmed.description
-			lines.append("    \(creationDescription)\(separator)")
-		}
+	for (index, definition) in definitions.enumerated() {
+		let separator = index < lastIndex ? "," : ""
+		lines.append("    \(definition.wrapperName)()\(separator)")
+	}
 
 	lines.append("  ]")
 	lines.append("")
 
 	for definition in definitions {
-		lines.append("  case \(definition.caseName)(ToolRun<\(definition.typeName)>)")
+		lines.append("  case \(definition.caseName)(ToolRun<\(definition.wrapperName)>)")
 	}
 
 	lines.append("")
 	lines.append("  enum Partials {")
 
 	for definition in definitions {
-		lines.append("    case \(definition.caseName)(PartialToolRun<\(definition.typeName)>)")
+		lines.append("    case \(definition.caseName)(PartialToolRun<\(definition.wrapperName)>)")
 	}
 
 	lines.append("  }")
+
+	for definition in definitions {
+		lines.append("")
+		lines.append("  struct \(definition.wrapperName): ResolvableTool {")
+		lines.append("    typealias BaseTool = \(definition.baseTypeDescription)")
+		lines.append("    typealias Arguments = BaseTool.Arguments")
+		lines.append("    typealias Output = BaseTool.Output")
+		lines.append("")
+		lines.append("    private let baseTool: BaseTool")
+		lines.append("")
+		lines.append("    init() {")
+		lines.append("      self.baseTool = \(definition.creationExpression.trimmed.description)")
+		lines.append("    }")
+		lines.append("")
+		lines.append("    var name: String { baseTool.name }")
+		lines.append("    var description: String { baseTool.description }")
+		lines.append("    var parameters: GenerationSchema { baseTool.parameters }")
+		lines.append("")
+		lines.append("    func call(arguments: Arguments) async throws -> Output {")
+		lines.append("      try await baseTool.call(arguments: arguments)")
+		lines.append("    }")
+		lines.append("")
+		lines.append("    func resolve(_ run: ToolRun<\(definition.wrapperName)>) -> Tools {")
+		lines.append("      .\(definition.caseName)(run)")
+		lines.append("    }")
+		lines.append("")
+		lines.append("    func resolvePartially(_ run: PartialToolRun<\(definition.wrapperName)>) -> Tools.Partials {")
+		lines.append("      .\(definition.caseName)(run)")
+		lines.append("    }")
+		lines.append("  }")
+	}
+
 	lines.append("}")
 
-		return DeclSyntax(stringLiteral: lines.joined(separator: "\n"))
+	return DeclSyntax(stringLiteral: lines.joined(separator: "\n"))
 }
 
-private func makeToolExtension(for definition: ToolDefinition) -> DeclSyntax {
-	let lines = [
-		"extension \(definition.typeName): ResolvableTool {",
-		"  func resolve(_ run: ToolRun<\(definition.typeName)>) -> Tools {",
-		"    .\(definition.caseName)(run)",
-		"  }",
-		"",
-		"  func resolvePartially(_ run: PartialToolRun<\(definition.typeName)>) -> Tools.Partials {",
-		"    .\(definition.caseName)(run)",
-		"  }",
-		"}",
-	]
+private func simpleTypeName(from expression: ExprSyntax) -> String? {
+	if let reference = expression.as(DeclReferenceExprSyntax.self) {
+		return reference.baseName.text
+	}
 
-	return DeclSyntax(stringLiteral: lines.joined(separator: "\n"))
+	if let memberAccess = expression.as(MemberAccessExprSyntax.self) {
+		return memberAccess.declName.baseName.text
+	}
+
+	return nil
 }
 
 private func makeCaseName(from typeName: String) -> String {
@@ -191,6 +219,10 @@ private func makeCaseName(from typeName: String) -> String {
 	}
 
 	return components.joined()
+}
+
+private func makeWrapperName(from typeName: String) -> String {
+	"Resolvable\(typeName)"
 }
 
 private extension MacroExpansionContext {

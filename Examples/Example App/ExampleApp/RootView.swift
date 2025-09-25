@@ -92,7 +92,7 @@ struct RootView: View {
 			Be concise but informative in your responses.
 			""",
 			context: ContextSource.self,
-			configuration: .direct(apiKey: Secret.OpenAI.apiKey)
+			configuration: .direct(apiKey: Secret.OpenAI.apiKey),
 		)
 	}
 
