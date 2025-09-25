@@ -7,7 +7,7 @@ import Internal
 /// A thin wrapper around Apple's `FoundationModels.Tool` protocol that provides essential functionality
 /// for SwiftAgent's tool calling system.
 ///
-/// `AgentTool` extends Apple's native tool protocol with type-safe argument and output handling,
+/// `SwiftAgentTool` extends Apple's native tool protocol with type-safe argument and output handling,
 /// custom resolution logic, and seamless integration with SwiftAgent's agent execution loop.
 ///
 /// ## Overview
@@ -19,7 +19,7 @@ import Internal
 /// ## Usage
 ///
 /// ```swift
-/// struct WeatherTool: AgentTool {
+/// struct WeatherTool: SwiftAgentTool {
 ///
 ///   let name = "get_weather"
 ///   let description = "Get current weather for a location"
@@ -53,7 +53,7 @@ public protocol SwiftAgentTool<ResolutionType>: FoundationModels.Tool,
 	///
 	/// - Parameter run: The tool run containing typed arguments and optional output
 	/// - Returns: A resolved representation of the tool execution
-	func resolve(_ run: AgentToolRun<Self>) -> ResolutionType
+	func resolve(_ run: ToolRun<Self>) -> ResolutionType
 }
 
 // MARK: - Default Resolution
@@ -65,7 +65,7 @@ public extension SwiftAgentTool where ResolutionType == Void {
 	/// is `Void`, making the `resolve(_:)` method optional for simple tools.
 	///
 	/// - Parameter run: The tool run (unused in default implementation)
-	func resolve(_ run: AgentToolRun<Self>) {
+	func resolve(_ run: ToolRun<Self>) {
 		()
 	}
 }
@@ -94,23 +94,23 @@ package extension SwiftAgentTool {
 	/// - Parameters:
 	///   - arguments: Raw argument content from the AI model
 	///   - output: Optional raw output content
-	/// - Returns: A typed AgentToolRun instance
+	/// - Returns: A typed ToolRun instance
 	/// - Throws: Conversion errors if content cannot be parsed
-	private func run(for arguments: GeneratedContent, output: GeneratedContent?) throws -> AgentToolRun<Self> {
+	private func run(for arguments: GeneratedContent, output: GeneratedContent?) throws -> ToolRun<Self> {
 		let parsedArguments = try self.arguments(from: arguments)
 
 		guard let output else {
-			return AgentToolRun(arguments: parsedArguments)
+			return ToolRun(arguments: parsedArguments)
 		}
 
 		do {
-			return try AgentToolRun(arguments: parsedArguments, output: self.output(from: output))
+			return try ToolRun(arguments: parsedArguments, output: self.output(from: output))
 		} catch {
 			guard let problem = problem(from: output) else {
 				throw error
 			}
 
-			return AgentToolRun(arguments: parsedArguments, problem: problem)
+			return ToolRun(arguments: parsedArguments, problem: problem)
 		}
 	}
 
@@ -136,14 +136,14 @@ package extension SwiftAgentTool {
 		return try toolType.Output(generatedContent)
 	}
 
-	private func problem(from generatedContent: GeneratedContent) -> AgentToolRun<Self>.Problem? {
+	private func problem(from generatedContent: GeneratedContent) -> ToolRun<Self>.Problem? {
 		guard
 			let problemReport = try? ProblemReport(generatedContent),
 			problemReport.error else {
 			return nil
 		}
 
-		return AgentToolRun<Self>.Problem(
+		return ToolRun<Self>.Problem(
 			reason: problemReport.reason,
 			json: generatedContent.jsonString,
 			details: ProblemReportDetailsExtractor.values(from: generatedContent),
@@ -151,25 +151,33 @@ package extension SwiftAgentTool {
 	}
 }
 
-// MARK: - AgentToolRun
+// MARK: - ToolRun
 
 /// Represents a single tool execution with strongly typed arguments and output.
 ///
-/// `AgentToolRun` encapsulates a tool invocation by combining the parsed arguments
+/// `ToolRun` encapsulates a tool invocation by combining the parsed arguments
 /// with any available output from the conversation transcript. This provides a
 /// clean, type-safe interface for tool resolution logic.
 ///
 /// ## Usage
 ///
-/// Tool runs are created internally by the framework and passed to your tool's
-/// ``Tool/resolve(_:)->_`` method:
+/// Tool runs are created internally by the framework and passed to your tool's`
+/// ``SwiftAgentTool/resolve(_:)->_`` method:
 ///
 /// ```swift
-/// func resolve(_ run: AgentToolRun<Self>) -> MyToolResolution {
-///   .mySpecificTool(run)
+///enum ToolRunKind {
+///  case mySpecificTool(ToolRun<MySpecificTool>)
+///}
+///
+/// struct MySpecificTool: AgentTool {
+///   /* ... */
+///
+///   func resolve(_ run: ToolRun<Self>) -> ToolRunKind {
+///     .mySpecificTool(run)
+///   }
 /// }
 /// ```
-public struct AgentToolRun<Tool: SwiftAgentTool> {
+public struct ToolRun<Tool: SwiftAgentTool> {
 	/// The strongly typed inputs for this invocation.
 	///
 	/// These arguments are automatically parsed from the AI model's JSON tool call
@@ -222,7 +230,7 @@ public struct AgentToolRun<Tool: SwiftAgentTool> {
 	}
 }
 
-public extension AgentToolRun {
+public extension ToolRun {
 	/// Recoverable problem information returned when the tool output cannot be decoded into `Tool.Output`.
 	struct Problem: Sendable, Equatable, Hashable {
 		/// The human-readable reason describing the problem.
@@ -247,6 +255,6 @@ public extension AgentToolRun {
 	}
 }
 
-extension AgentToolRun: Sendable where Tool.Arguments: Sendable, Tool.Output: Sendable {}
-extension AgentToolRun: Equatable where Tool.Arguments: Equatable, Tool.Output: Equatable {}
-extension AgentToolRun: Hashable where Tool.Arguments: Hashable, Tool.Output: Hashable {}
+extension ToolRun: Sendable where Tool.Arguments: Sendable, Tool.Output: Sendable {}
+extension ToolRun: Equatable where Tool.Arguments: Equatable, Tool.Output: Equatable {}
+extension ToolRun: Hashable where Tool.Arguments: Hashable, Tool.Output: Hashable {}

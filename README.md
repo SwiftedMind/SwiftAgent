@@ -140,7 +140,7 @@ SwiftAgent always wraps your payload in a standardized envelope that includes `e
 For quick cases, attach string-keyed details with the convenience initializer:
 
 ```swift
-struct CustomerLookupTool: AgentTool {
+struct CustomerLookupTool: SwiftAgentTool {
   func call(arguments: Arguments) async throws -> Output {
     guard let customer = try await directory.loadCustomer(id: arguments.customerId) else {
       throw ToolRunProblem(
@@ -241,19 +241,19 @@ walk the transcript the same way, now with a single case per tool.
 
 ```swift
 // Enumerate all tools you want to handle in the UI
-enum ToolResolution {
-  case weather(AgentToolRun<WeatherTool>)
-  case calculator(AgentToolRun<CalculatorTool>)
+enum ToolRunKind {
+  case weather(ToolRun<WeatherTool>)
+  case calculator(ToolRun<CalculatorTool>)
 }
 
 extension WeatherTool {
   // Map the raw run into your enum case
-  func resolve(_ run: AgentToolRun<WeatherTool>) -> ToolResolution {
+  func resolve(_ run: ToolRun<WeatherTool>) -> ToolRunKind {
     .weather(run)
   }
 }
 
-let tools: [any SwiftAgentTool<ToolResolution>] = [WeatherTool(), CalculatorTool()]
+let tools: [any SwiftAgentTool<ToolRunKind>] = [WeatherTool(), CalculatorTool()]
 let configuration = OpenAIConfiguration.direct(apiKey: "sk-...")
 let session = ModelSession.openAI(tools: tools, instructions: "...", configuration: configuration)
 
@@ -283,18 +283,18 @@ tool runs and discard it afterward.
 Prefer a reusable resolver object when you want to resolve individual tool calls on demand.
 
 ```swift
-enum ResolvedToolRun {
-  case weather(AgentToolRun<WeatherTool>)
-  case calculator(AgentToolRun<CalculatorTool>)
+enum ToolRunKind {
+  case weather(ToolRun<WeatherTool>)
+  case calculator(ToolRun<CalculatorTool>)
 }
 
 extension WeatherTool {
-  func resolve(_ run: AgentToolRun<WeatherTool>) -> ResolvedToolRun {
+  func resolve(_ run: ToolRun<WeatherTool>) -> ToolRunKind {
     .weather(run)
   }
 }
 
-let tools: [any SwiftAgentTool<ResolvedToolRun>] = [WeatherTool(), CalculatorTool()]
+let tools: [any SwiftAgentTool<ToolRunKind>] = [WeatherTool(), CalculatorTool()]
 let configuration = OpenAIConfiguration.direct(apiKey: "sk-...")
 let session = ModelSession.openAI(tools: tools, instructions: "...", configuration: configuration)
 

@@ -10,12 +10,14 @@
   protocol AgentAdapter { ... }
   protocol AgentTool { ... }
   struct AgentTranscript<Context> { ... }
+  struct AgentToolRun<Tool> { ... }
   enum AgentGenerationError { ... }
 
   // Now
   protocol Adapter { ... }
   protocol SwiftAgentTool { ... }
   struct Transcript<Context> { ... }
+  struct ToolRun<Tool> { ... }
   enum GenerationError { ... }
   ```
 
@@ -56,7 +58,7 @@
   }
   ```
 
-- **Recoverable Tool Problems**: Added a `ToolRunProblem` error type so tools can return a recoverable issue back to the agent without stopping the loop; the OpenAI adapter now reads these problem objects to decide when a tool should retry or provide alternate output. `AgentToolRun` also exposes `problem` and `isAwaitingOutput` so resolvers can surface the problem payload forwarded by the adapter whenever `SwiftAgentTool.Output` decoding fails.
+- **Recoverable Tool Problems**: Added a `ToolRunProblem` error type so tools can return a recoverable issue back to the agent without stopping the loop; the OpenAI adapter now reads these problem objects to decide when a tool should retry or provide alternate output. `ToolRun` also exposes `problem` and `isAwaitingOutput` so resolvers can surface the problem payload forwarded by the adapter whenever `SwiftAgentTool.Output` decoding fails.
 
   ```swift
   struct CustomerLookupTool: SwiftAgentTool {
@@ -80,7 +82,7 @@
 - **MacPaw OpenAI SDK Migration**: Adopted MacPaw's `OpenAI` Swift package for request execution and removed the `MetaCodable` macro dependency, simplifying adapter maintenance and eliminating macro build overhead.
 - **Code Cleanup**: Removed unused `Array<PromptContextLinkPreview>` extension that was adding unnecessary complexity to the prompt context API surface.
 - **Tool Error Type Rename**: Renamed the core tool error type to `ToolRunError`.
-- **Improved Tool Resolution**: Introduced the `AgentTranscript.Resolved` type for embedding tool runs directly into a transcript you can iterate over. You can access it through `transcript.resolved(using: tools)`.
+- **Improved Tool Resolution**: Introduced the `Transcript.Resolved` type for embedding tool runs directly into a transcript you can iterate over. You can access it through `transcript.resolved(using: tools)`.
 
 ### Fixed
 

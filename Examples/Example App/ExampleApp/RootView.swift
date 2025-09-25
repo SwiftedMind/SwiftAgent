@@ -14,7 +14,7 @@ struct RootView: View {
 
 	// MARK: - Tools
 
-	private var tools: [any SwiftAgentTool<ToolResolution>] = [
+	private var tools: [any SwiftAgentTool<ToolRunKind>] = [
 		CalculatorTool(),
 		WeatherTool(),
 	]

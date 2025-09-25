@@ -27,9 +27,9 @@ enum ContextSource: PromptContextSource {
 
 // MARK: - Tools
 
-enum ToolResolution {
-	case calculator(AgentToolRun<CalculatorTool>)
-	case weather(AgentToolRun<WeatherTool>)
+enum ToolRunKind {
+	case calculator(ToolRun<CalculatorTool>)
+	case weather(ToolRun<WeatherTool>)
 }
 
 struct CalculatorTool: SwiftAgentTool {
@@ -78,7 +78,7 @@ struct CalculatorTool: SwiftAgentTool {
 		return Output(result: result, expression: expression)
 	}
 
-	func resolve(_ run: AgentToolRun<CalculatorTool>) -> ToolResolution {
+	func resolve(_ run: ToolRun<CalculatorTool>) -> ToolRunKind {
 		.calculator(run)
 	}
 }
@@ -126,7 +126,7 @@ struct WeatherTool: SwiftAgentTool {
 		)
 	}
 
-	func resolve(_ run: AgentToolRun<WeatherTool>) -> ToolResolution {
+	func resolve(_ run: ToolRun<WeatherTool>) -> ToolRunKind {
 		.weather(run)
 	}
 }

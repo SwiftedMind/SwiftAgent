@@ -37,13 +37,13 @@ public extension Transcript {
 ///
 /// ```swift
 /// // Define your resolved tool run type
-/// enum ToolResolution {
-///   case weather(AgentToolRun<WeatherTool>)
-///   case calculator(AgentToolRun<CalculatorTool>)
+/// enum ToolRunKind {
+///   case weather(ToolRun<WeatherTool>)
+///   case calculator(ToolRun<CalculatorTool>)
 /// }
 ///
 /// // Create tools and resolver
-/// let tools: [any Tool<ToolResolution>] = [WeatherTool(), CalculatorTool()]
+/// let tools: [any Tool<ToolRunKind>] = [WeatherTool(), CalculatorTool()]
 /// let resolver = session.transcript.toolResolver(using: tools)
 ///
 /// // Resolve tool calls
@@ -66,14 +66,14 @@ public extension Transcript {
 ///
 /// ## Error Handling
 ///
-/// The resolver throws ``AgentToolResolutionError`` when:
+/// The resolver throws ``AgentToolRunKindError`` when:
 /// - A tool call references an unknown tool name
 /// - Tool argument parsing fails
 /// - Tool output conversion fails
 ///
 /// ## Type Safety
 ///
-/// By using a shared `ToolResolution` type across all your tools, the resolver ensures
+/// By using a shared `ToolRunKind` type across all your tools, the resolver ensures
 /// compile-time safety when handling different tool types in a unified way.
 public struct ToolResolver<Context: PromptContextSource, ResolutionType> {
 	/// The tool call type from the associated transcript.
@@ -119,7 +119,7 @@ public struct ToolResolver<Context: PromptContextSource, ResolutionType> {
 	///         case let .calculator(run):
 	///           print("Calculation: \(run.arguments.expression)")
 	///         }
-	///       } catch AgentToolResolutionError.unknownTool(let name) {
+	///       } catch AgentToolRunKindError.unknownTool(let name) {
 	///         print("Unknown tool: \(name)")
 	///       } catch {
 	///         print("Resolution failed: \(error)")
@@ -131,17 +131,17 @@ public struct ToolResolver<Context: PromptContextSource, ResolutionType> {
 	///
 	/// - Parameter call: The tool call to resolve
 	/// - Returns: A resolved tool run of the specified `Resolution` type
-	/// - Throws: ``AgentToolResolutionError/unknownTool(name:)`` if the tool is not found,
+	/// - Throws: ``AgentToolRunKindError/unknownTool(name:)`` if the tool is not found,
 	///           or conversion/resolution errors from the underlying tool
 	///
 	public func resolve(_ call: ToolCall) throws -> ResolutionType {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
 			AgentLog.error(
-				AgentToolResolutionError.unknownTool(name: call.toolName),
+				AgentToolRunKindError.unknownTool(name: call.toolName),
 				context: "Tool resolution failed. Available tools: \(availableTools)",
 			)
-			throw AgentToolResolutionError.unknownTool(name: call.toolName)
+			throw AgentToolRunKindError.unknownTool(name: call.toolName)
 		}
 
 		let output = findOutput(for: call)
@@ -177,7 +177,7 @@ public struct ToolResolver<Context: PromptContextSource, ResolutionType> {
 }
 
 /// Errors that can occur during tool resolution.
-package enum AgentToolResolutionError: Error, Sendable, Equatable {
+package enum AgentToolRunKindError: Error, Sendable, Equatable {
 	/// The requested tool name was not found in the resolver's tool collection.
 	///
 	/// This error occurs when a tool call references a tool that was not provided

@@ -38,7 +38,7 @@ public extension Transcript {
 	///
 	/// - Parameter tools: The tools available during resolution. All must share the same resolution type.
 	/// - Returns: A read‑only projection that layers resolved tool runs over the original entries, or `nil` on failure.
-	func resolved<ResolvedToolRun>(using tools: [any SwiftAgentTool<ResolvedToolRun>]) -> Resolved<ResolvedToolRun>? {
+	func resolved<ToolRunKind>(using tools: [any SwiftAgentTool<ToolRunKind>]) -> Resolved<ToolRunKind>? {
 		try? Resolved(transcript: self, tools: tools)
 	}
 
@@ -77,7 +77,7 @@ public extension Transcript {
 		public enum Entry: Identifiable {
 			case prompt(Transcript<Context>.Prompt)
 			case reasoning(Transcript<Context>.Reasoning)
-			case toolRun(ResolvedToolRun)
+			case toolRun(ToolRunKind)
 			case response(Transcript<Context>.Response)
 
 			public var id: String {
@@ -95,7 +95,7 @@ public extension Transcript {
 		}
 
 		/// A resolved tool run.
-		public struct ResolvedToolRun: Identifiable {
+		public struct ToolRunKind: Identifiable {
 			private let call: Transcript<Context>.ToolCall
 
 			/// The identifier of this run.
