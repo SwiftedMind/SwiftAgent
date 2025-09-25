@@ -100,7 +100,7 @@ let session = ModelSession.openAI(tools: tools, instructions: "...", configurati
 Create tools using Apple's `@Generable` macro for type-safe, schema-free tool definitions:
 
 ```swift
-struct WeatherTool: AgentTool {
+struct WeatherTool: SwiftAgentTool {
   let name = "get_weather"
   let description = "Get current weather for a location"
   
@@ -235,7 +235,7 @@ for entry in session.transcript {
 
 ### Tool Resolver
 
-`AgentTranscript.Resolved` rebuilds the transcript you already consume, but replaces each
+`Transcript.Resolved` rebuilds the transcript you already consume, but replaces each
 `.toolCalls` and `.toolOutput` pair with a `.toolRun` that carries your typed resolution. You still
 walk the transcript the same way, now with a single case per tool.
 
@@ -253,7 +253,7 @@ extension WeatherTool {
   }
 }
 
-let tools: [any AgentTool<ToolResolution>] = [WeatherTool(), CalculatorTool()]
+let tools: [any SwiftAgentTool<ToolResolution>] = [WeatherTool(), CalculatorTool()]
 let configuration = OpenAIConfiguration.direct(apiKey: "sk-...")
 let session = ModelSession.openAI(tools: tools, instructions: "...", configuration: configuration)
 
@@ -275,7 +275,7 @@ if let resolvedTranscript = session.transcript.resolved(using: tools) {
 }
 ```
 
-The resolved transcript rebuilds itself from `AgentTranscript`, so create it when you need to render
+The resolved transcript rebuilds itself from `Transcript`, so create it when you need to render
 tool runs and discard it afterward.
 
 #### Tool Resolver Instances
@@ -294,7 +294,7 @@ extension WeatherTool {
   }
 }
 
-let tools: [any AgentTool<ResolvedToolRun>] = [WeatherTool(), CalculatorTool()]
+let tools: [any SwiftAgentTool<ResolvedToolRun>] = [WeatherTool(), CalculatorTool()]
 let configuration = OpenAIConfiguration.direct(apiKey: "sk-...")
 let session = ModelSession.openAI(tools: tools, instructions: "...", configuration: configuration)
 

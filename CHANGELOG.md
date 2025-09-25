@@ -2,6 +2,23 @@
 
 ## [Upcoming]
 
+### Breaking Changes
+
+- **Core Protocol Renaming**: Renamed key protocols and types for better consistency and clarity throughout the framework.
+  ```swift
+  // Before
+  protocol AgentAdapter { ... }
+  protocol AgentTool { ... }
+  struct AgentTranscript<Context> { ... }
+  enum AgentGenerationError { ... }
+
+  // Now
+  protocol Adapter { ... }
+  protocol SwiftAgentTool { ... }
+  struct Transcript<Context> { ... }
+  enum GenerationError { ... }
+  ```
+
 ### Added
 
 - **PromptTag Single Content Initializer**: Added convenience initializer for `PromptTag` that accepts a single `PromptRepresentable` content parameter, improving API ergonomics for simple use cases.
@@ -39,10 +56,10 @@
   }
   ```
 
-- **Recoverable Tool Problems**: Added a `ToolRunProblem` error type so tools can return a recoverable issue back to the agent without stopping the loop; the OpenAI adapter now reads these problem objects to decide when a tool should retry or provide alternate output. `AgentToolRun` also exposes `problem` and `isAwaitingOutput` so resolvers can surface the problem payload forwarded by the adapter whenever `Tool.Output` decoding fails.
+- **Recoverable Tool Problems**: Added a `ToolRunProblem` error type so tools can return a recoverable issue back to the agent without stopping the loop; the OpenAI adapter now reads these problem objects to decide when a tool should retry or provide alternate output. `AgentToolRun` also exposes `problem` and `isAwaitingOutput` so resolvers can surface the problem payload forwarded by the adapter whenever `SwiftAgentTool.Output` decoding fails.
 
   ```swift
-  struct CustomerLookupTool: AgentTool {
+  struct CustomerLookupTool: SwiftAgentTool {
     func call(arguments: Arguments) async throws -> Output {
       guard let customer = try await directory.loadCustomer(id: arguments.customerIdentifier) else {
         throw ToolRunProblem(
