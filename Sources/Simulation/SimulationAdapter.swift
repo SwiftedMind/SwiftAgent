@@ -139,7 +139,7 @@ public struct SimulationAdapter {
 			argumentsJSON: argumentsJSON,
 		)
 
-		continuation.yield(.transcript(.toolCalls(Transcript.ToolCalls(calls: [toolCall]))))
+		continuation.yield(.transcript(.toolCalls(Transcript<Context>.ToolCalls(calls: [toolCall]))))
 
 		do {
 			let output = try await toolMock.mockOutput()
@@ -148,7 +148,7 @@ public struct SimulationAdapter {
 				id: UUID().uuidString,
 				callId: callId,
 				toolName: toolMock.tool.name,
-				segment: .structure(Transcript.StructuredSegment(content: output)),
+				segment: .structure(Transcript<Context>.StructuredSegment(content: output)),
 				status: .completed,
 			)
 
@@ -167,7 +167,7 @@ public struct SimulationAdapter {
 				id: UUID().uuidString,
 				callId: callId,
 				toolName: toolMock.tool.name,
-				segment: .structure(Transcript.StructuredSegment(content: toolRunProblem.generatedContent)),
+				segment: .structure(Transcript<Context>.StructuredSegment(content: toolRunProblem.generatedContent)),
 				status: .completed,
 			)
 
@@ -192,7 +192,7 @@ public struct SimulationAdapter {
 	) async throws where Context: PromptContextSource {
 		let response = Transcript<Context>.Response(
 			id: UUID().uuidString,
-			segments: [.text(Transcript.TextSegment(content: content))],
+			segments: [.text(Transcript<Context>.TextSegment(content: content))],
 			status: .completed,
 		)
 
@@ -208,7 +208,7 @@ public struct SimulationAdapter {
 
 		let response = Transcript<Context>.Response(
 			id: UUID().uuidString,
-			segments: [.structure(Transcript.StructuredSegment(content: content))],
+			segments: [.structure(Transcript<Context>.StructuredSegment(content: content))],
 			status: .completed,
 		)
 

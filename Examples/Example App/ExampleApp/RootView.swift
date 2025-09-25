@@ -14,7 +14,7 @@ struct RootView: View {
 
 	// MARK: - Tools
 
-	private var tools: [any Tool<ResolvedToolRun>] = [
+	private var tools: [any Tool<ToolResolution>] = [
 		CalculatorTool(),
 		WeatherTool(),
 	]

@@ -27,6 +27,11 @@ enum ContextSource: PromptContextSource {
 
 // MARK: - Tools
 
+enum ToolResolution {
+	case calculator(AgentToolRun<CalculatorTool>)
+	case weather(AgentToolRun<WeatherTool>)
+}
+
 struct CalculatorTool: SwiftAgent.Tool {
 	let name = "calculator"
 	let description = "Performs basic mathematical calculations"
@@ -73,7 +78,7 @@ struct CalculatorTool: SwiftAgent.Tool {
 		return Output(result: result, expression: expression)
 	}
 
-	func resolve(_ run: AgentToolRun<CalculatorTool>) -> ResolvedToolRun {
+	func resolve(_ run: AgentToolRun<CalculatorTool>) -> ToolResolution {
 		.calculator(run)
 	}
 }
@@ -121,14 +126,9 @@ struct WeatherTool: SwiftAgent.Tool {
 		)
 	}
 
-	func resolve(_ run: AgentToolRun<WeatherTool>) -> ResolvedToolRun {
+	func resolve(_ run: AgentToolRun<WeatherTool>) -> ToolResolution {
 		.weather(run)
 	}
-}
-
-enum ResolvedToolRun {
-	case calculator(AgentToolRun<CalculatorTool>)
-	case weather(AgentToolRun<WeatherTool>)
 }
 
 enum ToolError: Error, LocalizedError {

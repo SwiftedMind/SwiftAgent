@@ -230,7 +230,7 @@ public final class OpenAIAdapter: Adapter {
 		}
 
 		if let refusalMessage {
-			let refusalSegments = [Transcript<Context>.Segment.text(Transcript.TextSegment(content: refusalMessage))]
+			let refusalSegments = [Transcript<Context>.Segment.text(Transcript<Context>.TextSegment(content: refusalMessage))]
 			let refusalResponse = Transcript<Context>.Response(
 				id: message.id,
 				segments: refusalSegments,
@@ -252,7 +252,7 @@ public final class OpenAIAdapter: Adapter {
 		}
 
 		let responseSegments = textFragments.map { fragment in
-			Transcript<Context>.Segment.text(Transcript.TextSegment(content: fragment))
+			Transcript<Context>.Segment.text(Transcript<Context>.TextSegment(content: fragment))
 		}
 		let response = Transcript<Context>.Response(
 			id: message.id,
@@ -291,7 +291,7 @@ public final class OpenAIAdapter: Adapter {
 		if let refusalMessage {
 			let refusalResponse = Transcript<Context>.Response(
 				id: message.id,
-				segments: [.text(Transcript.TextSegment(content: refusalMessage))],
+				segments: [.text(Transcript<Context>.TextSegment(content: refusalMessage))],
 				status: status,
 			)
 
@@ -315,7 +315,7 @@ public final class OpenAIAdapter: Adapter {
 			let generatedContent = try GeneratedContent(json: combinedJSON)
 			let response = Transcript<Context>.Response(
 				id: message.id,
-				segments: [.structure(Transcript.StructuredSegment(content: generatedContent))],
+				segments: [.structure(Transcript<Context>.StructuredSegment(content: generatedContent))],
 				status: status,
 			)
 
@@ -354,8 +354,8 @@ public final class OpenAIAdapter: Adapter {
 			argumentsJSON: functionCall.arguments,
 		)
 
-		generatedTranscript.entries.append(.toolCalls(Transcript.ToolCalls(calls: [toolCall])))
-		continuation.yield(.transcript(.toolCalls(Transcript.ToolCalls(calls: [toolCall]))))
+		generatedTranscript.entries.append(.toolCalls(Transcript<Context>.ToolCalls(calls: [toolCall])))
+		continuation.yield(.transcript(.toolCalls(Transcript<Context>.ToolCalls(calls: [toolCall]))))
 
 		guard let tool = tools.first(where: { $0.name == functionCall.name }) else {
 			AgentLog.error(
