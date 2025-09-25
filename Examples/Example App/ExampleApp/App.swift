@@ -42,13 +42,28 @@ enum Tools: ResolvableToolGroup {
 		WeatherTool()
 	]
 	
-	static let allElse: [any SwiftAgentTool] = [
-		CalculatorTool(),
-		WeatherTool()
-	]
-	
 	case calculator(ToolRun<CalculatorTool>)
 	case weather(ToolRun<WeatherTool>)
+	
+	// Any way to "overload" these so the compiler chooses them automatically?
+	static func resolve(_ run: ToolRun<CalculatorTool>) -> Tools {
+		.calculator(run)
+	}
+	
+	static func resolve(_ run: ToolRun<WeatherTool>) -> Tools {
+		.weather(run)
+	}
+	//
+	
+	// Ugly because of force casting and switching with a default case
+	static func resolve<Tool>(_ run: ToolRun<Tool>) -> Tools where Tool : ResolvableTool {
+		switch Tool.self {
+		case is CalculatorTool.Type: return .calculator(run as! ToolRun<CalculatorTool>)
+		case is WeatherTool.Type: return .weather(run as! ToolRun<WeatherTool>)
+		default: fatalError()
+		}
+	}
+	//
 	
 	enum Partials {
 		case calculator(PartialToolRun<CalculatorTool>)
@@ -66,7 +81,7 @@ extension CalculatorTool: ResolvableTool {
 	}
 }
 
-extension WeatherTool: ResolvableTool {
+extension WeatherTool: ResolvableTool{
 	func resolve(_ run: ToolRun<WeatherTool>) -> Tools {
 		.weather(run)
 	}
