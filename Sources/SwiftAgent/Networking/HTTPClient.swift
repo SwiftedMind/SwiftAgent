@@ -1,5 +1,6 @@
 // By Dennis Müller
 
+import EventSource
 import Foundation
 
 // MARK: - Public API
@@ -15,6 +16,25 @@ public protocol HTTPClient: Sendable {
 		body: (some Encodable)?,
 		responseType: ResponseBody.Type,
 	) async throws -> ResponseBody
+
+	/// Streams Server-Sent Events from an HTTP endpoint.
+	func stream(
+		path: String,
+		method: HTTPMethod,
+		headers: [String: String],
+		body: (some Encodable)?,
+	) -> AsyncThrowingStream<EventSource.Event, Error>
+}
+
+public extension HTTPClient {
+	/// Convenience overload that defaults to `.post` and no additional headers.
+	func stream(
+		path: String,
+		headers: [String: String] = [:],
+		body: (some Encodable)? = nil,
+	) -> AsyncThrowingStream<EventSource.Event, Error> {
+		stream(path: path, method: .post, headers: headers, body: body)
+	}
 }
 
 public enum HTTPMethod: String, Sendable {
@@ -30,11 +50,13 @@ public struct HTTPClientInterceptors: Sendable {
 	/// Allows adding auth headers or other customizations before the request is sent.
 	public var prepareRequest: (@Sendable (inout URLRequest) async throws -> Void)?
 	/// Called on 401 responses. Return true to indicate the request should be retried once (e.g. after refreshing auth).
-	public var onUnauthorized: (@Sendable (_ response: HTTPURLResponse, _ data: Data?, _ originalRequest: URLRequest) async -> Bool)?
+	public var onUnauthorized: (@Sendable (_ response: HTTPURLResponse, _ data: Data?,
+	                                       _ originalRequest: URLRequest) async -> Bool)?
 
 	public init(
 		prepareRequest: (@Sendable (inout URLRequest) async throws -> Void)? = nil,
-		onUnauthorized: (@Sendable (_ response: HTTPURLResponse, _ data: Data?, _ originalRequest: URLRequest) async -> Bool)? = nil,
+		onUnauthorized: (@Sendable (_ response: HTTPURLResponse, _ data: Data?, _ originalRequest: URLRequest) async
+			-> Bool)? = nil,
 	) {
 		self.prepareRequest = prepareRequest
 		self.onUnauthorized = onUnauthorized
@@ -100,8 +122,8 @@ public enum HTTPError: Error, Sendable, LocalizedError {
 // MARK: - Implementation
 
 public final class URLSessionHTTPClient: HTTPClient {
-	private let configuration: HTTPClientConfiguration
-	private let urlSession: URLSession
+	let configuration: HTTPClientConfiguration
+	let urlSession: URLSession
 
 	public init(configuration: HTTPClientConfiguration, session: URLSession? = nil) {
 		self.configuration = configuration
@@ -195,7 +217,7 @@ public final class URLSessionHTTPClient: HTTPClient {
 
 	// MARK: - Helpers
 
-	private func makeURL(path: String, queryItems: [URLQueryItem]?) throws -> URL {
+	func makeURL(path: String, queryItems: [URLQueryItem]?) throws -> URL {
 		guard var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false) else {
 			throw HTTPError.invalidURL
 		}

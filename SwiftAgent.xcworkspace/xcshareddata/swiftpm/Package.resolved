@@ -1,6 +1,15 @@
 {
-  "originHash" : "0aede2684e2852a12d225c4b5639bdcfff7b6c95927a949c8a99575f61b21b20",
+  "originHash" : "764db811d9459a4c725c41764b79d95693043dc1cf2da1aaadf4610c5b328de8",
   "pins" : [
+    {
+      "identity" : "eventsource",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mattt/EventSource",
+      "state" : {
+        "revision" : "a2965424a4babeb0c8e4b5ec9708c3939bc52449",
+        "version" : "1.2.0"
+      }
+    },
     {
       "identity" : "openai",
       "kind" : "remoteSourceControl",

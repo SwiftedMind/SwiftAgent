@@ -15,6 +15,7 @@ let package = Package(
 	dependencies: [
 		.package(url: "https://github.com/apple/swift-syntax.git", from: "510.0.0"),
 		.package(url: "https://github.com/MacPaw/OpenAI.git", branch: "main"),
+		.package(url: "https://github.com/mattt/EventSource", from: "1.2.0"),
 	],
 	targets: [
 		.macro(
@@ -35,6 +36,7 @@ let package = Package(
 			dependencies: [
 				"Internal",
 				"SwiftAgentMacros",
+				"EventSource",
 			],
 		),
 		.target(
@@ -43,6 +45,7 @@ let package = Package(
 				"SwiftAgent",
 				"OpenAI",
 				"SwiftAgentMacros",
+				"EventSource",
 			],
 			path: "Sources/OpenAI",
 		),
