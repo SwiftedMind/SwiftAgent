@@ -60,7 +60,7 @@ public extension ModelSession {
 
 		return AgentResponse<Adapter, Context, String>(
 			content: responseContent.joined(separator: "\n"),
-			addedEntries: addedEntities,
+			transcript: Transcript(entries: addedEntities),
 			tokenUsage: aggregatedUsage,
 		)
 	}
@@ -97,7 +97,7 @@ public extension ModelSession {
 						case let .structure(structuredSegment):
 							return try AgentResponse<Adapter, Context, Content>(
 								content: Content(structuredSegment.content),
-								addedEntries: addedEntities,
+								transcript: Transcript(entries: addedEntities),
 								tokenUsage: aggregatedUsage,
 							)
 						}

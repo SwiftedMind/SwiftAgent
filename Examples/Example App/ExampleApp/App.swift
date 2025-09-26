@@ -36,17 +36,6 @@ enum ContextSource: PromptContextSource {
 
 // MARK: - Tools
 
-/*
- 
- TODO: Update ModelSession Response Object to use a Transcript object instead of array of entries
- TODO: Implement MacPaw.OpenAI type to replace http client (turning OpenAIConfiguration into a lightweight object to configure the OpenAI type with)
- TODO: Inspect example stream data using curl or so to see what exactly comes in and when and plan accordingly
- TODO: Implement logic to update transcript items as they stream in
- TODO: Implement streaming support. Should just update transcript as data comes in. UI code can use responseStream.transcript.resolvePartially to get the data from it
- TODO: Update documentation for how this all works (basic pass-in of SwiftAgentTools, or using #tools macro and Tools.all)
- 
- */
-
 #tools {
 	CalculatorTool()
 	WeatherTool()

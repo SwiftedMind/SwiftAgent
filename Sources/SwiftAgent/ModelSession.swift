@@ -177,7 +177,7 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter, Context: PromptCont
 
 		return AgentResponse<Adapter, Context, String>(
 			content: responseContent.joined(separator: "\n"),
-			addedEntries: addedEntities,
+			transcript: Transcript(entries: addedEntities),
 			tokenUsage: aggregatedUsage,
 		)
 	}
@@ -236,7 +236,7 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter, Context: PromptCont
 
 							return try AgentResponse<Adapter, Context, Content>(
 								content: Content(structuredSegment.content),
-								addedEntries: addedEntities,
+								transcript: Transcript(entries: addedEntities),
 								tokenUsage: aggregatedUsage,
 							)
 						}
@@ -766,12 +766,7 @@ public struct AgentResponse<Adapter: SwiftAgent.Adapter, Context: PromptContextS
 	/// this will be an instance of the requested `@Generable` type.
 	public var content: Content
 
-	/// The transcript entries that were added to the conversation during this generation.
-	///
-	/// This includes all intermediate steps such as reasoning, tool calls, tool outputs,
-	/// and the final response. These entries are automatically added to the session's
-	/// transcript and can be used for debugging or UI display.
-	public var addedEntries: [ModelSession<Adapter, Context>.Transcript.Entry]
+	public var transcript: ModelSession<Adapter, Context>.Transcript
 
 	/// Token usage statistics aggregated across all internal generation steps.
 	///
@@ -781,11 +776,11 @@ public struct AgentResponse<Adapter: SwiftAgent.Adapter, Context: PromptContextS
 
 	package init(
 		content: Content,
-		addedEntries: [ModelSession<Adapter, Context>.Transcript.Entry],
+		transcript: ModelSession<Adapter, Context>.Transcript,
 		tokenUsage: TokenUsage?,
 	) {
 		self.content = content
-		self.addedEntries = addedEntries
+		self.transcript = transcript
 		self.tokenUsage = tokenUsage
 	}
 }
