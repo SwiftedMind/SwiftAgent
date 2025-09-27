@@ -7,6 +7,7 @@ import OpenAI
 import OSLog
 import SwiftAgent
 
+@MainActor
 public final class OpenAIAdapter: Adapter {
 	public typealias Model = OpenAIModel
 	public typealias Transcript<Context: PromptContextSource> = SwiftAgent.Transcript<Context>
@@ -81,7 +82,7 @@ public final class OpenAIAdapter: Adapter {
 		transcript: Transcript<Context>,
 		generating type: (some Generable).Type,
 		using model: Model = .default,
-		options: GenerationOptions,
+		options: OpenAIGenerationOptions,
 		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation
 	) async throws where Context: PromptContextSource {
 		var generatedTranscript = Transcript<Context>()

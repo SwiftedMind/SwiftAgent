@@ -24,7 +24,7 @@ public protocol Adapter {
 
 // MARK: - GenerationOptions
 
-public protocol AdapterGenerationOptions<Model> {
+public protocol AdapterGenerationOptions<Model>: Sendable {
 	associatedtype Model: AdapterModel
 	associatedtype GenerationOptionsError: Error & LocalizedError
 
@@ -46,5 +46,4 @@ public protocol AdapterModel {
 
 // MARK: Configuration
 
-@MainActor
 public protocol AdapterConfiguration: Sendable {}

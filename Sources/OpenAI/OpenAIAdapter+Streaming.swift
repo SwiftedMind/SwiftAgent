@@ -217,6 +217,9 @@ extension OpenAIAdapter {
 			if let responseFailedError {
 				throw responseFailedError
 			}
+			
+			// TODO: Remove this
+			return
 
 			guard responseCompleted else {
 				continue stepLoop

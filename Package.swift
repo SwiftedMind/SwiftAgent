@@ -60,7 +60,10 @@ let package = Package(
 		),
 		.testTarget(
 			name: "SwiftAgentTests",
-			dependencies: ["SwiftAgent"],
+			dependencies: [
+				"OpenAISession",
+				"SwiftAgent"
+			],
 		),
 	],
 )
