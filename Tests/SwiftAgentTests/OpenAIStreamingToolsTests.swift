@@ -8,49 +8,17 @@ import OpenAI
 @testable import SwiftAgent
 import Testing
 
-extension OpenAIConfiguration {
-	public static func recording(apiKey: String) -> OpenAIConfiguration {
-		let encoder = JSONEncoder()
-		
-		// .sortedKeys is important to enable reliable cache hits!
-		encoder.outputFormatting = .sortedKeys
-		
-		let decoder = JSONDecoder()
-		// Keep defaults; OpenAI models define their own coding keys
-		
-		let interceptors = HTTPClientInterceptors(
-			prepareRequest: { request in
-				request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-			},
-			onUnauthorized: { _, _, _ in
-				// Let the caller decide how to refresh; default is not to retry
-				false
-			}
-		)
-		
-		let config = HTTPClientConfiguration(
-			baseURL: URL(string: "https://api.openai.com")!,
-			defaultHeaders: [:],
-			timeout: 60,
-			jsonEncoder: encoder,
-			jsonDecoder: decoder,
-			interceptors: interceptors
-		)
-		
-		return OpenAIConfiguration(httpClient: RecordHTTPClient(configuration: config))
-	}
-}
-
 @Suite("OpenAIAdapter Streaming Tools Tests")
 struct OpenAIStreamingToolsTests {
 	typealias Transcript = SwiftAgent.Transcript
 
 	@Test
 	func streamToolResponse() async throws {
-		let configuration = OpenAIConfiguration.recording(apiKey: "")
-		let adapter = await OpenAIAdapter(tools: Tools.all, instructions: "", configuration: configuration)
+		let mockHTTPClient = ReplayHTTPClient(recordedResponse: response1)
+		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
+		let adapter = await OpenAIAdapter(tools: [], instructions: "", configuration: configuration)
 
-		let inputPrompt = Transcript<NoContext>.Prompt(input: "What is the weather in New York City, USA?", embeddedPrompt: "What is the weather in New York City, USA?")
+		let inputPrompt = Transcript<NoContext>.Prompt(input: "input?", embeddedPrompt: "embeddedPrompt")
 		let initialTranscript = Transcript<NoContext>(entries: [.prompt(inputPrompt)])
 
 		let stream = await adapter.streamResponse(
@@ -71,31 +39,29 @@ struct OpenAIStreamingToolsTests {
 			}
 		}
 		
-		print(generatedTranscript)
+		#expect(generatedTranscript.count == 2)
 
-//		#expect(generatedTranscript.count == 2)
-//
-//		guard case let .reasoning(reasoning) = generatedTranscript[0] else {
-//			Issue.record("First transcript entry is not .reasoning")
-//			return
-//		}
-//
-//		#expect(reasoning.id == "rs_68d7eff985648196883d78673232885e07152cb8c6ac9072")
-//		#expect(reasoning.summary == [])
-//
-//		guard case let .response(response) = generatedTranscript[1] else {
-//			Issue.record("Second transcript entry is not .response")
-//			return
-//		}
-//
-//		#expect(response.id == "msg_68d7eff9c3b8819683eb04cbeb3775d507152cb8c6ac9072")
-//		#expect(response.segments.count == 1)
-//		guard case let .text(textSegment) = response.segments.first else {
-//			Issue.record("Second transcript entry is not .text")
-//			return
-//		}
-//
-//		#expect(textSegment.content == "Hello, World!")
+		guard case let .reasoning(reasoning) = generatedTranscript[0] else {
+			Issue.record("First transcript entry is not .reasoning")
+			return
+		}
+
+		#expect(reasoning.id == "rs_68d7eff985648196883d78673232885e07152cb8c6ac9072")
+		#expect(reasoning.summary == [])
+
+		guard case let .response(response) = generatedTranscript[1] else {
+			Issue.record("Second transcript entry is not .response")
+			return
+		}
+
+		#expect(response.id == "msg_68d7eff9c3b8819683eb04cbeb3775d507152cb8c6ac9072")
+		#expect(response.segments.count == 1)
+		guard case let .text(textSegment) = response.segments.first else {
+			Issue.record("Second transcript entry is not .text")
+			return
+		}
+
+		#expect(textSegment.content == "Hello, World!")
 	}
 }
 

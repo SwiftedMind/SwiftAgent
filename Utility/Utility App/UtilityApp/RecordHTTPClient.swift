@@ -2,8 +2,40 @@
 
 import EventSource
 import Foundation
-@testable import SwiftAgent
 @testable import Internal
+@testable import OpenAISession
+
+extension OpenAIConfiguration {
+	static func recording(apiKey: String) -> OpenAIConfiguration {
+		let encoder = JSONEncoder()
+
+		encoder.outputFormatting = .sortedKeys
+
+		let decoder = JSONDecoder()
+		// Keep defaults; OpenAI models define their own coding keys
+
+		let interceptors = HTTPClientInterceptors(
+			prepareRequest: { request in
+				request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+			},
+			onUnauthorized: { _, _, _ in
+				// Let the caller decide how to refresh; default is not to retry
+				false
+			}
+		)
+
+		let config = HTTPClientConfiguration(
+			baseURL: URL(string: "https://api.openai.com")!,
+			defaultHeaders: [:],
+			timeout: 60,
+			jsonEncoder: encoder,
+			jsonDecoder: decoder,
+			interceptors: interceptors
+		)
+
+		return OpenAIConfiguration(httpClient: RecordHTTPClient(configuration: config))
+	}
+}
 
 actor RecordHTTPClient: HTTPClient {
 	let configuration: HTTPClientConfiguration
@@ -42,7 +74,7 @@ actor RecordHTTPClient: HTTPClient {
 		if let body {
 			try! print(body.jsonString(pretty: true))
 		}
-		
+
 		let encodedBodyResult = Result<Data?, Error> {
 			try body.map { try configuration.jsonEncoder.encode($0) }
 		}
@@ -72,27 +104,27 @@ actor RecordHTTPClient: HTTPClient {
 					if let prepareRequest = configuration.interceptors.prepareRequest {
 						try await prepareRequest(&request)
 					}
-					
+
 					let (asyncBytes, response) = try await urlSession.bytes(for: request)
-					
+
 					let parser = EventSource.Parser()
 					var rawData = ""
-					
+
 					for try await line in asyncBytes.lines {
 						rawData += line + "\n"
 						if line.hasPrefix("data:") {
 							rawData += "\n"
 						}
 					}
-					
+
 					print(rawData)
-					
+
 					for byte in rawData.utf8 {
 						await parser.consume(byte)
 					}
-					
+
 					await parser.finish()
-					
+
 					while let event = await parser.getNextEvent() {
 						continuation.yield(event)
 					}
