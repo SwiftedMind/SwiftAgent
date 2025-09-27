@@ -7,3 +7,4 @@ DerivedData/
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 .netrc
 Examples/Example App/ExampleApp/Secrets.plist
+Utility/Utility App/UtilityApp/Secrets.plist

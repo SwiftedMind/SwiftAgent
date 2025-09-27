@@ -74,13 +74,6 @@ public extension URLSessionHTTPClient {
 						throw SSEError.badStatus(code: httpResponse.statusCode, body: errorPreview)
 					}
 
-					let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type")
-					guard let contentType, contentType.contains("text/event-stream") else {
-						let errorPreview = try await readPrefix(from: asyncBytes, maxLength: 4 * 1024)
-						NetworkLog.response(response, data: errorPreview)
-						throw SSEError.notEventStream(contentType: contentType)
-					}
-
 					NetworkLog.response(response, data: nil)
 
 					for try await event in asyncBytes.events {

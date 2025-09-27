@@ -88,7 +88,7 @@ extension OpenAIAdapter {
 				options: options,
 				streamResponses: true
 			)
-
+				
 			try Task.checkCancellation()
 
 			let eventStream = httpClient.stream(
@@ -217,9 +217,6 @@ extension OpenAIAdapter {
 			if let responseFailedError {
 				throw responseFailedError
 			}
-			
-			// TODO: Remove this
-			return
 
 			guard responseCompleted else {
 				continue stepLoop
