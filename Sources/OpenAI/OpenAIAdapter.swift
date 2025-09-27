@@ -6,9 +6,12 @@ import Internal
 import OpenAI
 import OSLog
 import SwiftAgent
+import Dependencies
 
 @MainActor
 public final class OpenAIAdapter: Adapter {
+	@Dependency(\.uuid) var uuid
+	
 	public typealias Model = OpenAIModel
 	public typealias Transcript<Context: PromptContextSource> = SwiftAgent.Transcript<Context>
 	public typealias ConfigurationError = OpenAIGenerationOptionsError
@@ -270,7 +273,7 @@ public final class OpenAIAdapter: Adapter {
 		let generatedContent = try GeneratedContent(json: functionCall.arguments)
 
 		let toolCall = Transcript<Context>.ToolCall(
-			id: functionCall.id ?? UUID().uuidString,
+			id: functionCall.id ?? uuid().uuidString,
 			callId: functionCall.callId,
 			toolName: functionCall.name,
 			arguments: generatedContent,
@@ -319,7 +322,7 @@ public final class OpenAIAdapter: Adapter {
 			continuation.yield(.transcript(transcriptEntry))
 		} catch let toolRunProblem as ToolRunProblem {
 			let toolOutputEntry = Transcript<Context>.ToolOutput(
-				id: functionCall.id ?? UUID().uuidString,
+				id: functionCall.id ?? uuid().uuidString,
 				callId: functionCall.callId,
 				toolName: functionCall.name,
 				segment: .structure(Transcript<Context>.StructuredSegment(content: toolRunProblem.generatedContent)),

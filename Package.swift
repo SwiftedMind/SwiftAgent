@@ -13,7 +13,8 @@ let package = Package(
 		.library(name: "OpenAISession", targets: ["OpenAISession", "SimulatedSession", "SwiftAgent"]),
 	],
 	dependencies: [
-		.package(url: "https://github.com/apple/swift-syntax.git", from: "510.0.0"),
+		.package(url: "https://github.com/swiftlang/swift-syntax.git", from: "510.0.0"),
+		.package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.10.0"),
 		.package(url: "https://github.com/MacPaw/OpenAI.git", branch: "main"),
 		.package(url: "https://github.com/mattt/EventSource", from: "1.2.0"),
 	],
@@ -46,6 +47,7 @@ let package = Package(
 				"OpenAI",
 				"SwiftAgentMacros",
 				"EventSource",
+				.product(name: "Dependencies", package: "swift-dependencies")
 			],
 			path: "Sources/OpenAI",
 		),
@@ -62,7 +64,8 @@ let package = Package(
 			name: "SwiftAgentTests",
 			dependencies: [
 				"OpenAISession",
-				"SwiftAgent"
+				"SwiftAgent",
+				.product(name: "Dependencies", package: "swift-dependencies")
 			],
 		),
 	],
