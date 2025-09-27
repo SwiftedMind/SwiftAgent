@@ -6,11 +6,9 @@ import Internal
 
 public struct OpenAIConfiguration: AdapterConfiguration {
 	var httpClient: HTTPClient
-	var responsesPath: String
 
-	init(httpClient: HTTPClient, responsesPath: String = "/v1/responses") {
+	public init(httpClient: HTTPClient) {
 		self.httpClient = httpClient
-		self.responsesPath = responsesPath
 	}
 
 	/// Convenience builder for calling OpenAI directly with an API key.
@@ -18,10 +16,7 @@ public struct OpenAIConfiguration: AdapterConfiguration {
 	/// This is intended for prototyping only. Shipping an API key inside an app binary is
 	/// insecure and should be avoided in production. Prefer ``proxy(through:)`` with
 	/// short‑lived, backend‑issued tokens that are scoped to a single agent turn.
-	public static func direct(
-		apiKey: String,
-		baseURL: URL = URL(string: "https://api.openai.com")!,
-	) -> OpenAIConfiguration {
+	public static func direct(apiKey: String) -> OpenAIConfiguration {
 		let encoder = JSONEncoder()
 
 		// .sortedKeys is important to enable reliable cache hits!
@@ -37,16 +32,16 @@ public struct OpenAIConfiguration: AdapterConfiguration {
 			onUnauthorized: { _, _, _ in
 				// Let the caller decide how to refresh; default is not to retry
 				false
-			},
+			}
 		)
 
 		let config = HTTPClientConfiguration(
-			baseURL: baseURL,
+			baseURL: URL(string: "https://api.openai.com")!,
 			defaultHeaders: [:],
 			timeout: 60,
 			jsonEncoder: encoder,
 			jsonDecoder: decoder,
-			interceptors: interceptors,
+			interceptors: interceptors
 		)
 
 		return OpenAIConfiguration(httpClient: URLSessionHTTPClient(configuration: config))
@@ -112,7 +107,7 @@ public struct OpenAIConfiguration: AdapterConfiguration {
 
 				await context.setBearerToken(newToken)
 				return true
-			},
+			}
 		)
 
 		let config = HTTPClientConfiguration(
@@ -121,7 +116,7 @@ public struct OpenAIConfiguration: AdapterConfiguration {
 			timeout: 60,
 			jsonEncoder: encoder,
 			jsonDecoder: decoder,
-			interceptors: interceptors,
+			interceptors: interceptors
 		)
 
 		return OpenAIConfiguration(httpClient: URLSessionHTTPClient(configuration: config))

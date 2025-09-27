@@ -141,27 +141,14 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter, Context: PromptCont
 			including: transcript,
 			options: options ?? .automatic(for: model),
 		)
-		var responseContent: [String] = []
 		var addedEntities: [Transcript.Entry] = []
 		var aggregatedUsage: TokenUsage?
 
 		for try await update in stream {
 			switch update {
 			case let .transcript(entry):
-				transcript.append(entry)
-				addedEntities.append(entry)
-
-				if case let .response(response) = entry {
-					for segment in response.segments {
-						switch segment {
-						case let .text(textSegment):
-							responseContent.append(textSegment.content)
-						case .structure:
-							// Not applicable here
-							break
-						}
-					}
-				}
+				upsertTranscriptEntry(entry)
+				upsert(entry: entry, into: &addedEntities)
 			case let .tokenUsage(usage):
 				// Update session token usage immediately for real-time tracking
 				tokenUsage.merge(usage)
@@ -175,8 +162,21 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter, Context: PromptCont
 			}
 		}
 
+		let finalResponseSegments = addedEntities
+			.compactMap { entry -> [String]? in
+				guard case let .response(response) = entry else { return nil }
+
+				return response.segments.compactMap { segment in
+					if case let .text(textSegment) = segment {
+						return textSegment.content
+					}
+					return nil
+				}
+			}
+			.flatMap(\.self)
+
 		return AgentResponse<Adapter, Context, String>(
-			content: responseContent.joined(separator: "\n"),
+			content: finalResponseSegments.joined(separator: "\n"),
 			transcript: Transcript(entries: addedEntities),
 			tokenUsage: aggregatedUsage,
 		)
@@ -221,8 +221,8 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter, Context: PromptCont
 		for try await update in stream {
 			switch update {
 			case let .transcript(entry):
-				transcript.append(entry)
-				addedEntities.append(entry)
+				upsertTranscriptEntry(entry)
+				upsert(entry: entry, into: &addedEntities)
 
 				if case let .response(response) = entry {
 					for segment in response.segments {
@@ -257,6 +257,22 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter, Context: PromptCont
 
 		let errorContext = GenerationError.UnexpectedStructuredResponseContext()
 		throw GenerationError.unexpectedStructuredResponse(errorContext)
+	}
+
+	private func upsertTranscriptEntry(_ entry: Transcript.Entry) {
+		if let existingIndex = transcript.entries.firstIndex(where: { $0.id == entry.id }) {
+			transcript.entries[existingIndex] = entry
+		} else {
+			transcript.entries.append(entry)
+		}
+	}
+
+	private func upsert(entry: Transcript.Entry, into entries: inout [Transcript.Entry]) {
+		if let existingIndex = entries.firstIndex(where: { $0.id == entry.id }) {
+			entries[existingIndex] = entry
+		} else {
+			entries.append(entry)
+		}
 	}
 
 	/// Fetches metadata for URLs found in the input text to create link previews.
@@ -759,7 +775,8 @@ public extension ModelSession {
 /// print("Used \(response.tokenUsage?.totalTokens ?? 0) tokens")
 /// print("Added \(response.addedEntries.count) transcript entries")
 /// ```
-public struct AgentResponse<Adapter: SwiftAgent.Adapter, Context: PromptContextSource, Content> where Content: Generable {
+public struct AgentResponse<Adapter: SwiftAgent.Adapter, Context: PromptContextSource, Content>
+	where Content: Generable {
 	/// The generated content from the AI model.
 	///
 	/// For text responses, this will be a `String`. For structured responses,

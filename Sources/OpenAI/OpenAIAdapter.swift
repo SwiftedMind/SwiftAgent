@@ -15,7 +15,7 @@ public final class OpenAIAdapter: Adapter {
 	var tools: [any SwiftAgentTool]
 	private var instructions: String = ""
 	let httpClient: HTTPClient
-	let responsesPath: String
+	let responsesPath: String = "/v1/responses"
 
 	public init(
 		tools: [any SwiftAgentTool],
@@ -25,7 +25,6 @@ public final class OpenAIAdapter: Adapter {
 		self.tools = tools
 		self.instructions = instructions
 		httpClient = configuration.httpClient
-		responsesPath = configuration.responsesPath
 	}
 
 	public func respond<Context>(
@@ -365,7 +364,7 @@ public final class OpenAIAdapter: Adapter {
 		continuation.yield(.transcript(entry))
 	}
 
-	private func callTool<T: FoundationModels.Tool>(
+	func callTool<T: FoundationModels.Tool>(
 		_ tool: T,
 		with generatedContent: GeneratedContent
 	) async throws -> T.Output where T.Output: ConvertibleToGeneratedContent {
