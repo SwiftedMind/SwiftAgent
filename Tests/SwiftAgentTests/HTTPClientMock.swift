@@ -4,36 +4,65 @@ import EventSource
 import Foundation
 @testable import SwiftAgent
 
-struct MockHTTPClient: HTTPClient {
-	private var response: String
+actor RecordedResponseReplayingHTTPClient: HTTPClient {
+	enum ReplayError: Error, LocalizedError {
+		case noRecordedResponsesRemaining
+		case invalidUTF8RecordedResponse
 
-	init(response: String) {
-		self.response = response
+		var errorDescription: String? {
+			switch self {
+			case .noRecordedResponsesRemaining:
+				"Attempted to consume more recorded HTTP responses than were provided."
+			case .invalidUTF8RecordedResponse:
+				"Recorded HTTP response could not be converted to UTF-8 data."
+			}
+		}
 	}
 
-	func send<ResponseBody>(
+	private var pendingRecordedResponses: [String]
+
+	init(recordedResponses: [String]) {
+		pendingRecordedResponses = recordedResponses
+	}
+
+	init(recordedResponse: String) {
+		pendingRecordedResponses = [recordedResponse]
+	}
+
+	nonisolated func send<ResponseBody>(
 		path: String,
 		method: HTTPMethod,
 		queryItems: [URLQueryItem]?,
 		headers: [String: String]?,
 		body: (some Encodable)?,
-		responseType: ResponseBody.Type
+		responseType: ResponseBody.Type,
 	) async throws -> ResponseBody where ResponseBody: Decodable {
-		try JSONDecoder().decode(ResponseBody.self, from: response.data(using: .utf8)!)
+		let response = try await takeNextRecordedResponse()
+		guard let data = response.data(using: .utf8) else {
+			throw ReplayError.invalidUTF8RecordedResponse
+		}
+
+		return try JSONDecoder().decode(ResponseBody.self, from: data)
 	}
 
-	func stream(
+	nonisolated func stream(
 		path: String,
 		method: HTTPMethod,
 		headers: [String: String],
-		body: (some Encodable)?
+		body: (some Encodable)?,
 	) -> AsyncThrowingStream<EventSource.Event, any Error> {
-		.init { continuation in
+		AsyncThrowingStream { continuation in
 			let task = Task<Void, Never> {
-				for event in await getEvents(from: response) {
-					continuation.yield(event)
+				do {
+					let response = try await takeNextRecordedResponse()
+					for event in await parseEvents(from: response) {
+						continuation.yield(event)
+					}
+					continuation.finish()
+				} catch {
+					continuation.yield(with: .failure(error))
+					continuation.finish()
 				}
-				continuation.finish()
 			}
 
 			continuation.onTermination = { _ in
@@ -43,16 +72,24 @@ struct MockHTTPClient: HTTPClient {
 	}
 }
 
-private extension MockHTTPClient {
+private extension RecordedResponseReplayingHTTPClient {
+	func takeNextRecordedResponse() throws -> String {
+		guard let response = pendingRecordedResponses.first else {
+			throw ReplayError.noRecordedResponsesRemaining
+		}
+
+		pendingRecordedResponses.removeFirst()
+		return response
+	}
+
 	/// Helper to consume a string and get all dispatched events
-	private func getEvents(
+	func parseEvents(
 		from input: String,
-		parser: EventSource.Parser = EventSource.Parser()
+		using parser: EventSource.Parser = EventSource.Parser(),
 	) async -> [EventSource.Event] {
 		for byte in input.utf8 {
 			await parser.consume(byte)
 		}
-		// Call finish to process any buffered line and dispatch pending event based on current parser logic.
 		await parser.finish()
 		var events: [EventSource.Event] = []
 		while let event = await parser.getNextEvent() {

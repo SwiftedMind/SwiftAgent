@@ -18,6 +18,9 @@ public struct ToolsMacro: DeclarationMacro {
 		of node: some FreestandingMacroExpansionSyntax,
 		in context: some MacroExpansionContext,
 	) throws -> [DeclSyntax] {
+		guard let accessLevel = resolveAccessLevel(for: node, in: context) else {
+			return []
+		}
 		guard let closure = node.trailingClosure else {
 			context.diagnose(node, message: .missingToolDefinitions)
 			return []
@@ -72,7 +75,7 @@ public struct ToolsMacro: DeclarationMacro {
 			return []
 		}
 
-		let enumDecl = makeToolsEnum(for: toolDefinitions)
+		let enumDecl = makeToolsEnum(for: toolDefinitions, accessLevel: accessLevel)
 
 		return [enumDecl]
 	}
@@ -85,10 +88,75 @@ private struct ToolDefinition {
 	let creationExpression: ExprSyntax
 }
 
-private func makeToolsEnum(for definitions: [ToolDefinition]) -> DeclSyntax {
+private func resolveAccessLevel(
+	for node: some FreestandingMacroExpansionSyntax,
+	in context: some MacroExpansionContext,
+) -> AccessLevel? {
+	let arguments = node.arguments
+	if arguments.isEmpty {
+		return .public
+	}
+
+	var selectedLevel: AccessLevel?
+
+	for argument in arguments {
+		if argument.expression.is(ClosureExprSyntax.self) {
+			continue
+		}
+
+		guard let label = argument.label?.text else {
+			context.diagnose(argument, message: .missingAccessLevelLabel)
+			return nil
+		}
+		guard label == "accessLevel" else {
+			context.diagnose(argument, message: .unsupportedArgumentLabel(label))
+			return nil
+		}
+
+		if selectedLevel != nil {
+			context.diagnose(argument, message: .duplicateAccessLevelArgument)
+			return nil
+		}
+
+		guard let level = AccessLevel(expression: argument.expression) else {
+			context.diagnose(argument, message: .invalidAccessLevelValue)
+			return nil
+		}
+
+		selectedLevel = level
+	}
+
+	return selectedLevel ?? .public
+}
+
+private enum AccessLevel: String {
+	case `private`
+	case `internal`
+	case package
+	case `public`
+
+	init?(expression: ExprSyntax) {
+		if let memberAccess = expression.as(MemberAccessExprSyntax.self) {
+			self.init(rawValue: memberAccess.declName.baseName.text)
+			return
+		}
+
+		if let reference = expression.as(DeclReferenceExprSyntax.self) {
+			self.init(rawValue: reference.baseName.text)
+			return
+		}
+
+		return nil
+	}
+
+	var keyword: String { rawValue }
+}
+
+private func makeToolsEnum(for definitions: [ToolDefinition], accessLevel: AccessLevel) -> DeclSyntax {
 	var lines: [String] = []
-	lines.append("enum Tools: ResolvableToolGroup {")
-	lines.append("  static let all: [any ResolvableTool<Tools>] = [")
+	let accessModifier = accessLevel.keyword
+	lines.append("\(accessModifier) enum Tools: ResolvableToolGroup {")
+	lines.append("  \(accessModifier) static let all: [any ResolvableTool<Tools>] = [")
 
 	let lastIndex = definitions.count - 1
 
@@ -105,7 +173,7 @@ private func makeToolsEnum(for definitions: [ToolDefinition]) -> DeclSyntax {
 	}
 
 	lines.append("")
-	lines.append("  enum Partials {")
+	lines.append("  \(accessModifier) enum Partials {")
 
 	for definition in definitions {
 		lines.append("    case \(definition.caseName)(PartialToolRun<\(definition.wrapperName)>)")
@@ -115,30 +183,32 @@ private func makeToolsEnum(for definitions: [ToolDefinition]) -> DeclSyntax {
 
 	for definition in definitions {
 		lines.append("")
-		lines.append("  struct \(definition.wrapperName): ResolvableTool {")
-		lines.append("    typealias BaseTool = \(definition.baseTypeDescription)")
-		lines.append("    typealias Arguments = BaseTool.Arguments")
-		lines.append("    typealias Output = BaseTool.Output")
+		lines.append("  \(accessModifier) struct \(definition.wrapperName): ResolvableTool {")
+		lines.append("    \(accessModifier) typealias BaseTool = \(definition.baseTypeDescription)")
+		lines.append("    \(accessModifier) typealias Arguments = BaseTool.Arguments")
+		lines.append("    \(accessModifier) typealias Output = BaseTool.Output")
 		lines.append("")
 		lines.append("    private let baseTool: BaseTool")
 		lines.append("")
-		lines.append("    init() {")
+		lines.append("    \(accessModifier) init() {")
 		lines.append("      self.baseTool = \(definition.creationExpression.trimmed.description)")
 		lines.append("    }")
 		lines.append("")
-		lines.append("    var name: String { baseTool.name }")
-		lines.append("    var description: String { baseTool.description }")
-		lines.append("    var parameters: GenerationSchema { baseTool.parameters }")
+		lines.append("    \(accessModifier) var name: String { baseTool.name }")
+		lines.append("    \(accessModifier) var description: String { baseTool.description }")
+		lines.append("    \(accessModifier) var parameters: GenerationSchema { baseTool.parameters }")
 		lines.append("")
-		lines.append("    func call(arguments: Arguments) async throws -> Output {")
+		lines.append("    \(accessModifier) func call(arguments: Arguments) async throws -> Output {")
 		lines.append("      try await baseTool.call(arguments: arguments)")
 		lines.append("    }")
 		lines.append("")
-		lines.append("    func resolve(_ run: ToolRun<\(definition.wrapperName)>) -> Tools {")
+		lines.append("    \(accessModifier) func resolve(_ run: ToolRun<\(definition.wrapperName)>) -> Tools {")
 		lines.append("      .\(definition.caseName)(run)")
 		lines.append("    }")
 		lines.append("")
-		lines.append("    func resolvePartially(_ run: PartialToolRun<\(definition.wrapperName)>) -> Tools.Partials {")
+		let resolvePartiallyLine =
+			"    \(accessModifier) func resolvePartially(_ run: PartialToolRun<\(definition.wrapperName)>) -> Tools.Partials {"
+		lines.append(resolvePartiallyLine)
 		lines.append("      .\(definition.caseName)(run)")
 		lines.append("    }")
 		lines.append("  }")
@@ -236,6 +306,10 @@ private enum ToolsMacroDiagnostic: DiagnosticMessage {
 	case onlyToolExpressionsAllowed
 	case invalidToolExpression
 	case duplicateCaseName(String)
+	case missingAccessLevelLabel
+	case unsupportedArgumentLabel(String)
+	case duplicateAccessLevelArgument
+	case invalidAccessLevelValue
 
 	var message: String {
 		switch self {
@@ -247,6 +321,14 @@ private enum ToolsMacroDiagnostic: DiagnosticMessage {
 			"Each statement inside #tools must be a tool initializer expression."
 		case let .duplicateCaseName(caseName):
 			"The generated case name \"\(caseName)\" would be duplicated. Provide distinct tool types."
+		case .missingAccessLevelLabel:
+			"The access level argument must use the label accessLevel."
+		case let .unsupportedArgumentLabel(label):
+			"Unsupported argument label \"\(label)\". Only accessLevel is allowed."
+		case .duplicateAccessLevelArgument:
+			"The accessLevel argument can only be provided once."
+		case .invalidAccessLevelValue:
+			"The accessLevel argument must be one of .private, .internal, .package, or .public."
 		}
 	}
 
@@ -264,6 +346,14 @@ private enum ToolsMacroDiagnostic: DiagnosticMessage {
 			"invalidToolExpression"
 		case .duplicateCaseName:
 			"duplicateCaseName"
+		case .missingAccessLevelLabel:
+			"missingAccessLevelLabel"
+		case .unsupportedArgumentLabel:
+			"unsupportedArgumentLabel"
+		case .duplicateAccessLevelArgument:
+			"duplicateAccessLevelArgument"
+		case .invalidAccessLevelValue:
+			"invalidAccessLevelValue"
 		}
 	}
 

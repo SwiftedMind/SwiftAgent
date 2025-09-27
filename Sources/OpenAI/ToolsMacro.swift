@@ -34,9 +34,20 @@ public enum ToolsMacroBuilder {
 	}
 }
 
+/// Access level for generated tool wrapper types.
+public enum ToolsAccessLevel {
+	case `private`
+	case `internal`
+	case package
+	case `public`
+}
+
 /// Synthesizes a resolvable tool group and conformances for the provided tool initializers.
 @freestanding(declaration, names: named(Tools))
-public macro tools(@ToolsMacroBuilder _ build: () -> [any SwiftAgentTool]) = #externalMacro(
+public macro tools(
+	accessLevel: ToolsAccessLevel = .public,
+	@ToolsMacroBuilder _ build: () -> [any SwiftAgentTool],
+) = #externalMacro(
 	module: "SwiftAgentMacros",
 	type: "ToolsMacro",
 )

@@ -41,9 +41,9 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
 ### Building and Testing
 
 - Build and test the SDK in `SwiftAgent.xcworkspace` using the `XcodeBuildMCP` mcp
-- DO NOT build or test using `swift build` or `swift test` as it will not work (due to iOS dependencies)
+- DO NOT build or test using `swift build`, `swift test` or `xcodebuild` command line tools.
 
-#### Build
+#### Build SDK and Example App
 
 - Replace {working_directory} with the current working directory
 
@@ -51,7 +51,18 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
 XcodeBuildMCP.build_sim({
   workspacePath: "{working_directory}/SwiftAgent.xcworkspace",
   scheme: "ExampleApp",
-  simulatorName: "iPhone 16 Pro"
+  simulatorName: "iPhone 17 Pro"
+})
+```
+
+#### Build Tests
+
+```
+XcodeBuildMCP.build_sim({
+  workspacePath: "{working_directory}/SwiftAgent.xcworkspace","
+  scheme: "SwiftAgentTests",
+  simulatorId: "B25FC210-C5E1-4184-975B-617E6A422954",
+	useLatestOS: true
 })
 ```
 
@@ -63,7 +74,7 @@ XcodeBuildMCP.build_sim({
 XcodeBuildMCP.test_sim({
   workspacePath: "{working_directory}/SwiftAgent.xcworkspace",
   scheme: "SwiftAgentTests",
-  simulatorName: "iPhone 16 Pro",
+  simulatorName: "iPhone 17 Pro",
   useLatestOS: true,
   extraArgs: ["-testPlan", "SwiftAgentTests"]
 })

@@ -36,7 +36,7 @@ enum ContextSource: PromptContextSource {
 
 // MARK: - Tools
 
-#tools {
+#tools(accessLevel: .internal) {
 	CalculatorTool()
 	WeatherTool()
 }
