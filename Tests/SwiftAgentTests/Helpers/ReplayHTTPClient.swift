@@ -4,7 +4,7 @@ import EventSource
 import Foundation
 @testable import SwiftAgent
 
-actor RecordedResponseReplayingHTTPClient: HTTPClient {
+actor ReplayHTTPClient: HTTPClient {
 	enum ReplayError: Error, LocalizedError {
 		case noRecordedResponsesRemaining
 		case invalidUTF8RecordedResponse
@@ -72,7 +72,7 @@ actor RecordedResponseReplayingHTTPClient: HTTPClient {
 	}
 }
 
-private extension RecordedResponseReplayingHTTPClient {
+private extension ReplayHTTPClient {
 	func takeNextRecordedResponse() throws -> String {
 		guard let response = pendingRecordedResponses.first else {
 			throw ReplayError.noRecordedResponsesRemaining

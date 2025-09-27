@@ -155,8 +155,12 @@ private enum AccessLevel: String {
 private func makeToolsEnum(for definitions: [ToolDefinition], accessLevel: AccessLevel) -> DeclSyntax {
 	var lines: [String] = []
 	let accessModifier = accessLevel.keyword
-	lines.append("\(accessModifier) enum Tools: ResolvableToolGroup {")
-	lines.append("  \(accessModifier) static let all: [any ResolvableTool<Tools>] = [")
+	lines.appendMultilineString(
+		"""
+		\(accessModifier) enum Tools: ResolvableToolGroup {
+		  static let all: [any ResolvableTool<Tools>] = [
+		""",
+	)
 
 	let lastIndex = definitions.count - 1
 
@@ -165,15 +169,23 @@ private func makeToolsEnum(for definitions: [ToolDefinition], accessLevel: Acces
 		lines.append("    \(definition.wrapperName)()\(separator)")
 	}
 
-	lines.append("  ]")
-	lines.append("")
+	lines.appendMultilineString(
+		"""
+		  ]
+
+		""",
+	)
 
 	for definition in definitions {
 		lines.append("  case \(definition.caseName)(ToolRun<\(definition.wrapperName)>)")
 	}
 
-	lines.append("")
-	lines.append("  \(accessModifier) enum Partials {")
+	lines.appendMultilineString(
+		"""
+
+		  enum Partials {
+		""",
+	)
 
 	for definition in definitions {
 		lines.append("    case \(definition.caseName)(PartialToolRun<\(definition.wrapperName)>)")
@@ -182,41 +194,51 @@ private func makeToolsEnum(for definitions: [ToolDefinition], accessLevel: Acces
 	lines.append("  }")
 
 	for definition in definitions {
-		lines.append("")
-		lines.append("  \(accessModifier) struct \(definition.wrapperName): ResolvableTool {")
-		lines.append("    \(accessModifier) typealias BaseTool = \(definition.baseTypeDescription)")
-		lines.append("    \(accessModifier) typealias Arguments = BaseTool.Arguments")
-		lines.append("    \(accessModifier) typealias Output = BaseTool.Output")
-		lines.append("")
-		lines.append("    private let baseTool: BaseTool")
-		lines.append("")
-		lines.append("    \(accessModifier) init() {")
-		lines.append("      self.baseTool = \(definition.creationExpression.trimmed.description)")
-		lines.append("    }")
-		lines.append("")
-		lines.append("    \(accessModifier) var name: String { baseTool.name }")
-		lines.append("    \(accessModifier) var description: String { baseTool.description }")
-		lines.append("    \(accessModifier) var parameters: GenerationSchema { baseTool.parameters }")
-		lines.append("")
-		lines.append("    \(accessModifier) func call(arguments: Arguments) async throws -> Output {")
-		lines.append("      try await baseTool.call(arguments: arguments)")
-		lines.append("    }")
-		lines.append("")
-		lines.append("    \(accessModifier) func resolve(_ run: ToolRun<\(definition.wrapperName)>) -> Tools {")
-		lines.append("      .\(definition.caseName)(run)")
-		lines.append("    }")
-		lines.append("")
-		let resolvePartiallyLine =
-			"    \(accessModifier) func resolvePartially(_ run: PartialToolRun<\(definition.wrapperName)>) -> Tools.Partials {"
-		lines.append(resolvePartiallyLine)
-		lines.append("      .\(definition.caseName)(run)")
-		lines.append("    }")
-		lines.append("  }")
+		lines.appendMultilineString(
+			"""
+
+			  struct \(definition.wrapperName): ResolvableTool {
+			    typealias BaseTool = \(definition.baseTypeDescription)
+			    typealias Arguments = BaseTool.Arguments
+			    typealias Output = BaseTool.Output
+
+			    private let baseTool: BaseTool
+
+			    init() {
+			      self.baseTool = \(definition.creationExpression.trimmed.description)
+			    }
+
+			    var name: String { baseTool.name }
+			    var description: String { baseTool.description }
+			    var parameters: GenerationSchema { baseTool.parameters }
+
+			    func call(arguments: Arguments) async throws -> Output {
+			      try await baseTool.call(arguments: arguments)
+			    }
+
+			    func resolve(_ run: ToolRun<\(definition.wrapperName)>) -> Tools {
+			      .\(definition.caseName)(run)
+			    }
+
+			    func resolvePartially(_ run: PartialToolRun<\(definition.wrapperName)>) -> Tools.Partials {
+			      .\(definition.caseName)(run)
+			    }
+			  }
+			""",
+		)
 	}
 
 	lines.append("}")
 
 	return DeclSyntax(stringLiteral: lines.joined(separator: "\n"))
+}
+
+private extension [String] {
+	mutating func appendMultilineString(_ multiline: String) {
+		let contents: Substring = Substring(multiline)
+		let newLines = contents.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+		append(contentsOf: newLines)
+	}
 }
 
 private func simpleTypeName(from expression: ExprSyntax) -> String? {
