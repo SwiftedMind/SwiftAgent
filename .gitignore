@@ -8,3 +8,4 @@ DerivedData/
 .netrc
 Examples/Example App/ExampleApp/Secrets.plist
 Utility/Utility App/UtilityApp/Secrets.plist
+Utility/.build/index-build

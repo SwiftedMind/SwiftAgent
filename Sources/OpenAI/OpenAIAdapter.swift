@@ -1,17 +1,17 @@
 // By Dennis Müller
 
+import Dependencies
 import Foundation
 import FoundationModels
 import Internal
 import OpenAI
 import OSLog
 import SwiftAgent
-import Dependencies
 
 @MainActor
 public final class OpenAIAdapter: Adapter {
 	@Dependency(\.uuid) var uuid
-	
+
 	public typealias Model = OpenAIModel
 	public typealias Transcript<Context: PromptContextSource> = SwiftAgent.Transcript<Context>
 	public typealias ConfigurationError = OpenAIGenerationOptionsError
@@ -24,7 +24,7 @@ public final class OpenAIAdapter: Adapter {
 	public init(
 		tools: [any SwiftAgentTool],
 		instructions: String,
-		configuration: OpenAIConfiguration
+		configuration: OpenAIConfiguration,
 	) {
 		self.tools = tools
 		self.instructions = instructions
@@ -36,7 +36,7 @@ public final class OpenAIAdapter: Adapter {
 		generating type: (some Generable).Type,
 		using model: Model = .default,
 		including transcript: Transcript<Context>,
-		options: OpenAIGenerationOptions
+		options: OpenAIGenerationOptions,
 	) -> AsyncThrowingStream<AdapterUpdate<Context>, any Error> where Context: PromptContextSource {
 		let setup = AsyncThrowingStream<AdapterUpdate<Context>, any Error>.makeStream()
 
@@ -44,7 +44,7 @@ public final class OpenAIAdapter: Adapter {
 		AgentLog.start(
 			model: String(describing: model),
 			toolNames: tools.map(\.name),
-			promptPreview: prompt.input
+			promptPreview: prompt.input,
 		)
 
 		let task = Task<Void, Never> {
@@ -63,7 +63,7 @@ public final class OpenAIAdapter: Adapter {
 					generating: type,
 					using: model,
 					options: options,
-					continuation: setup.continuation
+					continuation: setup.continuation,
 				)
 			} catch {
 				// Surface a clear, user-friendly message
@@ -86,7 +86,7 @@ public final class OpenAIAdapter: Adapter {
 		generating type: (some Generable).Type,
 		using model: Model = .default,
 		options: OpenAIGenerationOptions,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation
+		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
 	) async throws where Context: PromptContextSource {
 		var generatedTranscript = Transcript<Context>()
 		let allowedSteps = 20
@@ -100,7 +100,7 @@ public final class OpenAIAdapter: Adapter {
 				including: Transcript<Context>(entries: transcript.entries + generatedTranscript.entries),
 				generating: type,
 				using: model,
-				options: options
+				options: options,
 			)
 
 			try Task.checkCancellation()
@@ -112,7 +112,7 @@ public final class OpenAIAdapter: Adapter {
 				queryItems: nil,
 				headers: nil,
 				body: request,
-				responseType: ResponseObject.self
+				responseType: ResponseObject.self,
 			)
 
 			// Emit token usage if available
@@ -122,14 +122,14 @@ public final class OpenAIAdapter: Adapter {
 					outputTokens: Int(usage.outputTokens),
 					totalTokens: Int(usage.totalTokens),
 					cachedTokens: Int(usage.inputTokensDetails.cachedTokens),
-					reasoningTokens: Int(usage.outputTokensDetails.reasoningTokens)
+					reasoningTokens: Int(usage.outputTokensDetails.reasoningTokens),
 				)
 				AgentLog.tokenUsage(
 					inputTokens: reported.inputTokens,
 					outputTokens: reported.outputTokens,
 					totalTokens: reported.totalTokens,
 					cachedTokens: reported.cachedTokens,
-					reasoningTokens: reported.reasoningTokens
+					reasoningTokens: reported.reasoningTokens,
 				)
 				continuation.yield(.tokenUsage(reported))
 			}
@@ -139,7 +139,7 @@ public final class OpenAIAdapter: Adapter {
 					output,
 					type: type,
 					generatedTranscript: &generatedTranscript,
-					continuation: continuation
+					continuation: continuation,
 				)
 			}
 
@@ -161,7 +161,7 @@ public final class OpenAIAdapter: Adapter {
 		_ output: OutputItem,
 		type: (some Generable).Type,
 		generatedTranscript: inout Transcript<Context>,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation
+		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
 	) async throws where Context: PromptContextSource {
 		switch output {
 		case let .outputMessage(message):
@@ -169,19 +169,19 @@ public final class OpenAIAdapter: Adapter {
 				message,
 				type: type,
 				generatedTranscript: &generatedTranscript,
-				continuation: continuation
+				continuation: continuation,
 			)
 		case let .functionToolCall(functionCall):
 			try await handleFunctionCall(
 				functionCall,
 				generatedTranscript: &generatedTranscript,
-				continuation: continuation
+				continuation: continuation,
 			)
 		case let .reasoning(reasoning):
 			try await handleReasoning(
 				reasoning,
 				generatedTranscript: &generatedTranscript,
-				continuation: continuation
+				continuation: continuation,
 			)
 		default:
 			Logger.main.warning("Unsupported output received: \(String(describing: output), privacy: .public)")
@@ -192,7 +192,7 @@ public final class OpenAIAdapter: Adapter {
 		_ message: Components.Schemas.OutputMessage,
 		type: (some Generable).Type,
 		generatedTranscript: inout Transcript<Context>,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation
+		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
 	) async throws where Context: PromptContextSource {
 		let isString = (type == String.self)
 		let expectedTypeName = String(describing: type)
@@ -217,7 +217,7 @@ public final class OpenAIAdapter: Adapter {
 			let refusalResponse = Transcript<Context>.Response(
 				id: message.id,
 				segments: refusalSegments,
-				status: status
+				status: status,
 			)
 
 			AgentLog.outputMessage(text: refusalMessage, status: String(describing: message.status))
@@ -240,7 +240,7 @@ public final class OpenAIAdapter: Adapter {
 			response = Transcript<Context>.Response(
 				id: message.id,
 				segments: fragments.map { .text(.init(content: $0)) },
-				status: status
+				status: status,
 			)
 		} else {
 			let combinedJSON = fragments.joined()
@@ -251,12 +251,12 @@ public final class OpenAIAdapter: Adapter {
 				response = Transcript<Context>.Response(
 					id: message.id,
 					segments: [.structure(.init(content: generatedContent))],
-					status: status
+					status: status,
 				)
 			} catch {
 				AgentLog.error(error, context: "structured_response_parsing")
 				throw GenerationError.structuredContentParsingFailed(
-					.init(rawContent: combinedJSON, underlyingError: error)
+					.init(rawContent: combinedJSON, underlyingError: error),
 				)
 			}
 		}
@@ -268,7 +268,7 @@ public final class OpenAIAdapter: Adapter {
 	private func handleFunctionCall<Context>(
 		_ functionCall: Components.Schemas.FunctionToolCall,
 		generatedTranscript: inout Transcript<Context>,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation
+		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
 	) async throws where Context: PromptContextSource {
 		let generatedContent = try GeneratedContent(json: functionCall.arguments)
 
@@ -277,13 +277,13 @@ public final class OpenAIAdapter: Adapter {
 			callId: functionCall.callId,
 			toolName: functionCall.name,
 			arguments: generatedContent,
-			status: transcriptStatusFromOpenAIStatus(functionCall.status)
+			status: transcriptStatusFromOpenAIStatus(functionCall.status),
 		)
 
 		AgentLog.toolCall(
 			name: functionCall.name,
 			callId: functionCall.callId,
-			argumentsJSON: functionCall.arguments
+			argumentsJSON: functionCall.arguments,
 		)
 
 		generatedTranscript.entries.append(.toolCalls(Transcript<Context>.ToolCalls(calls: [toolCall])))
@@ -292,7 +292,7 @@ public final class OpenAIAdapter: Adapter {
 		guard let tool = tools.first(where: { $0.name == functionCall.name }) else {
 			AgentLog.error(
 				GenerationError.unsupportedToolCalled(.init(toolName: functionCall.name)),
-				context: "tool_not_found"
+				context: "tool_not_found",
 			)
 			let errorContext = GenerationError.UnsupportedToolCalledContext(toolName: functionCall.name)
 			throw GenerationError.unsupportedToolCalled(errorContext)
@@ -306,7 +306,7 @@ public final class OpenAIAdapter: Adapter {
 				callId: functionCall.callId,
 				toolName: functionCall.name,
 				segment: .structure(Transcript<Context>.StructuredSegment(content: output)),
-				status: transcriptStatusFromOpenAIStatus(functionCall.status)
+				status: transcriptStatusFromOpenAIStatus(functionCall.status),
 			)
 
 			let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
@@ -315,7 +315,7 @@ public final class OpenAIAdapter: Adapter {
 			AgentLog.toolOutput(
 				name: tool.name,
 				callId: functionCall.callId,
-				outputJSONOrText: output.generatedContent.jsonString
+				outputJSONOrText: output.generatedContent.jsonString,
 			)
 
 			generatedTranscript.entries.append(transcriptEntry)
@@ -326,7 +326,7 @@ public final class OpenAIAdapter: Adapter {
 				callId: functionCall.callId,
 				toolName: functionCall.name,
 				segment: .structure(Transcript<Context>.StructuredSegment(content: toolRunProblem.generatedContent)),
-				status: transcriptStatusFromOpenAIStatus(functionCall.status)
+				status: transcriptStatusFromOpenAIStatus(functionCall.status),
 			)
 
 			let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
@@ -334,7 +334,7 @@ public final class OpenAIAdapter: Adapter {
 			AgentLog.toolOutput(
 				name: tool.name,
 				callId: functionCall.callId,
-				outputJSONOrText: toolRunProblem.generatedContent.jsonString
+				outputJSONOrText: toolRunProblem.generatedContent.jsonString,
 			)
 
 			generatedTranscript.entries.append(transcriptEntry)
@@ -348,7 +348,7 @@ public final class OpenAIAdapter: Adapter {
 	private func handleReasoning<Context>(
 		_ reasoning: Components.Schemas.ReasoningItem,
 		generatedTranscript: inout Transcript<Context>,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation
+		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
 	) async throws where Context: PromptContextSource {
 		let summary = reasoning.summary.map { summary in
 			summary.text
@@ -358,7 +358,7 @@ public final class OpenAIAdapter: Adapter {
 			id: reasoning.id,
 			summary: summary,
 			encryptedReasoning: reasoning.encryptedContent,
-			status: transcriptStatusFromOpenAIStatus(reasoning.status)
+			status: transcriptStatusFromOpenAIStatus(reasoning.status),
 		)
 
 		AgentLog.reasoning(summary: summary)
@@ -370,7 +370,7 @@ public final class OpenAIAdapter: Adapter {
 
 	func callTool<T: FoundationModels.Tool>(
 		_ tool: T,
-		with generatedContent: GeneratedContent
+		with generatedContent: GeneratedContent,
 	) async throws -> T.Output where T.Output: ConvertibleToGeneratedContent {
 		let arguments = try T.Arguments(generatedContent)
 		return try await tool.call(arguments: arguments)
@@ -381,7 +381,7 @@ public final class OpenAIAdapter: Adapter {
 		generating type: (some Generable).Type,
 		using model: Model,
 		options: OpenAIGenerationOptions,
-		streamResponses: Bool = false
+		streamResponses: Bool = false,
 	) throws -> CreateModelResponseQuery {
 		let textConfig: CreateModelResponseQuery.TextResponseConfigurationOptions? = {
 			if type == String.self {
@@ -392,7 +392,7 @@ public final class OpenAIAdapter: Adapter {
 				name: snakeCaseName(for: type),
 				schema: .dynamicJsonSchema(type.generationSchema),
 				description: nil,
-				strict: false
+				strict: false,
 			)
 
 			return CreateModelResponseQuery.TextResponseConfigurationOptions.jsonSchema(config)
@@ -422,20 +422,20 @@ public final class OpenAIAdapter: Adapter {
 						name: tool.name,
 						description: tool.description,
 						parameters: tool.parameters.asJSONSchema(),
-						strict: false // GenerationSchema doesn't produce a compliant strict schema for OpenAI
-					)
+						strict: false, // GenerationSchema doesn't produce a compliant strict schema for OpenAI
+					),
 				)
 			},
 			topP: options.topP,
 			truncation: options.truncation,
-			user: options.safetyIdentifier
+			user: options.safetyIdentifier,
 		)
 	}
 
 	// MARK: - Helpers
 
 	private func transcriptStatusFromOpenAIStatus<Context>(
-		_ status: Components.Schemas.OutputMessage.StatusPayload
+		_ status: Components.Schemas.OutputMessage.StatusPayload,
 	) -> Transcript<Context>.Status where Context: PromptContextSource {
 		switch status {
 		case .completed: .completed
@@ -445,7 +445,7 @@ public final class OpenAIAdapter: Adapter {
 	}
 
 	private func transcriptStatusFromOpenAIStatus<Context>(
-		_ status: Components.Schemas.FunctionToolCall.StatusPayload?
+		_ status: Components.Schemas.FunctionToolCall.StatusPayload?,
 	) -> Transcript<Context>.Status? where Context: PromptContextSource {
 		guard let status else {
 			return nil
@@ -459,7 +459,7 @@ public final class OpenAIAdapter: Adapter {
 	}
 
 	private func transcriptStatusFromOpenAIStatus<Context>(
-		_ status: Components.Schemas.ReasoningItem.StatusPayload?
+		_ status: Components.Schemas.ReasoningItem.StatusPayload?,
 	) -> Transcript<Context>.Status? where Context: PromptContextSource {
 		guard let status else {
 			return nil
@@ -473,7 +473,7 @@ public final class OpenAIAdapter: Adapter {
 	}
 
 	private func transcriptStatusToMessageStatus(
-		_ status: Transcript<some PromptContextSource>.Status
+		_ status: Transcript<some PromptContextSource>.Status,
 	) -> Components.Schemas.OutputMessage.StatusPayload {
 		switch status {
 		case .completed: .completed
@@ -483,7 +483,7 @@ public final class OpenAIAdapter: Adapter {
 	}
 
 	private func transcriptStatusToFunctionCallStatus(
-		_ status: Transcript<some PromptContextSource>.Status?
+		_ status: Transcript<some PromptContextSource>.Status?,
 	) -> Components.Schemas.FunctionToolCall.StatusPayload? {
 		guard let status else {
 			return nil
@@ -497,7 +497,7 @@ public final class OpenAIAdapter: Adapter {
 	}
 
 	private func transcriptStatusToFunctionCallOutputStatus(
-		_ status: Transcript<some PromptContextSource>.Status?
+		_ status: Transcript<some PromptContextSource>.Status?,
 	) -> Components.Schemas.FunctionCallOutputItemParam.StatusPayload? {
 		guard let status else {
 			return nil
@@ -511,7 +511,7 @@ public final class OpenAIAdapter: Adapter {
 	}
 
 	private func transcriptStatusToReasoningStatus(
-		_ status: Transcript<some PromptContextSource>.Status?
+		_ status: Transcript<some PromptContextSource>.Status?,
 	) -> Components.Schemas.ReasoningItem.StatusPayload? {
 		guard let status else {
 			return nil
@@ -532,7 +532,7 @@ public final class OpenAIAdapter: Adapter {
 			case let .prompt(prompt):
 				listItems.append(InputItem.inputMessage(EasyInputMessage(
 					role: .user,
-					content: .textInput(prompt.embeddedPrompt)
+					content: .textInput(prompt.embeddedPrompt),
 				)))
 			case let .reasoning(reasoning):
 				let item = Components.Schemas.ReasoningItem(
@@ -540,7 +540,7 @@ public final class OpenAIAdapter: Adapter {
 					id: reasoning.id,
 					encryptedContent: reasoning.encryptedReasoning,
 					summary: [],
-					status: transcriptStatusToReasoningStatus(reasoning.status)
+					status: transcriptStatusToReasoningStatus(reasoning.status),
 				)
 
 				listItems.append(InputItem.item(.reasoningItem(item)))
@@ -552,7 +552,7 @@ public final class OpenAIAdapter: Adapter {
 						callId: toolCall.callId,
 						name: toolCall.toolName,
 						arguments: toolCall.arguments.jsonString,
-						status: transcriptStatusToFunctionCallStatus(toolCall.status)
+						status: transcriptStatusToFunctionCallStatus(toolCall.status),
 					)
 
 					listItems.append(InputItem.item(.functionToolCall(item)))
@@ -570,7 +570,7 @@ public final class OpenAIAdapter: Adapter {
 					callId: toolOutput.callId,
 					_type: .functionCallOutput,
 					output: output,
-					status: transcriptStatusToFunctionCallOutputStatus(toolOutput.status)
+					status: transcriptStatusToFunctionCallOutputStatus(toolOutput.status),
 				)
 
 				listItems.append(InputItem.item(.functionCallOutputItemParam(item)))
@@ -587,8 +587,8 @@ public final class OpenAIAdapter: Adapter {
 									Components.Schemas.OutputTextContent(
 										_type: .outputText,
 										text: textSegment.content,
-										annotations: []
-									)
+										annotations: [],
+									),
 								)
 						case let .structure(structuredSegment):
 							Components.Schemas.OutputContent
@@ -596,12 +596,12 @@ public final class OpenAIAdapter: Adapter {
 									Components.Schemas.OutputTextContent(
 										_type: .outputText,
 										text: structuredSegment.content.generatedContent.jsonString,
-										annotations: []
-									)
+										annotations: [],
+									),
 								)
 						}
 					},
-					status: transcriptStatusToMessageStatus(response.status)
+					status: transcriptStatusToMessageStatus(response.status),
 				)
 
 				listItems.append(InputItem.item(.outputMessage(item)))

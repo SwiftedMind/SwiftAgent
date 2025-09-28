@@ -111,95 +111,7 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter, Context: PromptCont
 
 	// MARK: - Private Response Helpers
 
-	/// Processes a streaming response from the adapter for String content generation.
-	///
-	/// This method handles the complete agent loop: sending the prompt to the adapter,
-	/// processing streaming updates, managing transcript entries, and aggregating token usage.
-	/// It specifically handles text-based responses where the content is accumulated as strings.
-	///
-	/// - Parameters:
-	///   - prompt: The prompt to send to the adapter, containing input and context.
-	///   - model: The model to use for generation.
-	///   - options: Optional generation parameters. Uses automatic options if nil.
-	///
-	/// - Returns: An ``AgentResponse`` containing the generated text,
-	///   transcript entries added during generation, and aggregated token usage.
-	///
-	/// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
-	private func processStringResponse(
-		from prompt: Transcript.Prompt,
-		using model: Adapter.Model,
-		options: Adapter.GenerationOptions?,
-	) async throws -> Response<String> {
-		let promptEntry = Transcript.Entry.prompt(prompt)
-		transcript.append(promptEntry)
-
-		let stream = adapter.respond(
-			to: prompt,
-			generating: String.self,
-			using: model,
-			including: transcript,
-			options: options ?? .automatic(for: model),
-		)
-		var addedEntities: [Transcript.Entry] = []
-		var aggregatedUsage: TokenUsage?
-
-		for try await update in stream {
-			switch update {
-			case let .transcript(entry):
-				upsertTranscriptEntry(entry)
-				upsert(entry: entry, into: &addedEntities)
-			case let .tokenUsage(usage):
-				// Update session token usage immediately for real-time tracking
-				tokenUsage.merge(usage)
-
-				if var current = aggregatedUsage {
-					current.merge(usage)
-					aggregatedUsage = current
-				} else {
-					aggregatedUsage = usage
-				}
-			}
-		}
-
-		let finalResponseSegments = addedEntities
-			.compactMap { entry -> [String]? in
-				guard case let .response(response) = entry else { return nil }
-
-				return response.segments.compactMap { segment in
-					if case let .text(textSegment) = segment {
-						return textSegment.content
-					}
-					return nil
-				}
-			}
-			.flatMap(\.self)
-
-		return AgentResponse<Adapter, Context, String>(
-			content: finalResponseSegments.joined(separator: "\n"),
-			transcript: Transcript(entries: addedEntities),
-			tokenUsage: aggregatedUsage,
-		)
-	}
-
-	/// Processes a streaming response from the adapter for structured content generation.
-	///
-	/// This method handles structured output generation where the AI provider returns
-	/// a specific `@Generable` type. It processes the stream until it encounters a
-	/// structured segment, then constructs and returns the typed content.
-	///
-	/// - Parameters:
-	///   - prompt: The prompt to send to the adapter, containing input and context.
-	///   - type: The `Generable` type to generate (e.g., `TaskList.self`).
-	///   - model: The model to use for generation.
-	///   - options: Optional generation parameters. Uses automatic options if nil.
-	///
-	/// - Returns: An ``AgentResponse`` containing the generated
-	///   structured content, transcript entries, and token usage.
-	///
-	/// - Throws: ``GenerationError/unexpectedStructuredResponse(_:)`` if no structured
-	///   content is received, or other adapter-specific errors.
-	private func processStructuredResponse<Content>(
+	private func processResponse<Content>(
 		from prompt: Transcript.Prompt,
 		generating type: Content.Type,
 		using model: Adapter.Model,
@@ -215,30 +127,38 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter, Context: PromptCont
 			including: transcript,
 			options: options ?? .automatic(for: model),
 		)
-		var addedEntities: [Transcript.Entry] = []
-		var aggregatedUsage: TokenUsage?
+
+		var generatedTranscript = Transcript()
+		var generatedUsage: TokenUsage?
 
 		for try await update in stream {
 			switch update {
 			case let .transcript(entry):
-				upsertTranscriptEntry(entry)
-				upsert(entry: entry, into: &addedEntities)
+				transcript.upsert(entry)
+				generatedTranscript.upsert(entry)
 
-				if case let .response(response) = entry {
-					for segment in response.segments {
-						switch segment {
-						case .text:
-							// Not applicable here
-							break
-						case let .structure(structuredSegment):
-							// We can return here since a structured response can only happen once
-							// TODO: Handle errors here in some way
+				// Handle content extraction based on type
+				if Content.self == String.self {
+					// For String content, we accumulate all text segments and process at the end
+					continue
+				} else {
+					// For structured content, return immediately when we find a structured segment
+					if case let .response(response) = entry {
+						for segment in response.segments {
+							switch segment {
+							case .text:
+								// Not applicable for structured content
+								break
+							case let .structure(structuredSegment):
+								// We can return here since a structured response can only happen once
+								// TODO: Handle errors here in some way
 
-							return try AgentResponse<Adapter, Context, Content>(
-								content: Content(structuredSegment.content),
-								transcript: Transcript(entries: addedEntities),
-								tokenUsage: aggregatedUsage,
-							)
+								return try AgentResponse<Adapter, Context, Content>(
+									content: Content(structuredSegment.content),
+									transcript: generatedTranscript,
+									tokenUsage: generatedUsage,
+								)
+							}
 						}
 					}
 				}
@@ -246,32 +166,39 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter, Context: PromptCont
 				// Update session token usage immediately for real-time tracking
 				tokenUsage.merge(usage)
 
-				if var current = aggregatedUsage {
+				if var current = generatedUsage {
 					current.merge(usage)
-					aggregatedUsage = current
+					generatedUsage = current
 				} else {
-					aggregatedUsage = usage
+					generatedUsage = usage
 				}
 			}
 		}
 
-		let errorContext = GenerationError.UnexpectedStructuredResponseContext()
-		throw GenerationError.unexpectedStructuredResponse(errorContext)
-	}
+		// Handle final content extraction for String type
+		if Content.self == String.self {
+			let finalResponseSegments = generatedTranscript
+				.compactMap { entry -> [String]? in
+					guard case let .response(response) = entry else { return nil }
 
-	private func upsertTranscriptEntry(_ entry: Transcript.Entry) {
-		if let existingIndex = transcript.entries.firstIndex(where: { $0.id == entry.id }) {
-			transcript.entries[existingIndex] = entry
-		} else {
-			transcript.entries.append(entry)
-		}
-	}
+					return response.segments.compactMap { segment in
+						if case let .text(textSegment) = segment {
+							return textSegment.content
+						}
+						return nil
+					}
+				}
+				.flatMap(\.self)
 
-	private func upsert(entry: Transcript.Entry, into entries: inout [Transcript.Entry]) {
-		if let existingIndex = entries.firstIndex(where: { $0.id == entry.id }) {
-			entries[existingIndex] = entry
+			return AgentResponse<Adapter, Context, Content>(
+				content: finalResponseSegments.joined(separator: "\n") as! Content,
+				transcript: generatedTranscript,
+				tokenUsage: generatedUsage,
+			)
 		} else {
-			entries.append(entry)
+			// For structured content, if we reach here, no structured segment was found
+			let errorContext = GenerationError.UnexpectedStructuredResponseContext()
+			throw GenerationError.unexpectedStructuredResponse(errorContext)
 		}
 	}
 
@@ -402,7 +329,7 @@ public extension ModelSession {
 		options: Adapter.GenerationOptions? = nil,
 	) async throws -> Response<String> {
 		let prompt = Transcript.Prompt(input: prompt, embeddedPrompt: prompt)
-		return try await processStringResponse(from: prompt, using: model, options: options)
+		return try await processResponse(from: prompt, generating: String.self, using: model, options: options)
 	}
 
 	/// Generates a text response to a structured prompt.
@@ -515,7 +442,7 @@ public extension ModelSession {
 		options: Adapter.GenerationOptions? = nil,
 	) async throws -> Response<Content> where Content: Generable {
 		let prompt = Transcript.Prompt(input: prompt, embeddedPrompt: prompt)
-		return try await processStructuredResponse(from: prompt, generating: type, using: model, options: options)
+		return try await processResponse(from: prompt, generating: type, using: model, options: options)
 	}
 
 	/// Generates a structured response of the specified type from a structured prompt.
@@ -658,7 +585,7 @@ public extension ModelSession {
 			context: context,
 			embeddedPrompt: prompt(input, context).formatted(),
 		)
-		return try await processStringResponse(from: prompt, using: model, options: options)
+		return try await processResponse(from: prompt, generating: String.self, using: model, options: options)
 	}
 
 	/// Generates a structured response with additional context while keeping user input separate.
@@ -719,7 +646,7 @@ public extension ModelSession {
 			context: context,
 			embeddedPrompt: prompt(input, context).formatted(),
 		)
-		return try await processStructuredResponse(from: prompt, generating: type, using: model, options: options)
+		return try await processResponse(from: prompt, generating: type, using: model, options: options)
 	}
 }
 
@@ -749,55 +676,5 @@ public extension ModelSession {
 	///   Individual response token usage is not affected.
 	func resetTokenUsage() {
 		tokenUsage = TokenUsage()
-	}
-}
-
-// MARK: - AgentResponse
-
-/// The response returned by ModelSession methods, containing generated content and metadata.
-///
-/// ``AgentResponse`` encapsulates the result of an AI generation request, providing access to
-/// the generated content, transcript entries that were added during generation, and token usage statistics.
-///
-/// ## Properties
-///
-/// - **content**: The generated content, which can be a `String` for text responses or any
-///   `@Generable` type for structured responses.
-/// - **addedEntries**: The transcript entries that were created during this generation,
-///   including reasoning steps, tool calls, and the final response.
-/// - **tokenUsage**: Aggregated token consumption across all internal steps (optional).
-///
-/// ## Example Usage
-///
-/// ```swift
-/// let response = try await session.respond(to: "What is 2 + 2?")
-/// print("Answer: \(response.content)")
-/// print("Used \(response.tokenUsage?.totalTokens ?? 0) tokens")
-/// print("Added \(response.addedEntries.count) transcript entries")
-/// ```
-public struct AgentResponse<Adapter: SwiftAgent.Adapter, Context: PromptContextSource, Content>
-	where Content: Generable {
-	/// The generated content from the AI model.
-	///
-	/// For text responses, this will be a `String`. For structured responses,
-	/// this will be an instance of the requested `@Generable` type.
-	public var content: Content
-
-	public var transcript: ModelSession<Adapter, Context>.Transcript
-
-	/// Token usage statistics aggregated across all internal generation steps.
-	///
-	/// Provides information about input tokens, output tokens, cached tokens, and reasoning tokens
-	/// used during the generation. May be `nil` if the adapter doesn't provide token usage information.
-	public var tokenUsage: TokenUsage?
-
-	package init(
-		content: Content,
-		transcript: ModelSession<Adapter, Context>.Transcript,
-		tokenUsage: TokenUsage?,
-	) {
-		self.content = content
-		self.transcript = transcript
-		self.tokenUsage = tokenUsage
 	}
 }
