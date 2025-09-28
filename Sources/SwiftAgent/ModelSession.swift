@@ -79,7 +79,7 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter & SendableMetatype, 
 	/// The response type for this session, containing generated content and metadata.
 	public typealias Response<Content: Generable> = AgentResponse<Adapter, Context, Content>
 
-	public typealias Snapshot = AgentSnapshot<Adapter, Context>
+	public typealias Snapshot<Content: Generable> = AgentSnapshot<Adapter, Context, Content>
 
 	/// The adapter instance that handles communication with the AI provider.
 	package let adapter: Adapter
@@ -204,13 +204,13 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter & SendableMetatype, 
 		}
 	}
 
-	private func processResponseStream(
+	private func processResponseStream<Content: Generable>(
 		from prompt: Transcript.Prompt,
-		generating type: (some Generable).Type,
+		generating type: Content.Type,
 		using model: Adapter.Model,
 		options: Adapter.GenerationOptions?,
-	) -> AsyncThrowingStream<Snapshot, any Error> {
-		let setup = AsyncThrowingStream<Snapshot, any Error>.makeStream()
+	) -> AsyncThrowingStream<Snapshot<Content>, any Error> {
+		let setup = AsyncThrowingStream<Snapshot<Content>, any Error>.makeStream()
 
 		let task = Task<Void, Never> {
 			do {
@@ -382,6 +382,39 @@ public extension ModelSession {
 		return try await processResponse(from: prompt, generating: String.self, using: model, options: options)
 	}
 
+	/// Generates a streaming text response to a string prompt.
+	///
+	/// This method provides real-time streaming of text generation, allowing you to
+	/// process and display content as it's being generated rather than waiting for
+	/// the complete response. Each snapshot contains the current state of the response.
+	///
+	/// ## Example
+	///
+	/// ```swift
+	/// for try await snapshot in session.streamResponse(to: "Tell me a story") {
+	///   print("Current content: \(snapshot.content)")
+	/// }
+	/// ```
+	///
+	/// - Parameters:
+	///   - prompt: The text prompt to send to the AI model.
+	///   - model: The model to use for generation. Defaults to the adapter's default model.
+	///   - options: Optional generation parameters (temperature, max tokens, etc.).
+	///     Uses automatic options for the model if not specified.
+	///
+	/// - Returns: An `AsyncThrowingStream` of ``AgentSnapshot`` objects containing
+	///   the current state of the response as it's being generated.
+	///
+	/// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
+	func streamResponse(
+		to prompt: String,
+		using model: Adapter.Model = .default,
+		options: Adapter.GenerationOptions? = nil,
+	) -> AsyncThrowingStream<Snapshot<String>, any Error> {
+		let prompt = Transcript.Prompt(input: prompt, embeddedPrompt: prompt)
+		return processResponseStream(from: prompt, generating: String.self, using: model, options: options)
+	}
+
 	/// Generates a text response to a structured prompt.
 	///
 	/// This method accepts a `Prompt` object built using the `@PromptBuilder` DSL,
@@ -415,6 +448,41 @@ public extension ModelSession {
 		try await respond(to: prompt.formatted(), using: model, options: options)
 	}
 
+	/// Generates a streaming text response to a structured prompt.
+	///
+	/// This method provides real-time streaming of text generation from a structured prompt,
+	/// allowing you to process and display content as it's being generated. Each snapshot
+	/// contains the current state of the response.
+	///
+	/// ## Example
+	///
+	/// ```swift
+	/// let prompt = Prompt {
+	///   "You are a helpful assistant."
+	///   PromptTag("user-input") { "Tell me a story" }
+	/// }
+	/// for try await snapshot in session.streamResponse(to: prompt) {
+	///   print("Current content: \(snapshot.content)")
+	/// }
+	/// ```
+	///
+	/// - Parameters:
+	///   - prompt: A structured prompt created with `@PromptBuilder`.
+	///   - model: The model to use for generation. Defaults to the adapter's default model.
+	///   - options: Optional generation parameters.
+	///
+	/// - Returns: An `AsyncThrowingStream` of ``AgentSnapshot`` objects containing
+	///   the current state of the response as it's being generated.
+	///
+	/// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
+	func streamResponse(
+		to prompt: Prompt,
+		using model: Adapter.Model = .default,
+		options: Adapter.GenerationOptions? = nil,
+	) -> AsyncThrowingStream<Snapshot<String>, any Error> {
+		streamResponse(to: prompt.formatted(), using: model, options: options)
+	}
+
 	/// Generates a text response using a prompt builder closure.
 	///
 	/// This method allows you to build prompts inline using the `@PromptBuilder` DSL,
@@ -446,6 +514,14 @@ public extension ModelSession {
 		@PromptBuilder prompt: () throws -> Prompt,
 	) async throws -> Response<String> {
 		try await respond(to: prompt().formatted(), using: model, options: options)
+	}
+
+	func streamResponse(
+		using model: Adapter.Model = .default,
+		options: Adapter.GenerationOptions? = nil,
+		@PromptBuilder prompt: @Sendable () throws -> Prompt,
+	) rethrows -> AsyncThrowingStream<Snapshot<String>, any Error> {
+		try streamResponse(to: prompt().formatted(), using: model, options: options)
 	}
 }
 
@@ -495,6 +571,50 @@ public extension ModelSession {
 		return try await processResponse(from: prompt, generating: type, using: model, options: options)
 	}
 
+	/// Generates a streaming structured response of the specified type from a string prompt.
+	///
+	/// This method provides real-time streaming of structured output generation where the AI
+	/// returns data conforming to a specific `@Generable` type. Each snapshot contains the
+	/// current state of the structured response as it's being generated.
+	///
+	/// ## Example
+	///
+	/// ```swift
+	/// @Generable
+	/// struct WeatherReport {
+	///   let temperature: Double
+	///   let condition: String
+	///   let humidity: Int
+	/// }
+	///
+	/// for try await snapshot in session.streamResponse(
+	///   to: "Get weather for San Francisco",
+	///   generating: WeatherReport.self
+	/// ) {
+	///   print("Current content: \(snapshot.content)")
+	/// }
+	/// ```
+	///
+	/// - Parameters:
+	///   - prompt: The text prompt to send to the AI model.
+	///   - type: The `Generable` type to generate. Can often be inferred from context.
+	///   - model: The model to use for generation. Defaults to the adapter's default model.
+	///   - options: Optional generation parameters.
+	///
+	/// - Returns: An `AsyncThrowingStream` of ``AgentSnapshot`` objects containing
+	///   the current state of the structured response as it's being generated.
+	///
+	/// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
+	func streamResponse<Content>(
+		to prompt: String,
+		generating type: Content.Type = Content.self,
+		using model: Adapter.Model = .default,
+		options: Adapter.GenerationOptions? = nil,
+	) -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
+		let prompt = Transcript.Prompt(input: prompt, embeddedPrompt: prompt)
+		return processResponseStream(from: prompt, generating: type, using: model, options: options)
+	}
+
 	/// Generates a structured response of the specified type from a structured prompt.
 	///
 	/// Combines the power of structured prompts with structured output generation.
@@ -539,6 +659,48 @@ public extension ModelSession {
 		)
 	}
 
+	/// Generates a streaming structured response of the specified type from a structured prompt.
+	///
+	/// This method provides real-time streaming of structured output generation from a structured
+	/// prompt, combining the power of structured prompts with structured output generation.
+	/// Each snapshot contains the current state of the structured response as it's being generated.
+	///
+	/// ## Example
+	///
+	/// ```swift
+	/// let prompt = Prompt {
+	///   "Extract key information from the following text:"
+	///   PromptTag("document") { documentText }
+	///   "Format the response as structured data."
+	/// }
+	///
+	/// for try await snapshot in session.streamResponse(
+	///   to: prompt,
+	///   generating: DocumentSummary.self
+	/// ) {
+	///   print("Current content: \(snapshot.content)")
+	/// }
+	/// ```
+	///
+	/// - Parameters:
+	///   - prompt: A structured prompt created with `@PromptBuilder`.
+	///   - type: The `Generable` type to generate.
+	///   - model: The model to use for generation. Defaults to the adapter's default model.
+	///   - options: Optional generation parameters.
+	///
+	/// - Returns: An `AsyncThrowingStream` of ``AgentSnapshot`` objects containing
+	///   the current state of the structured response as it's being generated.
+	///
+	/// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
+	func streamResponse<Content>(
+		to prompt: Prompt,
+		generating type: Content.Type = Content.self,
+		using model: Adapter.Model = .default,
+		options: Adapter.GenerationOptions? = nil,
+	) -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
+		streamResponse(to: prompt.formatted(), generating: type, using: model, options: options)
+	}
+
 	/// Generates a structured response using a prompt builder closure.
 	///
 	/// Allows you to build prompts inline while generating structured output,
@@ -576,6 +738,44 @@ public extension ModelSession {
 			using: model,
 			options: options,
 		)
+	}
+
+	/// Generates a streaming structured response using a prompt builder closure.
+	///
+	/// This method provides real-time streaming of structured output generation from a prompt
+	/// built inline using the `@PromptBuilder` DSL, combining the convenience of `@PromptBuilder`
+	/// with typed responses. Each snapshot contains the current state of the structured response
+	/// as it's being generated.
+	///
+	/// ## Example
+	///
+	/// ```swift
+	/// for try await snapshot in session.streamResponse(generating: TaskList.self) {
+	///   "Create a task list based on the following requirements:"
+	///   PromptTag("requirements") { userRequirements }
+	///   "Include priority levels and estimated completion times."
+	/// } {
+	///   print("Current content: \(snapshot.content)")
+	/// }
+	/// ```
+	///
+	/// - Parameters:
+	///   - type: The `Generable` type to generate.
+	///   - model: The model to use for generation. Defaults to the adapter's default model.
+	///   - options: Optional generation parameters.
+	///   - prompt: A closure that builds the prompt using `@PromptBuilder` syntax. Must be `@Sendable`.
+	///
+	/// - Returns: An `AsyncThrowingStream` of ``AgentSnapshot`` objects containing
+	///   the current state of the structured response as it's being generated.
+	///
+	/// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
+	func streamResponse<Content>(
+		generating type: Content.Type = Content.self,
+		using model: Adapter.Model = .default,
+		options: Adapter.GenerationOptions? = nil,
+		@PromptBuilder prompt: @Sendable () throws -> Prompt,
+	) rethrows -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
+		try streamResponse(to: prompt().formatted(), generating: type, using: model, options: options)
 	}
 }
 
@@ -638,6 +838,24 @@ public extension ModelSession {
 		return try await processResponse(from: prompt, generating: String.self, using: model, options: options)
 	}
 
+	func streamResponse(
+		to input: String,
+		supplying contextItems: [Context],
+		using model: Adapter.Model = .default,
+		options: Adapter.GenerationOptions? = nil,
+		@PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ context: PromptContext<Context>) -> Prompt,
+	) async -> AsyncThrowingStream<Snapshot<String>, any Error> {
+		let linkPreviews = await fetchLinkPreviews(from: input)
+		let context = PromptContext(sources: contextItems, linkPreviews: linkPreviews)
+
+		let prompt = Transcript.Prompt(
+			input: input,
+			context: context,
+			embeddedPrompt: prompt(input, context).formatted(),
+		)
+		return processResponseStream(from: prompt, generating: String.self, using: model, options: options)
+	}
+
 	/// Generates a structured response with additional context while keeping user input separate.
 	///
 	/// Combines context-aware generation with structured output, allowing you to provide
@@ -697,6 +915,26 @@ public extension ModelSession {
 			embeddedPrompt: prompt(input, context).formatted(),
 		)
 		return try await processResponse(from: prompt, generating: type, using: model, options: options)
+	}
+
+	@discardableResult
+	func streamResponse<Content: Generable>(
+		to input: String,
+		supplying contextItems: [Context],
+		generating type: Content.Type = Content.self,
+		using model: Adapter.Model = .default,
+		options: Adapter.GenerationOptions? = nil,
+		@PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ context: PromptContext<Context>) -> Prompt,
+	) async -> AsyncThrowingStream<Snapshot<Content>, any Error> {
+		let linkPreviews = await fetchLinkPreviews(from: input)
+		let context = PromptContext(sources: contextItems, linkPreviews: linkPreviews)
+
+		let prompt = Transcript.Prompt(
+			input: input,
+			context: context,
+			embeddedPrompt: prompt(input, context).formatted(),
+		)
+		return processResponseStream(from: prompt, generating: type, using: model, options: options)
 	}
 }
 

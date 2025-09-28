@@ -1,6 +1,7 @@
 // By Dennis Müller
 
 import Foundation
+import FoundationModels
 import Internal
 
 /// A snapshot of the agent's current state during response streaming.
@@ -20,7 +21,18 @@ import Internal
 ///   }
 /// }
 /// ```
-public struct AgentSnapshot<Adapter: SwiftAgent.Adapter & SendableMetatype, Context: PromptContextSource>: Sendable {
+public struct AgentSnapshot<
+  Adapter: SwiftAgent.Adapter & SendableMetatype,
+  Context: PromptContextSource,
+  Content: Generable,
+> {
+  /// The generated content from the AI model.
+  ///
+  /// This will be `nil` if the content is not available yet.
+  ///
+  /// For text responses, this will be a `String`. For structured responses,
+  /// this will be an instance of the requested `@Generable` type.
+  public var content: Content?
   /// The current conversation transcript.
   ///
   /// This includes all entries that have been added during the current generation,
@@ -40,9 +52,11 @@ public struct AgentSnapshot<Adapter: SwiftAgent.Adapter & SendableMetatype, Cont
   ///   - transcript: The current conversation transcript
   ///   - tokenUsage: Current token usage statistics, if available
   public init(
+    content: Content? = nil,
     transcript: ModelSession<Adapter, Context>.Transcript,
     tokenUsage: TokenUsage? = nil,
   ) {
+    self.content = content
     self.transcript = transcript
     self.tokenUsage = tokenUsage
   }
