@@ -94,7 +94,7 @@ private func resolveAccessLevel(
 ) -> AccessLevel? {
 	let arguments = node.arguments
 	if arguments.isEmpty {
-		return .public
+		return .internal
 	}
 
 	var selectedLevel: AccessLevel?
@@ -126,11 +126,11 @@ private func resolveAccessLevel(
 		selectedLevel = level
 	}
 
-	return selectedLevel ?? .public
+	return selectedLevel ?? .internal
 }
 
 private enum AccessLevel: String {
-	case `private`
+	case `fileprivate`
 	case `internal`
 	case package
 	case `public`
@@ -183,7 +183,7 @@ private func makeToolsEnum(for definitions: [ToolDefinition], accessLevel: Acces
 	lines.appendMultilineString(
 		"""
 
-		  enum Partials {
+		  \(accessModifier) enum Partials {
 		""",
 	)
 
@@ -197,30 +197,30 @@ private func makeToolsEnum(for definitions: [ToolDefinition], accessLevel: Acces
 		lines.appendMultilineString(
 			"""
 
-			  struct \(definition.wrapperName): ResolvableTool {
-			    typealias BaseTool = \(definition.baseTypeDescription)
-			    typealias Arguments = BaseTool.Arguments
-			    typealias Output = BaseTool.Output
+			  \(accessModifier) struct \(definition.wrapperName): ResolvableTool {
+			    \(accessModifier) typealias BaseTool = \(definition.baseTypeDescription)
+			    \(accessModifier) typealias Arguments = BaseTool.Arguments
+			    \(accessModifier) typealias Output = BaseTool.Output
 
-			    private let baseTool: BaseTool
+					private let baseTool: BaseTool
 
-			    init() {
+			    \(accessModifier) init() {
 			      self.baseTool = \(definition.creationExpression.trimmed.description)
 			    }
 
-			    var name: String { baseTool.name }
-			    var description: String { baseTool.description }
-			    var parameters: GenerationSchema { baseTool.parameters }
+			    \(accessModifier) var name: String { baseTool.name }
+			    \(accessModifier) var description: String { baseTool.description }
+			    \(accessModifier) var parameters: GenerationSchema { baseTool.parameters }
 
-			    func call(arguments: Arguments) async throws -> Output {
+			    \(accessModifier) func call(arguments: Arguments) async throws -> Output {
 			      try await baseTool.call(arguments: arguments)
 			    }
 
-			    func resolve(_ run: ToolRun<\(definition.wrapperName)>) -> Tools {
+			    \(accessModifier) func resolve(_ run: ToolRun<\(definition.wrapperName)>) -> Tools {
 			      .\(definition.caseName)(run)
 			    }
 
-			    func resolvePartially(_ run: PartialToolRun<\(definition.wrapperName)>) -> Tools.Partials {
+			    \(accessModifier) func resolvePartially(_ run: PartialToolRun<\(definition.wrapperName)>) -> Tools.Partials {
 			      .\(definition.caseName)(run)
 			    }
 			  }
@@ -235,7 +235,7 @@ private func makeToolsEnum(for definitions: [ToolDefinition], accessLevel: Acces
 
 private extension [String] {
 	mutating func appendMultilineString(_ multiline: String) {
-		let contents: Substring = Substring(multiline)
+		let contents = Substring(multiline)
 		let newLines = contents.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
 		append(contentsOf: newLines)
 	}
@@ -350,7 +350,7 @@ private enum ToolsMacroDiagnostic: DiagnosticMessage {
 		case .duplicateAccessLevelArgument:
 			"The accessLevel argument can only be provided once."
 		case .invalidAccessLevelValue:
-			"The accessLevel argument must be one of .private, .internal, .package, or .public."
+			"The accessLevel argument must be one of .fileprivate, .internal, .package, or .public."
 		}
 	}
 

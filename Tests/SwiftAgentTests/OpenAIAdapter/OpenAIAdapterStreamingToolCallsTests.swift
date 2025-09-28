@@ -192,7 +192,7 @@ struct OpenAIAdapterStreamingToolCallsTests {
 
 // MARK: - Tools
 
-#tools(accessLevel: .private) {
+#tools(accessLevel: .fileprivate) {
 	WeatherTool()
 }
 
