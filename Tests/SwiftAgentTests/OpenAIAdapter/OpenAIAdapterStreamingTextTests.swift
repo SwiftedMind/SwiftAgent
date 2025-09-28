@@ -12,12 +12,30 @@ import Testing
 struct OpenAIAdapterStreamingTextTests {
 	typealias Transcript = SwiftAgent.Transcript
 
+	// MARK: - Properties
+
+	private let adapter: OpenAIAdapter
+	private let mockHTTPClient: ReplayHTTPClient<CreateModelResponseQuery>
+
+	// MARK: - Initialization
+
+	init() async {
+		mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(recordedResponse: helloWorldResponse)
+		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
+		adapter = await OpenAIAdapter(tools: [], instructions: "", configuration: configuration)
+	}
+
 	@Test("Single response")
 	func singleResponse() async throws {
-		let mockHTTPClient = ReplayHTTPClient(recordedResponse: helloWorldResponse)
-		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
-		let adapter = await OpenAIAdapter(tools: [], instructions: "", configuration: configuration)
+		let generatedTranscript = try await processStreamResponse()
 
+		await validateHTTPRequests()
+		try validateTranscript(generatedTranscript: generatedTranscript)
+	}
+
+	// MARK: - Private Test Helper Methods
+
+	private func processStreamResponse() async throws -> Transcript<NoContext> {
 		let inputPrompt = Transcript<NoContext>.Prompt(input: "input", embeddedPrompt: "embeddedPrompt")
 		let initialTranscript = Transcript<NoContext>(entries: [.prompt(inputPrompt)])
 
@@ -39,8 +57,33 @@ struct OpenAIAdapterStreamingTextTests {
 			}
 		}
 
-		print(generatedTranscript)
+		return generatedTranscript
+	}
 
+	private func validateHTTPRequests() async {
+		let recordedRequests = await mockHTTPClient.recordedRequests()
+		#expect(recordedRequests.count == 1)
+
+		guard case let .inputItemList(items) = recordedRequests[0].body.input else {
+			Issue.record("Recorded request body input is not .inputItemList")
+			return
+		}
+
+		#expect(items.count == 1)
+
+		guard case let .inputMessage(message)? = items.first else {
+			Issue.record("Recorded request body input item is not .inputMessage")
+			return
+		}
+		guard case let .textInput(text) = message.content else {
+			Issue.record("Expected message content to be text input")
+			return
+		}
+
+		#expect(text == "embeddedPrompt")
+	}
+
+	private func validateTranscript(generatedTranscript: Transcript<NoContext>) throws {
 		#expect(generatedTranscript.count == 2)
 
 		guard case let .reasoning(reasoning) = generatedTranscript[0] else {

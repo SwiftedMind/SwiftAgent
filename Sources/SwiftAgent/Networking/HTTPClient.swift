@@ -13,7 +13,7 @@ public protocol HTTPClient: Sendable {
 		method: HTTPMethod,
 		queryItems: [URLQueryItem]?,
 		headers: [String: String]?,
-		body: (some Encodable)?,
+		body: (some Encodable & Sendable)?,
 		responseType: ResponseBody.Type,
 	) async throws -> ResponseBody
 
@@ -22,7 +22,7 @@ public protocol HTTPClient: Sendable {
 		path: String,
 		method: HTTPMethod,
 		headers: [String: String],
-		body: (some Encodable)?,
+		body: (some Encodable & Sendable)?,
 	) -> AsyncThrowingStream<EventSource.Event, Error>
 }
 
@@ -31,7 +31,7 @@ public extension HTTPClient {
 	func stream(
 		path: String,
 		headers: [String: String] = [:],
-		body: (some Encodable)? = nil,
+		body: (some Encodable & Sendable)? = nil,
 	) -> AsyncThrowingStream<EventSource.Event, Error> {
 		stream(path: path, method: .post, headers: headers, body: body)
 	}
@@ -143,7 +143,7 @@ public final class URLSessionHTTPClient: HTTPClient {
 		method: HTTPMethod,
 		queryItems: [URLQueryItem]?,
 		headers: [String: String]?,
-		body: (some Encodable)?,
+		body: (some Encodable & Sendable)?,
 		responseType: ResponseBody.Type,
 	) async throws -> ResponseBody {
 		let url = try makeURL(path: path, queryItems: queryItems)

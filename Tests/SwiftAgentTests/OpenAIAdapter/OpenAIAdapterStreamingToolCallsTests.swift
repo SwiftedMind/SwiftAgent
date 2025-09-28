@@ -12,15 +12,32 @@ import Testing
 struct OpenAIAdapterStreamingToolCallsTests {
 	typealias Transcript = SwiftAgent.Transcript
 
+	// MARK: - Properties
+
+	private let adapter: OpenAIAdapter
+	private let mockHTTPClient: ReplayHTTPClient<CreateModelResponseQuery>
+
+	// MARK: - Initialization
+
+	init() async {
+		mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(recordedResponses: [response1, response2])
+		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
+		adapter = await OpenAIAdapter(tools: Tools.all, instructions: "", configuration: configuration)
+	}
+
 	@Test("Single Tool Call (2 responses)")
 	func singleToolCall() async throws {
-		let mockHTTPClient = ReplayHTTPClient(recordedResponses: [response1, response2])
-		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
-		let adapter = await OpenAIAdapter(tools: Tools.all, instructions: "", configuration: configuration)
+		let generatedTranscript = try await processStreamResponse()
 
+		await validateHTTPRequests()
+		try validateTranscript(generatedTranscript: generatedTranscript)
+	}
+
+	// MARK: - Private Test Helper Methods
+
+	private func processStreamResponse() async throws -> Transcript<NoContext> {
 		let userPrompt = "What is the weather in New York City, USA?"
 		let prompt = Transcript<NoContext>.Prompt(input: userPrompt, embeddedPrompt: userPrompt)
-
 		let transcript = Transcript<NoContext>(entries: [.prompt(prompt)])
 
 		let stream = await adapter.streamResponse(
@@ -41,8 +58,83 @@ struct OpenAIAdapterStreamingToolCallsTests {
 			}
 		}
 
-		print(generatedTranscript)
+		return generatedTranscript
+	}
 
+	private func validateHTTPRequests() async {
+		let recordedRequests = await mockHTTPClient.recordedRequests()
+		#expect(recordedRequests.count == 2)
+
+		// Validate first request
+		guard case let .inputItemList(items) = recordedRequests[0].body.input else {
+			Issue.record("Recorded request body input is not .inputItemList")
+			return
+		}
+
+		#expect(items.count == 1)
+
+		guard case let .inputMessage(message) = items[0] else {
+			Issue.record("Recorded request body input item is not .inputMessage")
+			return
+		}
+		guard case let .textInput(text) = message.content else {
+			Issue.record("Expected message content to be text input")
+			return
+		}
+
+		#expect(text == "What is the weather in New York City, USA?")
+
+		// Validate second request
+		guard case let .inputItemList(secondItems) = recordedRequests[1].body.input else {
+			Issue.record("Second recorded request body input is not .inputItemList")
+			return
+		}
+
+		#expect(secondItems.count == 4)
+
+		// Validate first item (input message)
+		guard case let .inputMessage(secondMessage) = secondItems[0] else {
+			Issue.record("Second request first item is not .inputMessage")
+			return
+		}
+		guard case let .textInput(secondText) = secondMessage.content else {
+			Issue.record("Expected second message content to be text input")
+			return
+		}
+
+		#expect(secondText == "What is the weather in New York City, USA?")
+
+		// Validate second item (reasoning item)
+		guard case let .item(.reasoningItem(reasoningItem)) = secondItems[1] else {
+			Issue.record("Second request second item is not .reasoningItem")
+			return
+		}
+
+		#expect(reasoningItem.id == "rs_68d9303e94ac819ead3d9e066f405eae03aa6e5a972b3b23")
+		#expect(reasoningItem.summary == [])
+
+		// Validate third item (function tool call)
+		guard case let .item(.functionToolCall(functionCall)) = secondItems[2] else {
+			Issue.record("Second request third item is not .functionToolCall")
+			return
+		}
+
+		#expect(functionCall.id == "fc_68d9303fe7fc819ea999bda43617404203aa6e5a972b3b23")
+		#expect(functionCall.callId == "call_5dp5Uj0Loqn1YcyIpqSq6sLX")
+		#expect(functionCall.name == "get_weather")
+		#expect(functionCall.arguments == #"{"location": "New York City, USA"}"#)
+
+		// Validate fourth item (function call output)
+		guard case let .item(.functionCallOutputItemParam(functionOutput)) = secondItems[3] else {
+			Issue.record("Second request fourth item is not .functionCallOutputItemParam")
+			return
+		}
+
+		#expect(functionOutput.callId == "call_5dp5Uj0Loqn1YcyIpqSq6sLX")
+		#expect(functionOutput.output == "\"Sunny\"")
+	}
+
+	private func validateTranscript(generatedTranscript: Transcript<NoContext>) throws {
 		#expect(generatedTranscript.count == 4)
 
 		guard case let .reasoning(reasoning) = generatedTranscript[0] else {

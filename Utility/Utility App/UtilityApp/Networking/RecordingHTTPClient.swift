@@ -30,8 +30,8 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 		method: HTTPMethod,
 		queryItems: [URLQueryItem]?,
 		headers: [String: String]?,
-		body: (some Encodable)?,
-		responseType _: ResponseBody.Type
+		body: (some Encodable & Sendable)?,
+		responseType _: ResponseBody.Type,
 	) async throws -> ResponseBody {
 		let currentSequenceNumber = await sequenceCounter.next()
 		let bodyEncoding = try encodeBodyIfNeeded(body)
@@ -41,7 +41,7 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 			queryItems: queryItems,
 			headers: headers,
 			bodyData: bodyEncoding.data,
-			acceptHeader: "application/json"
+			acceptHeader: "application/json",
 		)
 
 		let requestHeaders = request.allHTTPHeaderFields ?? [:]
@@ -50,7 +50,7 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 			method: method,
 			url: request.url ?? configuration.baseURL,
 			headers: requestHeaders,
-			bodyDescription: bodyEncoding.logDescription
+			bodyDescription: bodyEncoding.logDescription,
 		)
 		recordingPrinter.printRequest(requestContext)
 
@@ -69,7 +69,7 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 		let responseContext = HTTPRecordingPrinter.ResponseContext(
 			sequenceNumber: currentSequenceNumber,
 			statusCode: httpResponse.statusCode,
-			bodyDescription: responseBodyDescription
+			bodyDescription: responseBodyDescription,
 		)
 		recordingPrinter.printResponse(responseContext)
 
@@ -88,7 +88,7 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 		path: String,
 		method: HTTPMethod,
 		headers: [String: String],
-		body: (some Encodable)?
+		body: (some Encodable & Sendable)?,
 	) -> AsyncThrowingStream<EventSource.Event, any Error> {
 		let bodyEncodingResult: Result<BodyEncoding, Error> = if let body {
 			Result { try encodeBodyIfNeeded(body) }
@@ -110,7 +110,7 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 						queryItems: nil,
 						headers: headers,
 						bodyData: bodyEncoding.data,
-						acceptHeader: "text/event-stream"
+						acceptHeader: "text/event-stream",
 					)
 
 					let requestHeaders = request.allHTTPHeaderFields ?? [:]
@@ -119,7 +119,7 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 						method: method,
 						url: request.url ?? configuration.baseURL,
 						headers: requestHeaders,
-						bodyDescription: bodyEncoding.logDescription
+						bodyDescription: bodyEncoding.logDescription,
 					)
 					recordingPrinter.printRequest(requestContext)
 
@@ -151,7 +151,7 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 					recordingPrinter.printStream(
 						sequenceNumber: currentSequenceNumber,
 						statusCode: httpStatusCode,
-						rawEventPayload: rawStreamString
+						rawEventPayload: rawStreamString,
 					)
 
 					continuation.finish()
@@ -166,7 +166,7 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 		}
 	}
 
-	private func encodeBodyIfNeeded(_ body: (some Encodable)?) throws -> BodyEncoding {
+	private func encodeBodyIfNeeded(_ body: (some Encodable & Sendable)?) throws -> BodyEncoding {
 		guard let body else { return BodyEncoding() }
 
 		let data = try configuration.jsonEncoder.encode(body)
@@ -180,7 +180,7 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 		queryItems: [URLQueryItem]?,
 		headers: [String: String]?,
 		bodyData: Data?,
-		acceptHeader: String
+		acceptHeader: String,
 	) async throws -> URLRequest {
 		let url = try makeURL(path: path, queryItems: queryItems)
 		var request = URLRequest(url: url)
