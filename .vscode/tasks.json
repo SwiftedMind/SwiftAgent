@@ -1,0 +1,112 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "swift",
+			"args": [
+				"build",
+				"--build-tests"
+			],
+			"env": {},
+			"cwd": "/Users/swiftedmind/Code/Workspace/SwiftAgent",
+			"disableTaskQueue": true,
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": [],
+			"label": "swift: Build All",
+			"detail": "swift build --build-tests"
+		},
+		{
+			"type": "swift",
+			"args": [
+				"build",
+				"--target",
+				"SwiftAgentMacros"
+			],
+			"env": {},
+			"cwd": "/Users/swiftedmind/Code/Workspace/SwiftAgent",
+			"disableTaskQueue": true,
+			"group": "build",
+			"problemMatcher": [],
+			"label": "swift: Build SwiftAgentMacros",
+			"detail": "swift build --target SwiftAgentMacros"
+		},
+		{
+			"type": "swift",
+			"args": [
+				"build",
+				"--target",
+				"Internal"
+			],
+			"env": {},
+			"cwd": "/Users/swiftedmind/Code/Workspace/SwiftAgent",
+			"disableTaskQueue": true,
+			"group": "build",
+			"problemMatcher": [],
+			"label": "swift: Build Internal",
+			"detail": "swift build --target Internal"
+		},
+		{
+			"type": "swift",
+			"args": [
+				"build",
+				"--target",
+				"SwiftAgent"
+			],
+			"env": {},
+			"cwd": "/Users/swiftedmind/Code/Workspace/SwiftAgent",
+			"disableTaskQueue": true,
+			"group": "build",
+			"problemMatcher": [],
+			"label": "swift: Build SwiftAgent",
+			"detail": "swift build --target SwiftAgent"
+		},
+		{
+			"type": "swift",
+			"args": [
+				"build",
+				"--target",
+				"OpenAISession"
+			],
+			"env": {},
+			"cwd": "/Users/swiftedmind/Code/Workspace/SwiftAgent",
+			"disableTaskQueue": true,
+			"group": "build",
+			"problemMatcher": [],
+			"label": "swift: Build OpenAISession",
+			"detail": "swift build --target OpenAISession"
+		},
+		{
+			"type": "swift",
+			"args": [
+				"build",
+				"--target",
+				"SimulatedSession"
+			],
+			"env": {},
+			"cwd": "/Users/swiftedmind/Code/Workspace/SwiftAgent",
+			"disableTaskQueue": true,
+			"group": "build",
+			"problemMatcher": [],
+			"label": "swift: Build SimulatedSession",
+			"detail": "swift build --target SimulatedSession"
+		},
+		{
+			"type": "swift",
+			"args": [
+				"build",
+				"--target",
+				"SwiftAgentTests"
+			],
+			"env": {},
+			"cwd": "/Users/swiftedmind/Code/Workspace/SwiftAgent",
+			"disableTaskQueue": true,
+			"group": "build",
+			"problemMatcher": [],
+			"label": "swift: Build SwiftAgentTests",
+			"detail": "swift build --target SwiftAgentTests"
+		}
+	]
+}

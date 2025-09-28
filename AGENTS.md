@@ -55,6 +55,16 @@ XcodeBuildMCP.build_sim({
 })
 ```
 
+#### Build Utility App
+
+```
+XcodeBuildMCP.build_sim({
+  workspacePath: "{working_directory}/SwiftAgent.xcworkspace",
+  scheme: "UtilityApp",
+  simulatorName: "iPhone 17 Pro"
+})
+```
+
 #### Build Tests
 
 ```

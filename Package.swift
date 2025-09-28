@@ -7,7 +7,7 @@ let package = Package(
 	name: "SwiftAgent",
 	platforms: [
 		.iOS(.v26),
-		.macOS(.v14),
+		.macOS(.v26),
 	],
 	products: [
 		.library(name: "OpenAISession", targets: ["OpenAISession", "SimulatedSession", "SwiftAgent"]),
@@ -47,7 +47,7 @@ let package = Package(
 				"OpenAI",
 				"SwiftAgentMacros",
 				"EventSource",
-				.product(name: "Dependencies", package: "swift-dependencies")
+				.product(name: "Dependencies", package: "swift-dependencies"),
 			],
 			path: "Sources/OpenAI",
 		),
@@ -65,7 +65,7 @@ let package = Package(
 			dependencies: [
 				"OpenAISession",
 				"SwiftAgent",
-				.product(name: "Dependencies", package: "swift-dependencies")
+				.product(name: "Dependencies", package: "swift-dependencies"),
 			],
 		),
 	],

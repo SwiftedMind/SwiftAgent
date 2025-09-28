@@ -6,42 +6,11 @@ import Foundation
 @testable import OpenAISession
 @testable import SwiftAgent
 
-extension OpenAIConfiguration {
-	static func recording(apiKey: String) -> OpenAIConfiguration {
-		let encoder = JSONEncoder()
-		encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-
-		let decoder = JSONDecoder()
-
-		let interceptors = HTTPClientInterceptors(
-			prepareRequest: { request in
-				request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-			},
-			onUnauthorized: { _, _, _ in
-				false
-			},
-		)
-
-		let configuration = HTTPClientConfiguration(
-			baseURL: URL(string: "https://api.openai.com")!,
-			defaultHeaders: [:],
-			timeout: 60,
-			jsonEncoder: encoder,
-			jsonDecoder: decoder,
-			interceptors: interceptors,
-		)
-
-		return OpenAIConfiguration(httpClient: RecordingHTTPClient(configuration: configuration))
-	}
-}
-
 final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 	private let configuration: HTTPClientConfiguration
 	private let urlSession: URLSession
 	private let recordingPrinter = HTTPRecordingPrinter()
-	private let sequenceLock = NSLock()
-
-	private var sequenceNumber: Int = 0
+	private let sequenceCounter = SequenceCounter()
 
 	init(configuration: HTTPClientConfiguration, session: URLSession? = nil) {
 		self.configuration = configuration
@@ -62,9 +31,9 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 		queryItems: [URLQueryItem]?,
 		headers: [String: String]?,
 		body: (some Encodable)?,
-		responseType _: ResponseBody.Type,
+		responseType _: ResponseBody.Type
 	) async throws -> ResponseBody {
-		let currentSequenceNumber = nextSequenceNumber()
+		let currentSequenceNumber = await sequenceCounter.next()
 		let bodyEncoding = try encodeBodyIfNeeded(body)
 		let request = try await makeRequest(
 			path: path,
@@ -72,7 +41,7 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 			queryItems: queryItems,
 			headers: headers,
 			bodyData: bodyEncoding.data,
-			acceptHeader: "application/json",
+			acceptHeader: "application/json"
 		)
 
 		let requestHeaders = request.allHTTPHeaderFields ?? [:]
@@ -81,7 +50,7 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 			method: method,
 			url: request.url ?? configuration.baseURL,
 			headers: requestHeaders,
-			bodyDescription: bodyEncoding.logDescription,
+			bodyDescription: bodyEncoding.logDescription
 		)
 		recordingPrinter.printRequest(requestContext)
 
@@ -100,7 +69,7 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 		let responseContext = HTTPRecordingPrinter.ResponseContext(
 			sequenceNumber: currentSequenceNumber,
 			statusCode: httpResponse.statusCode,
-			bodyDescription: responseBodyDescription,
+			bodyDescription: responseBodyDescription
 		)
 		recordingPrinter.printResponse(responseContext)
 
@@ -119,9 +88,8 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 		path: String,
 		method: HTTPMethod,
 		headers: [String: String],
-		body: (some Encodable)?,
+		body: (some Encodable)?
 	) -> AsyncThrowingStream<EventSource.Event, any Error> {
-		let currentSequenceNumber = nextSequenceNumber()
 		let bodyEncodingResult: Result<BodyEncoding, Error> = if let body {
 			Result { try encodeBodyIfNeeded(body) }
 		} else {
@@ -130,6 +98,7 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 
 		return AsyncThrowingStream { continuation in
 			let task = Task {
+				let currentSequenceNumber = await self.sequenceCounter.next()
 				var httpStatusCode: Int?
 				var collectedBytes = Data()
 				do {
@@ -141,7 +110,7 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 						queryItems: nil,
 						headers: headers,
 						bodyData: bodyEncoding.data,
-						acceptHeader: "text/event-stream",
+						acceptHeader: "text/event-stream"
 					)
 
 					let requestHeaders = request.allHTTPHeaderFields ?? [:]
@@ -150,7 +119,7 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 						method: method,
 						url: request.url ?? configuration.baseURL,
 						headers: requestHeaders,
-						bodyDescription: bodyEncoding.logDescription,
+						bodyDescription: bodyEncoding.logDescription
 					)
 					recordingPrinter.printRequest(requestContext)
 
@@ -159,7 +128,6 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 					guard let httpResponse = response as? HTTPURLResponse else {
 						throw SSEError.invalidResponse
 					}
-					
 					guard (200..<300).contains(httpResponse.statusCode) else {
 						throw SSEError.badStatus(code: httpResponse.statusCode, body: nil)
 					}
@@ -167,15 +135,14 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 					httpStatusCode = httpResponse.statusCode
 
 					let parser = EventSource.Parser()
-					var iterator = asyncBytes.makeAsyncIterator()
 
-					while let byte = try await iterator.next() {
+					for try await byte in asyncBytes {
 						collectedBytes.append(byte)
 						await parser.consume(byte)
 					}
 
 					await parser.finish()
-					
+
 					while let event = await parser.getNextEvent() {
 						continuation.yield(event)
 					}
@@ -184,7 +151,7 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 					recordingPrinter.printStream(
 						sequenceNumber: currentSequenceNumber,
 						statusCode: httpStatusCode,
-						rawEventPayload: rawStreamString,
+						rawEventPayload: rawStreamString
 					)
 
 					continuation.finish()
@@ -197,13 +164,6 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 				task.cancel()
 			}
 		}
-	}
-
-	private func nextSequenceNumber() -> Int {
-		sequenceLock.lock()
-		defer { sequenceLock.unlock() }
-		sequenceNumber += 1
-		return sequenceNumber
 	}
 
 	private func encodeBodyIfNeeded(_ body: (some Encodable)?) throws -> BodyEncoding {
@@ -220,7 +180,7 @@ final class RecordingHTTPClient: HTTPClient, @unchecked Sendable {
 		queryItems: [URLQueryItem]?,
 		headers: [String: String]?,
 		bodyData: Data?,
-		acceptHeader: String,
+		acceptHeader: String
 	) async throws -> URLRequest {
 		let url = try makeURL(path: path, queryItems: queryItems)
 		var request = URLRequest(url: url)
@@ -272,5 +232,14 @@ private struct BodyEncoding {
 	init(data: Data? = nil, logDescription: String? = nil) {
 		self.data = data
 		self.logDescription = logDescription
+	}
+}
+
+private actor SequenceCounter {
+	private var value = 0
+
+	func next() -> Int {
+		value += 1
+		return value
 	}
 }

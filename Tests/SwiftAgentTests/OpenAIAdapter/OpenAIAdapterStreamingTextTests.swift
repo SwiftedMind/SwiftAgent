@@ -8,12 +8,12 @@ import OpenAI
 @testable import SwiftAgent
 import Testing
 
-@Suite("OpenAIAdapter Simple Text Streaming")
-struct OpenAIAdapterSimpleTextStreamingTests {
+@Suite("OpenAIAdapter - Streaming - Text")
+struct OpenAIAdapterStreamingTextTests {
 	typealias Transcript = SwiftAgent.Transcript
 
-	@Test(#"Stream a simple "Hello, World" text response"#)
-	func streamSimpleTextResponse() async throws {
+	@Test("Single response")
+	func singleResponse() async throws {
 		let mockHTTPClient = ReplayHTTPClient(recordedResponse: helloWorldResponse)
 		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
 		let adapter = await OpenAIAdapter(tools: [], instructions: "", configuration: configuration)
@@ -38,6 +38,8 @@ struct OpenAIAdapterSimpleTextStreamingTests {
 				break
 			}
 		}
+
+		print(generatedTranscript)
 
 		#expect(generatedTranscript.count == 2)
 
