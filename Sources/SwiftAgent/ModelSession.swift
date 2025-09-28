@@ -69,7 +69,7 @@ import Internal
 ///
 /// - Note: ModelSession is `@MainActor` isolated and `@Observable` for SwiftUI integration.
 @Observable @MainActor
-public final class ModelSession<Adapter: SwiftAgent.Adapter, Context: PromptContextSource> {
+public final class ModelSession<Adapter: SwiftAgent.Adapter & SendableMetatype, Context: PromptContextSource> {
 	/// The transcript type for this session, containing the conversation history.
 	public typealias Transcript = SwiftAgent.Transcript<Context>
 
@@ -78,6 +78,8 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter, Context: PromptCont
 
 	/// The response type for this session, containing generated content and metadata.
 	public typealias Response<Content: Generable> = AgentResponse<Adapter, Context, Content>
+
+	public typealias Snapshot = AgentSnapshot<Adapter, Context>
 
 	/// The adapter instance that handles communication with the AI provider.
 	package let adapter: Adapter
@@ -200,6 +202,54 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter, Context: PromptCont
 			let errorContext = GenerationError.UnexpectedStructuredResponseContext()
 			throw GenerationError.unexpectedStructuredResponse(errorContext)
 		}
+	}
+
+	private func processResponseStream(
+		from prompt: Transcript.Prompt,
+		generating type: (some Generable).Type,
+		using model: Adapter.Model,
+		options: Adapter.GenerationOptions?,
+	) -> AsyncThrowingStream<Snapshot, any Error> {
+		let setup = AsyncThrowingStream<Snapshot, any Error>.makeStream()
+
+		let task = Task<Void, Never> {
+			do {
+				let promptEntry = Transcript.Entry.prompt(prompt)
+				transcript.append(promptEntry)
+
+				let stream = adapter.streamResponse(
+					to: prompt,
+					generating: type,
+					using: model,
+					including: transcript,
+					options: options ?? .automatic(for: model),
+				)
+
+				var generatedTranscript = Transcript()
+				var generatedUsage: TokenUsage = .zero
+				for try await update in stream {
+					switch update {
+					case let .transcript(entry):
+						generatedTranscript.upsert(entry)
+
+					case let .tokenUsage(usage):
+						generatedUsage.merge(usage)
+					}
+				}
+
+				// Update the transcript and token usage when the stream is finished
+				transcript.append(contentsOf: generatedTranscript.entries)
+				tokenUsage.merge(generatedUsage)
+			} catch {
+				setup.continuation.finish(throwing: error)
+			}
+		}
+
+		setup.continuation.onTermination = { _ in
+			task.cancel()
+		}
+
+		return setup.stream
 	}
 
 	/// Fetches metadata for URLs found in the input text to create link previews.

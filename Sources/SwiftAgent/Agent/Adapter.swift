@@ -20,6 +20,14 @@ public protocol Adapter {
 		including transcript: Transcript<Context>,
 		options: GenerationOptions,
 	) -> AsyncThrowingStream<AdapterUpdate<Context>, any Error> where Context: PromptContextSource
+
+	func streamResponse<Context>(
+		to prompt: Transcript<Context>.Prompt,
+		generating type: (some Generable).Type,
+		using model: Model,
+		including transcript: Transcript<Context>,
+		options: GenerationOptions,
+	) -> AsyncThrowingStream<AdapterUpdate<Context>, any Error> where Context: PromptContextSource
 }
 
 // MARK: - GenerationOptions

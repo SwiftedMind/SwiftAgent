@@ -127,7 +127,7 @@ package extension ResolvableTool {
 		return ToolRun<Self>.Problem(
 			reason: problemReport.reason,
 			json: generatedContent.jsonString,
-			details: ProblemReportDetailsExtractor.values(from: generatedContent)
+			details: ProblemReportDetailsExtractor.values(from: generatedContent),
 		)
 	}
 }

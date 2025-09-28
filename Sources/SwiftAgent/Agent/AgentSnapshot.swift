@@ -20,7 +20,7 @@ import Internal
 ///   }
 /// }
 /// ```
-public struct AgentSnapshot<Adapter: SwiftAgent.Adapter, Context: PromptContextSource>: Sendable {
+public struct AgentSnapshot<Adapter: SwiftAgent.Adapter & SendableMetatype, Context: PromptContextSource>: Sendable {
   /// The current conversation transcript.
   ///
   /// This includes all entries that have been added during the current generation,

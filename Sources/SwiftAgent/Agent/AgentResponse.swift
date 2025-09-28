@@ -25,7 +25,7 @@ import Internal
 /// print("Used \(response.tokenUsage?.totalTokens ?? 0) tokens")
 /// print("Added \(response.transcript.count) transcript entries")
 /// ```
-public struct AgentResponse<Adapter: SwiftAgent.Adapter, Context: PromptContextSource, Content>
+public struct AgentResponse<Adapter: SwiftAgent.Adapter & SendableMetatype, Context: PromptContextSource, Content>
   where Content: Generable {
   /// The generated content from the AI model.
   ///

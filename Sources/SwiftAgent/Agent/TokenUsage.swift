@@ -36,6 +36,8 @@ public struct TokenUsage: Sendable, Equatable {
 		self.reasoningTokens = reasoningTokens
 	}
 
+	static let zero = TokenUsage()
+
 	/// Merges another usage into this one by summing available counters.
 	public mutating func merge(_ other: TokenUsage) {
 		inputTokens = Self.sum(inputTokens, other.inputTokens)
