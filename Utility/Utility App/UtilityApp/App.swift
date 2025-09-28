@@ -11,65 +11,82 @@ import SwiftUI
 @main
 struct UtilityApp: App {
 	init() {
-		// Enable logging for development
 		SwiftAgentConfiguration.setLoggingEnabled(false)
 		SwiftAgentConfiguration.setNetworkLoggingEnabled(false)
 	}
 
 	var body: some Scene {
 		WindowGroup {
-			Text("Hello, World!")
-				.task {
-					do {
-						let configuration = OpenAIConfiguration.recording(apiKey: Secret.OpenAI.apiKey)
-						let adapter = OpenAIAdapter(tools: Tools.all, instructions: "", configuration: configuration)
-						
-						let inputPrompt = Transcript<NoContext>.Prompt(input: "What is the weather in New York City, USA?", embeddedPrompt: "What is the weather in New York City, USA?")
-						let initialTranscript = Transcript<NoContext>(entries: [.prompt(inputPrompt)])
-						
-						let stream = adapter.streamResponse(
-							to: inputPrompt,
-							generating: String.self,
-							including: initialTranscript,
-							options: .init(include: [.reasoning_encryptedContent])
-						)
-						
-						var generatedTranscript = Transcript<NoContext>()
-						
-						for try await event in stream {
-							switch event {
-							case let .transcript(entry):
-								generatedTranscript.upsert(entry)
-							default:
-								break
-							}
-						}
-						
-						print(generatedTranscript)
-					} catch {
-						
-					}
-				}
+			RecordingDashboardView()
 		}
 	}
 }
 
-// MARK: - Tools
+struct RecordingDashboardView: View {
+	@State private var activeScenarioIdentifier: RecordingScenario.ID?
+	@State private var statusMessage: String?
+	private var scenarios: [RecordingScenario] = RecordingScenario.sampleScenarios
 
-#tools(accessLevel: .private) {
-	WeatherTool()
+	var body: some View {
+		NavigationStack {
+			List(scenarios) { scenario in
+				VStack(alignment: .leading, spacing: 8) {
+					HStack {
+						Text(scenario.title)
+							.font(.headline)
+						Spacer(minLength: 0)
+						if activeScenarioIdentifier == scenario.id {
+							ProgressView()
+						}
+					}
+
+					Text(scenario.details)
+						.font(.subheadline)
+						.foregroundStyle(.secondary)
+
+					Button {
+						runScenario(scenario)
+					} label: {
+						Text("Record Scenario")
+							.frame(maxWidth: .infinity)
+					}
+					.buttonStyle(.borderedProminent)
+					.disabled(activeScenarioIdentifier != nil)
+				}
+				.padding(.vertical, 8)
+			}
+			.navigationTitle("Agent Recorder")
+			.safeAreaBar(edge: .bottom) {
+				Text(statusMessage ?? "Ready")
+					.contentTransition(.interpolate)
+					.padding()
+			}
+		}
+	}
+
+	private func runScenario(_ scenario: RecordingScenario) {
+		Task { @MainActor in
+			activeScenarioIdentifier = scenario.id
+			statusMessage = "Recording…"
+
+			do {
+				let configuration = OpenAIConfiguration.recording(apiKey: Secret.OpenAI.apiKey)
+				let adapter = OpenAIAdapter(
+					tools: scenario.tools,
+					instructions: scenario.instructions,
+					configuration: configuration
+				)
+				try await scenario.execute(adapter)
+				statusMessage = "Finished \(scenario.title)"
+			} catch {
+				statusMessage = "Error: \(error.localizedDescription)"
+			}
+
+			activeScenarioIdentifier = nil
+		}
+	}
 }
 
-private struct WeatherTool: SwiftAgentTool {
-	var name: String = "get_weather"
-	var description: String = "Get current temperature for a given location."
-	
-	@Generable
-	struct Arguments {
-		var location: String
-	}
-	
-	func call(arguments: Arguments) async throws -> String {
-		"Sunny"
-	}
+#Preview {
+	RecordingDashboardView()
 }
