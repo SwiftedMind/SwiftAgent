@@ -24,7 +24,9 @@ public extension URLSessionHTTPClient {
 			try body.map { try configuration.jsonEncoder.encode($0) }
 		}
 
-		return AsyncThrowingStream { continuation in
+		// Use explicit unbounded buffering to avoid back‑pressure when callers
+		// temporarily pause consumption (e.g. while awaiting tool execution).
+		return AsyncThrowingStream(bufferingPolicy: .unbounded) { continuation in
 			let task = Task {
 				do {
 					let requestBody = try encodedBodyResult.get()

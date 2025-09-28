@@ -79,7 +79,9 @@ actor RecordHTTPClient: HTTPClient {
 			try body.map { try configuration.jsonEncoder.encode($0) }
 		}
 
-		return AsyncThrowingStream { continuation in
+		// Explicit unbounded buffering ensures events are not dropped when
+		// the consumer awaits long‑running work (e.g. tool execution).
+		return AsyncThrowingStream(bufferingPolicy: .unbounded) { continuation in
 			let task = Task {
 				do {
 					let requestBody = try encodedBodyResult.get()

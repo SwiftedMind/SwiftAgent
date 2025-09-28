@@ -70,6 +70,7 @@ extension OpenAIAdapter {
 		var entryIndices: [String: Int] = [:]
 		var messageStates: [String: StreamingMessageState<Context>] = [:]
 		var functionCallStates: [String: StreamingFunctionCallState<Context>] = [:]
+		var functionCallOrder: [String] = []
 
 		let isGeneratingString = (type == String.self)
 		let expectedTypeName = String(describing: type)
@@ -88,7 +89,7 @@ extension OpenAIAdapter {
 				options: options,
 				streamResponses: true
 			)
-				
+
 			try Task.checkCancellation()
 
 			let eventStream = httpClient.stream(
@@ -137,6 +138,7 @@ extension OpenAIAdapter {
 							entryIndices: &entryIndices,
 							messageStates: &messageStates,
 							functionCallStates: &functionCallStates,
+							functionCallOrder: &functionCallOrder,
 							continuation: continuation
 						)
 					case let .done(doneEvent):
@@ -187,16 +189,13 @@ extension OpenAIAdapter {
 						continuation: continuation
 					)
 				case let .functionCallArguments(.done(doneEvent)):
-					let didInvokeTool = try await handleFunctionCallArgumentsDone(
+					try handleFunctionCallArgumentsDone(
 						doneEvent,
 						functionCallStates: &functionCallStates,
 						generatedTranscript: &generatedTranscript,
 						entryIndices: &entryIndices,
 						continuation: continuation
 					)
-					if didInvokeTool {
-						shouldContinueLoop = true
-					}
 				case let .reasoning(reasoningEvent):
 					handleReasoningEvent(
 						reasoningEvent,
@@ -220,6 +219,22 @@ extension OpenAIAdapter {
 
 			guard responseCompleted else {
 				continue stepLoop
+			}
+
+			// After the full response has streamed, execute any queued tool calls
+			// and append their outputs to the end of the transcript.
+			if !functionCallOrder.isEmpty {
+				let didExecuteAny = try await executeQueuedToolCalls(
+					inOrder: functionCallOrder,
+					functionCallStates: &functionCallStates,
+					generatedTranscript: &generatedTranscript,
+					entryIndices: &entryIndices,
+					continuation: continuation
+				)
+				
+				if didExecuteAny {
+					shouldContinueLoop = true
+				}
 			}
 
 			if shouldContinueLoop {
@@ -251,6 +266,7 @@ extension OpenAIAdapter {
 		entryIndices: inout [String: Int],
 		messageStates: inout [String: StreamingMessageState<Context>],
 		functionCallStates: inout [String: StreamingFunctionCallState<Context>],
+		functionCallOrder: inout [String],
 		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation
 	) throws where Context: PromptContextSource {
 		switch event.item {
@@ -297,6 +313,7 @@ extension OpenAIAdapter {
 				status: transcriptStatusForFunctionCall(functionCall.status),
 				transcriptEntryId: toolCalls.id
 			)
+			functionCallOrder.append(identifier)
 		case let .reasoning(reasoning):
 			let summary = reasoning.summary.map(\.text)
 			let entryData = Transcript<Context>.Reasoning(
@@ -486,13 +503,17 @@ extension OpenAIAdapter {
 		generatedTranscript: inout Transcript<Context>,
 		entryIndices: inout [String: Int],
 		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation
-	) async throws -> Bool where Context: PromptContextSource {
+	) throws where Context: PromptContextSource {
 		guard var state = functionCallStates[event.itemId],
-		      let entryIndex = entryIndices[state.transcriptEntryId] else { return false }
+		      let entryIndex = entryIndices[state.transcriptEntryId] else { return }
 
+		// Persist the final arguments buffer for deferred tool invocation
 		state.argumentsBuffer = event.arguments
 		functionCallStates[event.itemId] = state
-		var parsedArguments: GeneratedContent?
+
+		// Update the displayed tool call arguments immediately, but do not
+		// invoke the tool yet. Tool execution will be deferred until after
+		// the response stream completes to keep transcript ordering intact.
 		try updateTranscriptEntry(at: entryIndex, in: &generatedTranscript, continuation: continuation) { entry in
 			guard case var .toolCalls(toolCalls) = entry else { return }
 			guard let callIndex = toolCalls.calls.firstIndex(where: { $0.id == state.callIdentifier }) else { return }
@@ -500,63 +521,81 @@ extension OpenAIAdapter {
 			let argumentsContent = try GeneratedContent(json: event.arguments)
 			toolCalls.calls[callIndex].arguments = argumentsContent
 			entry = .toolCalls(toolCalls)
-			parsedArguments = argumentsContent
 		}
-		guard let argumentsContent = parsedArguments else { return false }
-		guard !state.hasInvokedTool else { return false }
-		guard let tool = tools.first(where: { $0.name == state.toolName }) else {
-			AgentLog.error(
-				GenerationError.unsupportedToolCalled(.init(toolName: state.toolName)),
-				context: "tool_not_found"
+	}
+
+	private func executeQueuedToolCalls<Context>(
+		inOrder functionCallOrder: [String],
+		functionCallStates: inout [String: StreamingFunctionCallState<Context>],
+		generatedTranscript: inout Transcript<Context>,
+		entryIndices: inout [String: Int],
+		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation
+	) async throws -> Bool where Context: PromptContextSource {
+		var executedAny = false
+
+		for identifier in functionCallOrder {
+			guard var state = functionCallStates[identifier] else { continue }
+			guard !state.hasInvokedTool else { continue }
+			guard !state.argumentsBuffer.isEmpty else { continue }
+			guard let tool = tools.first(where: { $0.name == state.toolName }) else {
+				AgentLog.error(
+					GenerationError.unsupportedToolCalled(.init(toolName: state.toolName)),
+					context: "tool_not_found"
+				)
+				throw GenerationError.unsupportedToolCalled(.init(toolName: state.toolName))
+			}
+
+			AgentLog.toolCall(
+				name: state.toolName,
+				callId: state.callId,
+				argumentsJSON: state.argumentsBuffer
 			)
-			throw GenerationError.unsupportedToolCalled(.init(toolName: state.toolName))
+
+			do {
+				let argumentsContent = try GeneratedContent(json: state.argumentsBuffer)
+				let output = try await callTool(tool, with: argumentsContent)
+				let toolOutputEntry = Transcript<Context>.ToolOutput(
+					id: state.callIdentifier,
+					callId: state.callId,
+					toolName: state.toolName,
+					segment: .structure(.init(content: output)),
+					status: state.status
+				)
+				let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
+				appendEntry(transcriptEntry, to: &generatedTranscript, entryIndices: &entryIndices, continuation: continuation)
+				state.hasInvokedTool = true
+				functionCallStates[identifier] = state
+				AgentLog.toolOutput(
+					name: tool.name,
+					callId: state.callId,
+					outputJSONOrText: output.generatedContent.jsonString
+				)
+				executedAny = true
+			} catch let toolRunProblem as ToolRunProblem {
+				let toolOutputEntry = Transcript<Context>.ToolOutput(
+					id: state.callIdentifier,
+					callId: state.callId,
+					toolName: state.toolName,
+					segment: .structure(.init(content: toolRunProblem.generatedContent)),
+					status: state.status
+				)
+				let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
+				appendEntry(transcriptEntry, to: &generatedTranscript, entryIndices: &entryIndices, continuation: continuation)
+				state.hasInvokedTool = true
+				functionCallStates[identifier] = state
+				AgentLog.toolOutput(
+					name: tool.name,
+					callId: state.callId,
+					outputJSONOrText: toolRunProblem.generatedContent.jsonString
+				)
+				executedAny = true
+			} catch {
+				AgentLog.error(error, context: "tool_call_failed_\(state.toolName)")
+				throw ToolRunError(tool: tool, underlyingError: error)
+			}
 		}
 
-		AgentLog.toolCall(
-			name: state.toolName,
-			callId: state.callId,
-			argumentsJSON: event.arguments
-		)
-
-		do {
-			let output = try await callTool(tool, with: argumentsContent)
-			let toolOutputEntry = Transcript<Context>.ToolOutput(
-				id: state.callIdentifier,
-				callId: state.callId,
-				toolName: state.toolName,
-				segment: .structure(.init(content: output)),
-				status: state.status
-			)
-			let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
-			appendEntry(transcriptEntry, to: &generatedTranscript, entryIndices: &entryIndices, continuation: continuation)
-			functionCallStates[event.itemId]?.hasInvokedTool = true
-			AgentLog.toolOutput(
-				name: tool.name,
-				callId: state.callId,
-				outputJSONOrText: output.generatedContent.jsonString
-			)
-			return true
-		} catch let toolRunProblem as ToolRunProblem {
-			let toolOutputEntry = Transcript<Context>.ToolOutput(
-				id: state.callIdentifier,
-				callId: state.callId,
-				toolName: state.toolName,
-				segment: .structure(.init(content: toolRunProblem.generatedContent)),
-				status: state.status
-			)
-			let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
-			appendEntry(transcriptEntry, to: &generatedTranscript, entryIndices: &entryIndices, continuation: continuation)
-			functionCallStates[event.itemId]?.hasInvokedTool = true
-			AgentLog.toolOutput(
-				name: tool.name,
-				callId: state.callId,
-				outputJSONOrText: toolRunProblem.generatedContent.jsonString
-			)
-			return true
-		} catch {
-			AgentLog.error(error, context: "tool_call_failed_\(state.toolName)")
-			throw ToolRunError(tool: tool, underlyingError: error)
-		}
+		return executedAny
 	}
 
 	private func handleReasoningEvent<Context>(
