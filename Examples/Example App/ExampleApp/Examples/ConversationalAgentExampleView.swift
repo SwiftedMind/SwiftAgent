@@ -4,7 +4,7 @@ import OpenAISession
 import SimulatedSession
 import SwiftUI
 
-struct RootView: View {
+struct ConversationalAgentExampleView: View {
 	@State private var userInput = ""
 	@State private var agentResponse = ""
 	@State private var toolCallsUsed: [String] = []
@@ -15,69 +15,65 @@ struct RootView: View {
 	// MARK: - Body
 
 	var body: some View {
-		NavigationStack {
-			Form {
-				Section("Agent") {
-					TextField("Ask me anything…", text: $userInput, axis: .vertical)
-						.lineLimit(3...6)
-						.submitLabel(.send)
-						.disabled(isLoading)
-						.onSubmit {
-							Task { await askAgent() }
-						}
-
-					Button {
+		Form {
+			Section("Agent") {
+				TextField("Ask me anything…", text: $userInput, axis: .vertical)
+					.lineLimit(3...6)
+					.submitLabel(.send)
+					.disabled(isLoading)
+					.onSubmit {
 						Task { await askAgent() }
-					} label: {
-						Text("Ask Agent")
 					}
-					.disabled(isLoading || userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-				}
 
-				if isLoading {
-					Section {
-						HStack {
-							ProgressView()
-							Text("Thinking…")
-						}
-						.foregroundStyle(.secondary)
+				Button {
+					Task { await askAgent() }
+				} label: {
+					Text("Ask Agent")
+				}
+				.disabled(isLoading || userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+			}
+
+			if isLoading {
+				Section {
+					HStack {
+						ProgressView()
+						Text("Thinking…")
 					}
+					.foregroundStyle(.secondary)
 				}
+			}
 
-				if let errorMessage {
-					Section("Error") {
-						Label {
-							Text(errorMessage)
-						} icon: {
-							Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
-						}
-						.accessibilityLabel(String(localized: "Error"))
+			if let errorMessage {
+				Section("Error") {
+					Label {
+						Text(errorMessage)
+					} icon: {
+						Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
 					}
+					.accessibilityLabel(String(localized: "Error"))
 				}
+			}
 
-				if !agentResponse.isEmpty {
-					Section("Response") {
-						Text(agentResponse)
-							.textSelection(.enabled)
-					}
+			if !agentResponse.isEmpty {
+				Section("Response") {
+					Text(agentResponse)
+						.textSelection(.enabled)
 				}
+			}
 
-				if !toolCallsUsed.isEmpty {
-					Section("Tools Used") {
-						ForEach(toolCallsUsed, id: \.self) { call in
-							Text(call)
-						}
+			if !toolCallsUsed.isEmpty {
+				Section("Tools Used") {
+					ForEach(toolCallsUsed, id: \.self) { call in
+						Text(call)
 					}
 				}
 			}
-			.animation(.default, value: isLoading)
-			.animation(.default, value: toolCallsUsed)
-			.animation(.default, value: errorMessage)
-			.animation(.default, value: agentResponse)
-			.navigationTitle("SwiftAgent")
-			.navigationBarTitleDisplayMode(.inline)
-			.formStyle(.grouped)
 		}
+		.animation(.default, value: isLoading)
+		.animation(.default, value: toolCallsUsed)
+		.animation(.default, value: errorMessage)
+		.animation(.default, value: agentResponse)
+		.formStyle(.grouped)
 		.task { setupAgent() }
 	}
 
@@ -160,7 +156,9 @@ struct RootView: View {
 
 #Preview {
 	NavigationStack {
-		RootView()
+		ConversationalAgentExampleView()
+			.navigationTitle("Agent Playground")
+			.navigationBarTitleDisplayMode(.inline)
 	}
 	.preferredColorScheme(.dark)
 }

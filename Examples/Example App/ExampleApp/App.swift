@@ -4,6 +4,19 @@ import FoundationModels
 import OpenAISession
 import SwiftUI
 
+/*
+
+ TODOS:
+ - Example: A text label (with the input, fixed, not a text field) and a button "Generate" -> Then UI streams in the response
+ - Update the example app to be more flexible for future use cases; make its entry a list screen that leads to the individual examples
+ - Think about transcript resolution and if you could simplify the other cases as well
+ - Go through the OpenAIAdapter streaming logic and see if you can simplify it or at least make it more readable and check for correctness
+ - In AgentSnapshot, add a method "collect()" that turns the snapshot into a response, like in FoundationModels
+ - In AgentSnapshot, add logic to populate the output content (final response from the transcript) after the stream is finished
+ - Go through the entire "streaming flow" to check if it's fine and nicely useable.
+
+ */
+
 @main
 struct ExampleApp: App {
 	init() {
@@ -14,7 +27,7 @@ struct ExampleApp: App {
 
 	var body: some Scene {
 		WindowGroup {
-			RootView()
+			ExampleListView()
 				.task {
 					do {
 						let transcript = try await test()
