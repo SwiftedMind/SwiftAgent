@@ -183,7 +183,7 @@ private func makeToolsEnum(for definitions: [ToolDefinition], accessLevel: Acces
 	lines.appendMultilineString(
 		"""
 
-		  \(accessModifier) enum Partials: Equatable {
+		  \(accessModifier) enum PartiallyGenerated: Equatable {
 		""",
 	)
 
@@ -220,7 +220,7 @@ private func makeToolsEnum(for definitions: [ToolDefinition], accessLevel: Acces
 			      .\(definition.caseName)(run)
 			    }
 
-			    \(accessModifier) func resolvePartially(_ run: PartialToolRun<\(definition.wrapperName)>) -> Tools.Partials {
+			    \(accessModifier) func resolvePartially(_ run: PartialToolRun<\(definition.wrapperName)>) -> Tools.PartiallyGenerated {
 			      .\(definition.caseName)(run)
 			    }
 			  }

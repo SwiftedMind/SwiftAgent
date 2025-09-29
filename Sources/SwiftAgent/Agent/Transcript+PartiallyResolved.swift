@@ -69,12 +69,12 @@ public extension Transcript {
 			public var id: String { call.id }
 
 			/// The tool resolution.
-			public let resolution: Tools.Partials
+			public let resolution: Tools.PartiallyGenerated
 
 			/// The tool name captured within the original call, convenient for switching logic.
 			public var toolName: String { call.toolName }
 
-			init(call: Transcript<Context>.ToolCall, resolution: Tools.Partials) {
+			init(call: Transcript<Context>.ToolCall, resolution: Tools.PartiallyGenerated) {
 				self.call = call
 				self.resolution = resolution
 			}

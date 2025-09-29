@@ -154,7 +154,7 @@ public struct ToolResolver<Context: PromptContextSource, Tools: ResolvableToolGr
 		}
 	}
 	
-	public func resolvePartially(_ call: ToolCall) throws -> Tools.Partials {
+	public func resolvePartially(_ call: ToolCall) throws -> Tools.PartiallyGenerated {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
 			AgentLog.error(

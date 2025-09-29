@@ -5,7 +5,7 @@ import FoundationModels
 import Internal
 
 public protocol ResolvableToolGroup: Equatable {
-	associatedtype Partials: Equatable
+	associatedtype PartiallyGenerated: Equatable
 }
 
 public protocol ResolvableTool<Tools>: Equatable where Self: SwiftAgentTool, Self.Arguments: Equatable, Self.Arguments.PartiallyGenerated: Equatable, Self.Output: Equatable {
@@ -25,7 +25,7 @@ public protocol ResolvableTool<Tools>: Equatable where Self: SwiftAgentTool, Sel
 	/// - Returns: A resolved representation of the tool execution
 	func resolve(_ run: ToolRun<Self>) -> Tools
 
-	func resolvePartially(_ run: PartialToolRun<Self>) -> Tools.Partials
+	func resolvePartially(_ run: PartialToolRun<Self>) -> Tools.PartiallyGenerated
 }
 
 public extension ResolvableTool {
@@ -43,7 +43,7 @@ public extension ResolvableTool {
 		try resolve(run(for: arguments, output: output))
 	}
 
-	func resolvePartially(arguments: GeneratedContent, output: GeneratedContent?) throws -> Tools.Partials {
+	func resolvePartially(arguments: GeneratedContent, output: GeneratedContent?) throws -> Tools.PartiallyGenerated {
 		let partialRun = try partialRun(for: arguments, output: output)
 		return resolvePartially(partialRun)
 	}

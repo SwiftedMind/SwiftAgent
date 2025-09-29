@@ -80,12 +80,13 @@ private enum ContextSource: PromptContextSource {
 
 // MARK: - Tools
 
+// TODO: Add "name" parameter with default "Tools"
 #tools(accessLevel: .fileprivate) {
 	CalculatorTool()
 	WeatherTool()
 }
 
-private struct CalculatorTool: SwiftAgentTool {
+private struct CalculatorTool: Tool, SwiftAgentTool {
 	let name = "calculator"
 	let description = "Performs basic mathematical calculations"
 
@@ -132,7 +133,7 @@ private struct CalculatorTool: SwiftAgentTool {
 	}
 }
 
-private struct WeatherTool: SwiftAgentTool {
+private struct WeatherTool: Tool, SwiftAgentTool {
 	let name = "get_weather"
 	let description = "Gets current weather information for a location"
 
