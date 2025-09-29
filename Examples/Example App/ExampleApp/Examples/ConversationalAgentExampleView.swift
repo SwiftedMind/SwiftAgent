@@ -30,7 +30,7 @@ struct ConversationalAgentExampleView: View {
 			Be concise but informative in your responses.
 			""",
 			context: ContextSource.self,
-			configuration: .direct(apiKey: Secret.OpenAI.apiKey)
+			configuration: .direct(apiKey: Secret.OpenAI.apiKey),
 		)
 	}
 
@@ -65,7 +65,7 @@ struct ConversationalAgentExampleView: View {
 					transcript = partiallyResolvedTranscript
 				}
 			}
-			
+
 		} catch {
 			print("Error", error.localizedDescription)
 		}
@@ -80,7 +80,6 @@ private enum ContextSource: PromptContextSource {
 
 // MARK: - Tools
 
-// TODO: Add "name" parameter with default "Tools"
 #tools(accessLevel: .fileprivate) {
 	CalculatorTool()
 	WeatherTool()
@@ -177,7 +176,7 @@ private struct WeatherTool: Tool, SwiftAgentTool {
 			location: weatherData.0,
 			temperature: weatherData.1,
 			condition: weatherData.2,
-			humidity: weatherData.3
+			humidity: weatherData.3,
 		)
 	}
 }

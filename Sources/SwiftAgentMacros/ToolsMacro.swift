@@ -18,7 +18,7 @@ public struct ToolsMacro: DeclarationMacro {
 		of node: some FreestandingMacroExpansionSyntax,
 		in context: some MacroExpansionContext,
 	) throws -> [DeclSyntax] {
-		guard let accessLevel = resolveAccessLevel(for: node, in: context) else {
+		guard let arguments = resolveArguments(for: node, in: context) else {
 			return []
 		}
 		guard let closure = node.trailingClosure else {
@@ -75,7 +75,11 @@ public struct ToolsMacro: DeclarationMacro {
 			return []
 		}
 
-		let enumDecl = makeToolsEnum(for: toolDefinitions, accessLevel: accessLevel)
+		let enumDecl = makeToolsEnum(
+			for: toolDefinitions,
+			enumName: arguments.name,
+			accessLevel: arguments.accessLevel,
+		)
 
 		return [enumDecl]
 	}
@@ -88,15 +92,21 @@ private struct ToolDefinition {
 	let creationExpression: ExprSyntax
 }
 
-private func resolveAccessLevel(
+private struct MacroArguments {
+	let name: String
+	let accessLevel: AccessLevel
+}
+
+private func resolveArguments(
 	for node: some FreestandingMacroExpansionSyntax,
 	in context: some MacroExpansionContext,
-) -> AccessLevel? {
+) -> MacroArguments? {
 	let arguments = node.arguments
 	if arguments.isEmpty {
-		return .internal
+		return MacroArguments(name: "Tools", accessLevel: .internal)
 	}
 
+	var selectedName: String?
 	var selectedLevel: AccessLevel?
 
 	for argument in arguments {
@@ -105,28 +115,56 @@ private func resolveAccessLevel(
 		}
 
 		guard let label = argument.label?.text else {
-			context.diagnose(argument, message: .missingAccessLevelLabel)
+			context.diagnose(argument, message: .missingArgumentLabel)
 			return nil
 		}
-		guard label == "accessLevel" else {
+
+		switch label {
+		case "name":
+			if selectedName != nil {
+				context.diagnose(argument, message: .duplicateNameArgument)
+				return nil
+			}
+			guard let name = extractStringLiteral(from: argument.expression) else {
+				context.diagnose(argument, message: .invalidNameValue)
+				return nil
+			}
+
+			selectedName = name
+
+		case "accessLevel":
+			if selectedLevel != nil {
+				context.diagnose(argument, message: .duplicateAccessLevelArgument)
+				return nil
+			}
+			guard let level = AccessLevel(expression: argument.expression) else {
+				context.diagnose(argument, message: .invalidAccessLevelValue)
+				return nil
+			}
+
+			selectedLevel = level
+
+		default:
 			context.diagnose(argument, message: .unsupportedArgumentLabel(label))
 			return nil
 		}
-
-		if selectedLevel != nil {
-			context.diagnose(argument, message: .duplicateAccessLevelArgument)
-			return nil
-		}
-
-		guard let level = AccessLevel(expression: argument.expression) else {
-			context.diagnose(argument, message: .invalidAccessLevelValue)
-			return nil
-		}
-
-		selectedLevel = level
 	}
 
-	return selectedLevel ?? .internal
+	return MacroArguments(
+		name: selectedName ?? "Tools",
+		accessLevel: selectedLevel ?? .internal,
+	)
+}
+
+private func extractStringLiteral(from expression: ExprSyntax) -> String? {
+	guard let stringLiteral = expression.as(StringLiteralExprSyntax.self) else {
+		return nil
+	}
+	guard let segment = stringLiteral.segments.first?.as(StringSegmentSyntax.self) else {
+		return nil
+	}
+
+	return segment.content.text
 }
 
 private enum AccessLevel: String {
@@ -152,13 +190,17 @@ private enum AccessLevel: String {
 	var keyword: String { rawValue }
 }
 
-private func makeToolsEnum(for definitions: [ToolDefinition], accessLevel: AccessLevel) -> DeclSyntax {
+private func makeToolsEnum(
+	for definitions: [ToolDefinition],
+	enumName: String,
+	accessLevel: AccessLevel,
+) -> DeclSyntax {
 	var lines: [String] = []
 	let accessModifier = accessLevel.keyword
 	lines.appendMultilineString(
 		"""
-		\(accessModifier) enum Tools: ResolvableToolGroup {
-		  static let all: [any ResolvableTool<Tools>] = [
+		\(accessModifier) enum \(enumName): ResolvableToolGroup {
+		  static let all: [any ResolvableTool<\(enumName)>] = [
 		""",
 	)
 
@@ -216,11 +258,12 @@ private func makeToolsEnum(for definitions: [ToolDefinition], accessLevel: Acces
 			      try await baseTool.call(arguments: arguments)
 			    }
 
-			    \(accessModifier) func resolve(_ run: ToolRun<\(definition.wrapperName)>) -> Tools {
+			    \(accessModifier) func resolve(_ run: ToolRun<\(definition.wrapperName)>) -> \(enumName) {
 			      .\(definition.caseName)(run)
 			    }
 
-			    \(accessModifier) func resolvePartially(_ run: PartialToolRun<\(definition.wrapperName)>) -> Tools.PartiallyGenerated {
+			    \(accessModifier) func resolvePartially(_ run: PartialToolRun<\(definition
+				.wrapperName)>) -> \(enumName).PartiallyGenerated {
 			      .\(definition.caseName)(run)
 			    }
 			  }
@@ -328,8 +371,10 @@ private enum ToolsMacroDiagnostic: DiagnosticMessage {
 	case onlyToolExpressionsAllowed
 	case invalidToolExpression
 	case duplicateCaseName(String)
-	case missingAccessLevelLabel
+	case missingArgumentLabel
 	case unsupportedArgumentLabel(String)
+	case duplicateNameArgument
+	case invalidNameValue
 	case duplicateAccessLevelArgument
 	case invalidAccessLevelValue
 
@@ -343,10 +388,14 @@ private enum ToolsMacroDiagnostic: DiagnosticMessage {
 			"Each statement inside #tools must be a tool initializer expression."
 		case let .duplicateCaseName(caseName):
 			"The generated case name \"\(caseName)\" would be duplicated. Provide distinct tool types."
-		case .missingAccessLevelLabel:
-			"The access level argument must use the label accessLevel."
+		case .missingArgumentLabel:
+			"Arguments must have a label (name or accessLevel)."
 		case let .unsupportedArgumentLabel(label):
-			"Unsupported argument label \"\(label)\". Only accessLevel is allowed."
+			"Unsupported argument label \"\(label)\". Only name and accessLevel are allowed."
+		case .duplicateNameArgument:
+			"The name argument can only be provided once."
+		case .invalidNameValue:
+			"The name argument must be a string literal."
 		case .duplicateAccessLevelArgument:
 			"The accessLevel argument can only be provided once."
 		case .invalidAccessLevelValue:
@@ -368,10 +417,14 @@ private enum ToolsMacroDiagnostic: DiagnosticMessage {
 			"invalidToolExpression"
 		case .duplicateCaseName:
 			"duplicateCaseName"
-		case .missingAccessLevelLabel:
-			"missingAccessLevelLabel"
+		case .missingArgumentLabel:
+			"missingArgumentLabel"
 		case .unsupportedArgumentLabel:
 			"unsupportedArgumentLabel"
+		case .duplicateNameArgument:
+			"duplicateNameArgument"
+		case .invalidNameValue:
+			"invalidNameValue"
 		case .duplicateAccessLevelArgument:
 			"duplicateAccessLevelArgument"
 		case .invalidAccessLevelValue:
