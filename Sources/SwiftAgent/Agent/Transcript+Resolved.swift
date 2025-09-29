@@ -46,7 +46,7 @@ public extension Transcript {
 	/// An immutable **projection** of a transcript with tool runs resolved.
 	///
 	/// You can obtain instances via ``Transcript/resolved(using:)``.
-	struct Resolved<Tools: ResolvableToolGroup> {
+	struct Resolved<Tools: ResolvableToolGroup>: Equatable {
 		/// All transcript entries with resolved tool runs attached where available.
 		public package(set) var entries: [Entry]
 
@@ -75,7 +75,7 @@ public extension Transcript {
 		}
 
 		/// Transcript entry augmented with resolved tool runs.
-		public enum Entry: Identifiable {
+		public enum Entry: Identifiable, Equatable {
 			case prompt(Transcript<Context>.Prompt)
 			case reasoning(Transcript<Context>.Reasoning)
 			case toolRun(ToolRunKind)
@@ -96,7 +96,7 @@ public extension Transcript {
 		}
 
 		/// A resolved tool run.
-		public struct ToolRunKind: Identifiable {
+		public struct ToolRunKind: Identifiable, Equatable {
 			private let call: Transcript<Context>.ToolCall
 
 			/// The identifier of this run.

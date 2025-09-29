@@ -49,7 +49,7 @@ enum ExampleSectionCatalog: Identifiable, CaseIterable, Hashable {
 	case agentPlayground
 
 	var id: Self { self }
-	
+
 	var title: LocalizedStringKey {
 		switch self {
 		case .agentPlayground:
@@ -60,20 +60,23 @@ enum ExampleSectionCatalog: Identifiable, CaseIterable, Hashable {
 	var examples: [ExampleCatalog] {
 		switch self {
 		case .agentPlayground:
-			[.conversationalAgent]
+			[.conversationalAgent, .streamingToolArguments]
 		}
 	}
 }
 
 enum ExampleCatalog: Identifiable, CaseIterable, Hashable {
 	case conversationalAgent
+	case streamingToolArguments
 
 	var id: Self { self }
-	
+
 	var title: LocalizedStringKey {
 		switch self {
 		case .conversationalAgent:
 			"Conversational Agent"
+		case .streamingToolArguments:
+			"Streaming Tool Arguments"
 		}
 	}
 
@@ -81,6 +84,8 @@ enum ExampleCatalog: Identifiable, CaseIterable, Hashable {
 		switch self {
 		case .conversationalAgent:
 			"Chat with SwiftAgent, issue tool requests, and inspect responses."
+		case .streamingToolArguments:
+			"Demonstrate streaming tool arguments and capture their output."
 		}
 	}
 
@@ -89,6 +94,8 @@ enum ExampleCatalog: Identifiable, CaseIterable, Hashable {
 		switch self {
 		case .conversationalAgent:
 			ConversationalAgentExampleView()
+		case .streamingToolArguments:
+			StreamingToolArgumentsExampleView()
 		}
 	}
 }

@@ -4,11 +4,11 @@ import Foundation
 import FoundationModels
 import Internal
 
-public protocol ResolvableToolGroup {
-	associatedtype Partials
+public protocol ResolvableToolGroup: Equatable {
+	associatedtype Partials: Equatable
 }
 
-public protocol ResolvableTool<Tools> where Self: SwiftAgentTool {
+public protocol ResolvableTool<Tools>: Equatable where Self: SwiftAgentTool, Self.Arguments: Equatable, Self.Arguments.PartiallyGenerated: Equatable, Self.Output: Equatable {
 	/// The type returned when this tool is resolved.
 	///
 	/// Defaults to `Void` for tools that don't need custom resolution logic.

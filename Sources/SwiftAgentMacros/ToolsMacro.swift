@@ -183,7 +183,7 @@ private func makeToolsEnum(for definitions: [ToolDefinition], accessLevel: Acces
 	lines.appendMultilineString(
 		"""
 
-		  \(accessModifier) enum Partials {
+		  \(accessModifier) enum Partials: Equatable {
 		""",
 	)
 

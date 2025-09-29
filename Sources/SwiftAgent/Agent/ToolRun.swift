@@ -28,7 +28,7 @@ import Internal
 ///   }
 /// }
 /// ```
-public struct ToolRun<Tool: SwiftAgentTool> {
+public struct ToolRun<Tool: SwiftAgentTool> where Tool.Arguments: Equatable, Tool.Arguments.PartiallyGenerated: Equatable, Tool.Output: Equatable {
 	/// The strongly typed inputs for this invocation.
 	///
 	/// These arguments are automatically parsed from the AI model's JSON tool call
@@ -81,7 +81,7 @@ public struct ToolRun<Tool: SwiftAgentTool> {
 	}
 }
 
-public struct PartialToolRun<Tool: SwiftAgentTool> where Tool.Arguments: Generable, Tool.Output: Generable {
+public struct PartialToolRun<Tool: SwiftAgentTool> where Tool.Arguments: Generable & Equatable, Tool.Arguments.PartiallyGenerated: Equatable, Tool.Output: Generable & Equatable {
 	/// The strongly typed inputs for this invocation.
 	///
 	/// These arguments are automatically parsed from the AI model's JSON tool call
@@ -162,3 +162,7 @@ public extension ToolRun {
 extension ToolRun: Sendable where Tool.Arguments: Sendable, Tool.Output: Sendable {}
 extension ToolRun: Equatable where Tool.Arguments: Equatable, Tool.Output: Equatable {}
 extension ToolRun: Hashable where Tool.Arguments: Hashable, Tool.Output: Hashable {}
+
+extension PartialToolRun: Sendable where Tool.Arguments.PartiallyGenerated: Sendable, Tool.Output: Sendable {}
+extension PartialToolRun: Equatable where Tool.Arguments.PartiallyGenerated: Equatable, Tool.Output: Equatable {}
+extension PartialToolRun: Hashable where Tool.Arguments.PartiallyGenerated: Hashable, Tool.Output: Hashable {}

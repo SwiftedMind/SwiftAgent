@@ -18,7 +18,6 @@ When a solution starts to expand, apply this checklist:
 
 - Always follow the best practices of naming things in Swift
 - ALWAYS use clear names for types and variables, don't just use single letters or abbreviations. Clarity is key!
-- Use 2 spaces for indentation; **do not** use tabs.
 - In SwiftUI views, always place private properties on top of the non-private ones, and the non-private ones directly above the initializer
 
 ### **IMPORTANT**: Before you start

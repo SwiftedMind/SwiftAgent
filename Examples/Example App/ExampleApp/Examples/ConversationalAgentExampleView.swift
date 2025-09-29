@@ -1,80 +1,22 @@
 // By Dennis Müller
 
+import FoundationModels
 import OpenAISession
 import SimulatedSession
 import SwiftUI
 
 struct ConversationalAgentExampleView: View {
 	@State private var userInput = ""
-	@State private var agentResponse = ""
-	@State private var toolCallsUsed: [String] = []
-	@State private var isLoading = false
-	@State private var errorMessage: String?
+	@State private var transcript: SwiftAgent.Transcript<ContextSource>.PartiallyResolved<Tools> = .init([])
 	@State private var session: OpenAIContextualSession<ContextSource>?
 
 	// MARK: - Body
 
 	var body: some View {
-		Form {
-			Section("Agent") {
-				TextField("Ask me anything…", text: $userInput, axis: .vertical)
-					.lineLimit(3...6)
-					.submitLabel(.send)
-					.disabled(isLoading)
-					.onSubmit {
-						Task { await askAgent() }
-					}
-
-				Button {
-					Task { await askAgent() }
-				} label: {
-					Text("Ask Agent")
-				}
-				.disabled(isLoading || userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-			}
-
-			if isLoading {
-				Section {
-					HStack {
-						ProgressView()
-						Text("Thinking…")
-					}
-					.foregroundStyle(.secondary)
-				}
-			}
-
-			if let errorMessage {
-				Section("Error") {
-					Label {
-						Text(errorMessage)
-					} icon: {
-						Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
-					}
-					.accessibilityLabel(String(localized: "Error"))
-				}
-			}
-
-			if !agentResponse.isEmpty {
-				Section("Response") {
-					Text(agentResponse)
-						.textSelection(.enabled)
-				}
-			}
-
-			if !toolCallsUsed.isEmpty {
-				Section("Tools Used") {
-					ForEach(toolCallsUsed, id: \.self) { call in
-						Text(call)
-					}
-				}
-			}
-		}
-		.animation(.default, value: isLoading)
-		.animation(.default, value: toolCallsUsed)
-		.animation(.default, value: errorMessage)
-		.animation(.default, value: agentResponse)
-		.formStyle(.grouped)
-		.task { setupAgent() }
+		Form {}
+			.animation(.default, value: transcript)
+			.formStyle(.grouped)
+			.onAppear(perform: setupAgent)
 	}
 
 	// MARK: - Setup
@@ -88,23 +30,17 @@ struct ConversationalAgentExampleView: View {
 			Be concise but informative in your responses.
 			""",
 			context: ContextSource.self,
-			configuration: .direct(apiKey: Secret.OpenAI.apiKey),
+			configuration: .direct(apiKey: Secret.OpenAI.apiKey)
 		)
 	}
 
 	// MARK: - Actions
 
-	@MainActor
-	private func askAgent() async {
-		guard let session, !userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-
-		isLoading = true
-		errorMessage = nil
-		agentResponse = ""
-		toolCallsUsed = []
+	private func sendMessage() async {
+		guard let session, userInput.isEmpty == false else { return }
 
 		do {
-			let response = try await session.respond(to: userInput, supplying: [.currentDate(Date())]) { input, context in
+			let stream = await session.streamResponse(to: userInput, supplying: [.currentDate(Date())]) { input, context in
 				PromptTag("context") {
 					for source in context.sources {
 						switch source {
@@ -122,35 +58,140 @@ struct ConversationalAgentExampleView: View {
 				}
 			}
 
-			agentResponse = response.content
 			userInput = ""
 
-			if let resolvedTranscript = session.transcript.resolved(using: Tools.all) {
-				toolCallsUsed = resolvedTranscript.compactMap { entry in
-					guard case let .toolRun(toolRun) = entry else {
-						return nil
-					}
-
-					switch toolRun.resolution {
-					case let .calculator(run):
-						if let output = run.output {
-							return "Calculator: \(output.expression)"
-						}
-						return "Calculator: \(run.arguments.firstNumber) \(run.arguments.operation) \(run.arguments.secondNumber)"
-					case let .weather(run):
-						guard let output = run.output else {
-							return "Weather: fetching conditions for \(run.arguments.location)…"
-						}
-
-						return "Weather: \(output.location) - \(output.temperature)°C, \(output.condition)"
-					}
+			for try await snapshot in stream {
+				if let partiallyResolvedTranscript = snapshot.transcript.partiallyResolved(using: Tools.all) {
+					transcript = partiallyResolvedTranscript
 				}
 			}
+			
 		} catch {
-			errorMessage = error.localizedDescription
+			print("Error", error.localizedDescription)
+		}
+	}
+}
+
+// MARK: - Prompt Context
+
+private enum ContextSource: PromptContextSource {
+	case currentDate(Date)
+}
+
+// MARK: - Tools
+
+#tools(accessLevel: .fileprivate) {
+	CalculatorTool()
+	WeatherTool()
+}
+
+private struct CalculatorTool: SwiftAgentTool {
+	let name = "calculator"
+	let description = "Performs basic mathematical calculations"
+
+	@Generable
+	struct Arguments: Equatable {
+		@Guide(description: "The first number")
+		let firstNumber: Double
+
+		@Guide(description: "The operation to perform (+, -, *, /)")
+		let operation: String
+
+		@Guide(description: "The second number")
+		let secondNumber: Double
+	}
+
+	@Generable
+	struct Output: Equatable {
+		let result: Double
+		let expression: String
+	}
+
+	func call(arguments: Arguments) async throws -> Output {
+		let result: Double
+
+		switch arguments.operation {
+		case "+":
+			result = arguments.firstNumber + arguments.secondNumber
+		case "-":
+			result = arguments.firstNumber - arguments.secondNumber
+		case "*":
+			result = arguments.firstNumber * arguments.secondNumber
+		case "/":
+			guard arguments.secondNumber != 0 else {
+				throw ToolError.divisionByZero
+			}
+
+			result = arguments.firstNumber / arguments.secondNumber
+		default:
+			throw ToolError.unsupportedOperation(arguments.operation)
 		}
 
-		isLoading = false
+		let expression = "\(arguments.firstNumber) \(arguments.operation) \(arguments.secondNumber) = \(result)"
+		return Output(result: result, expression: expression)
+	}
+}
+
+private struct WeatherTool: SwiftAgentTool {
+	let name = "get_weather"
+	let description = "Gets current weather information for a location"
+
+	@Generable
+	struct Arguments: Equatable {
+		@Guide(description: "The city or location to get weather for")
+		let location: String
+	}
+
+	@Generable
+	struct Output: Equatable {
+		let location: String
+		let temperature: Int
+		let condition: String
+		let humidity: Int
+	}
+
+	func call(arguments: Arguments) async throws -> Output {
+		// Simulate API delay
+		try await Task.sleep(nanoseconds: 500_000_000)
+
+		// Mock weather data based on location
+		let mockWeatherData = [
+			"london": ("London", 15, "Cloudy", 78),
+			"paris": ("Paris", 18, "Sunny", 65),
+			"tokyo": ("Tokyo", 22, "Rainy", 85),
+			"new york": ("New York", 20, "Partly Cloudy", 72),
+			"sydney": ("Sydney", 25, "Sunny", 55),
+		]
+
+		let locationKey = arguments.location.lowercased()
+		let weatherData = mockWeatherData[locationKey] ??
+			(
+				arguments.location,
+				Int.random(in: 10...30),
+				["Sunny", "Cloudy", "Rainy"].randomElement()!,
+				Int.random(in: 40...90)
+			)
+
+		return Output(
+			location: weatherData.0,
+			temperature: weatherData.1,
+			condition: weatherData.2,
+			humidity: weatherData.3
+		)
+	}
+}
+
+private enum ToolError: Error, LocalizedError {
+	case divisionByZero
+	case unsupportedOperation(String)
+
+	var errorDescription: String? {
+		switch self {
+		case .divisionByZero:
+			"Cannot divide by zero"
+		case let .unsupportedOperation(operation):
+			"Unsupported operation: \(operation)"
+		}
 	}
 }
 
