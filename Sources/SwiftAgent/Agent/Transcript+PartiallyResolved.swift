@@ -4,20 +4,19 @@ import Foundation
 import FoundationModels
 
 public extension Transcript {
-	func partiallyResolved<Tools: ResolvableToolGroup>(using tools: [any ResolvableTool<Tools>])
-		-> PartiallyResolved<Tools>? {
-		try? PartiallyResolved(transcript: self, tools: tools)
+	func partiallyResolved<ToolGroup: ResolvableToolGroup>(using toolGroup: ToolGroup) -> PartiallyResolved<ToolGroup>? {
+		try? PartiallyResolved(transcript: self, toolGroup: toolGroup)
 	}
 
 	/// An immutable **projection** of a transcript with tool runs resolved.
 	///
 	/// You can obtain instances via ``Transcript/resolved(using:)``.
-	struct PartiallyResolved<Tools: ResolvableToolGroup>: Equatable {
+	struct PartiallyResolved<ToolGroup: ResolvableToolGroup>: Equatable {
 		/// All transcript entries with resolved tool runs attached where available.
 		public package(set) var entries: [Entry]
 
-		init(transcript: Transcript<Context>, tools: [any ResolvableTool<Tools>]) throws {
-			let resolver = ToolResolver(tools: tools, in: transcript)
+		init(transcript: Transcript<Context>, toolGroup: ToolGroup) throws {
+			let resolver = ToolResolver(for: toolGroup, in: transcript)
 			entries = []
 
 			for entry in transcript.entries {
@@ -69,12 +68,12 @@ public extension Transcript {
 			public var id: String { call.id }
 
 			/// The tool resolution.
-			public let resolution: Tools.PartiallyGenerated
+			public let resolution: ToolGroup.PartiallyResolvedToolRun
 
 			/// The tool name captured within the original call, convenient for switching logic.
 			public var toolName: String { call.toolName }
 
-			init(call: Transcript<Context>.ToolCall, resolution: Tools.PartiallyGenerated) {
+			init(call: Transcript<Context>.ToolCall, resolution: ToolGroup.PartiallyResolvedToolRun) {
 				self.call = call
 				self.resolution = resolution
 			}

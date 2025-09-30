@@ -9,8 +9,8 @@ import OSLog
 
 public extension Transcript {
 	/// Creates a tool resolver for type-safe tool call resolution.
-	func toolResolver<Tools>(using tools: [any ResolvableTool<Tools>]) -> ToolResolver<Context, Tools> {
-		ToolResolver(tools: tools, in: self)
+	func toolResolver<ToolGroup>(for toolGroup: ToolGroup) -> ToolResolver<Context, ToolGroup> {
+		ToolResolver(for: toolGroup, in: self)
 	}
 }
 
@@ -74,12 +74,12 @@ public extension Transcript {
 ///
 /// By using a shared `ToolRunKind` type across all your tools, the resolver ensures
 /// compile-time safety when handling different tool types in a unified way.
-public struct ToolResolver<Context: PromptContextSource, Tools: ResolvableToolGroup> {
+public struct ToolResolver<Context: PromptContextSource, ToolGroup: ResolvableToolGroup> {
 	/// The tool call type from the associated transcript.
 	public typealias ToolCall = Transcript<Context>.ToolCall
 
 	/// Dictionary mapping tool names to their implementations for fast lookup.
-	private let toolsByName: [String: any ResolvableTool<Tools>]
+	private let toolsByName: [String: any ResolvableTool<ToolGroup>]
 
 	/// All tool outputs extracted from the conversation transcript.
 	private let transcriptToolOutputs: [Transcript<Context>.ToolOutput]
@@ -89,8 +89,8 @@ public struct ToolResolver<Context: PromptContextSource, Tools: ResolvableToolGr
 	/// - Parameters:
 	///   - tools: The tools that can be resolved, all sharing the same `Resolution` type
 	///   - transcript: The conversation transcript containing tool calls and outputs
-	init(tools: [any ResolvableTool<Tools>], in transcript: Transcript<Context>) {
-		toolsByName = Dictionary(uniqueKeysWithValues: tools.map { ($0.name, $0) })
+	init(for toolGroup: ToolGroup, in transcript: Transcript<Context>) {
+		toolsByName = Dictionary(uniqueKeysWithValues: toolGroup.allTools.map { ($0.name, $0) })
 		transcriptToolOutputs = transcript.compactMap { entry in
 			switch entry {
 			case let .toolOutput(toolOutput):
@@ -133,7 +133,7 @@ public struct ToolResolver<Context: PromptContextSource, Tools: ResolvableToolGr
 	/// - Throws: ``AgentToolRunKindError/unknownTool(name:)`` if the tool is not found,
 	///           or conversion/resolution errors from the underlying tool
 	///
-	public func resolve(_ call: ToolCall) throws -> Tools {
+	public func resolve(_ call: ToolCall) throws -> ToolGroup.ResolvedToolRun {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
 			AgentLog.error(
@@ -154,7 +154,7 @@ public struct ToolResolver<Context: PromptContextSource, Tools: ResolvableToolGr
 		}
 	}
 	
-	public func resolvePartially(_ call: ToolCall) throws -> Tools.PartiallyGenerated {
+	public func resolvePartially(_ call: ToolCall) throws -> ToolGroup.PartiallyResolvedToolRun {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
 			AgentLog.error(

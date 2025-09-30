@@ -1,15 +1,1 @@
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jq -r '.tool_input.file_path' | { read file_path; if echo \"$file_path\" | grep -q '\\.swift$'; then swiftformat --config \"$CLAUDE_PROJECT_DIR/.swiftformat\" \"$file_path\"; fi; }"
-          }
-        ]
-      }
-    ]
-  }
-}
+{}

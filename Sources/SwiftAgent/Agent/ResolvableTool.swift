@@ -5,15 +5,18 @@ import FoundationModels
 import Internal
 
 public protocol ResolvableToolGroup: Equatable {
-	associatedtype PartiallyGenerated: Equatable
+	associatedtype ResolvedToolRun: Equatable
+	associatedtype PartiallyResolvedToolRun: Equatable
+	var allTools: [any ResolvableTool<Self>] { get }
 }
 
-public protocol ResolvableTool<Tools>: Equatable where Self: SwiftAgentTool, Self.Arguments: Equatable, Self.Arguments.PartiallyGenerated: Equatable, Self.Output: Equatable {
+public protocol ResolvableTool<ToolGroup>: Equatable where Self: SwiftAgentTool, Self.Arguments: Equatable,
+	Self.Arguments.PartiallyGenerated: Equatable, Self.Output: Equatable {
 	/// The type returned when this tool is resolved.
 	///
 	/// Defaults to `Void` for tools that don't need custom resolution logic.
 	/// Override to return domain-specific types that represent the resolved tool execution.
-	associatedtype Tools: ResolvableToolGroup
+	associatedtype ToolGroup: ResolvableToolGroup
 
 	/// Resolves a tool run into a domain-specific result.
 	///
@@ -23,9 +26,9 @@ public protocol ResolvableTool<Tools>: Equatable where Self: SwiftAgentTool, Sel
 	///
 	/// - Parameter run: The tool run containing typed arguments and optional output
 	/// - Returns: A resolved representation of the tool execution
-	func resolve(_ run: ToolRun<Self>) -> Tools
+	func resolve(_ run: ToolRun<Self>) -> ToolGroup.ResolvedToolRun
 
-	func resolvePartially(_ run: PartialToolRun<Self>) -> Tools.PartiallyGenerated
+	func resolvePartially(_ run: PartialToolRun<Self>) -> ToolGroup.PartiallyResolvedToolRun
 }
 
 public extension ResolvableTool {
@@ -39,11 +42,17 @@ public extension ResolvableTool {
 	///   - output: The raw output content, if available
 	/// - Returns: The resolved tool result
 	/// - Throws: Conversion or resolution errors
-	func resolve(arguments: GeneratedContent, output: GeneratedContent?) throws -> Tools {
+	func resolve(
+		arguments: GeneratedContent,
+		output: GeneratedContent?
+	) throws -> ToolGroup.ResolvedToolRun {
 		try resolve(run(for: arguments, output: output))
 	}
 
-	func resolvePartially(arguments: GeneratedContent, output: GeneratedContent?) throws -> Tools.PartiallyGenerated {
+	func resolvePartially(
+		arguments: GeneratedContent,
+		output: GeneratedContent?
+	) throws -> ToolGroup.PartiallyResolvedToolRun {
 		let partialRun = try partialRun(for: arguments, output: output)
 		return resolvePartially(partialRun)
 	}
@@ -127,7 +136,7 @@ package extension ResolvableTool {
 		return ToolRun<Self>.Problem(
 			reason: problemReport.reason,
 			json: generatedContent.jsonString,
-			details: ProblemReportDetailsExtractor.values(from: generatedContent),
+			details: ProblemReportDetailsExtractor.values(from: generatedContent)
 		)
 	}
 }
