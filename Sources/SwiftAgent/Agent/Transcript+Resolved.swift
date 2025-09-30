@@ -39,8 +39,8 @@ public extension Transcript {
 	///
 	/// - Parameter tools: The tools available during resolution. All must share the same resolution type.
 	/// - Returns: A read‑only projection that layers resolved tool runs over the original entries, or `nil` on failure.
-	func resolved<ToolGroup>(using toolGroup: ToolGroup) -> Resolved<ToolGroup>? {
-		try? Resolved(transcript: self, toolGroup: toolGroup)
+	func resolved<ToolGroup>(using toolGroup: ToolGroup) throws -> Resolved<ToolGroup>? {
+		try Resolved(transcript: self, toolGroup: toolGroup)
 	}
 
 	/// An immutable **projection** of a transcript with tool runs resolved.
