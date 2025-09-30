@@ -10,6 +10,8 @@ import SwiftSyntaxMacros
 struct SwiftAgentMacroPlugin: CompilerPlugin {
 	let providingMacros: [Macro.Type] = [
 		ToolsMacro.self,
+		ResolvableToolMacro.self,
+		ResolvableMacro.self,
 	]
 }
 

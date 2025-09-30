@@ -39,19 +39,17 @@ private class MovieDatabase {
 
 // MARK: - Tools
 
-// TODO: Make a @Resolvable macro
-
-//@Resolvable
-// fileprivate struct ToolGroup {
-//	@ResolvableTool var addMovie = AddMovieTool()
-//}
+@Resolvable
+fileprivate struct ToolGroup {
+	@ResolvableTool var addMovie = AddMovieTool()
+}
 
 fileprivate struct AddMovieTool: SwiftAgentTool {
-	let name = "add_movie"
-	let description = "Add a movie"
+	public let name = "add_movie"
+	public let description = "Add a movie"
 
 	@Generable
-	struct Arguments: Equatable {
+	public struct Arguments: Equatable {
 		@Guide(description: "The title of the movie.")
 		var title: String
 
@@ -69,17 +67,17 @@ fileprivate struct AddMovieTool: SwiftAgentTool {
 	}
 
 	@Generable
-	struct Output: Equatable {
+	public struct Output: Equatable {
 		var success: Bool
 	}
 
-	func call(arguments: Arguments) async throws -> Output {
+	public func call(arguments: Arguments) async throws -> Output {
 		await MovieDatabase.shared.addMovie(Movie(
 			title: arguments.title,
 			summary: arguments.summary,
 			actors: arguments.actors,
 			year: arguments.year,
-			genres: arguments.genres
+			genres: arguments.genres,
 		))
 		return Output(success: true)
 	}
