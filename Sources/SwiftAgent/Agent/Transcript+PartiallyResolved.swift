@@ -4,8 +4,8 @@ import Foundation
 import FoundationModels
 
 public extension Transcript {
-	func partiallyResolved<ToolGroup: ResolvableToolGroup>(
-		using toolGroup: ToolGroup
+	func partiallyResolved<ToolGroup: TranscriptDecodable>(
+		using toolGroup: ToolGroup,
 	) throws -> PartiallyResolved<ToolGroup>? {
 		try PartiallyResolved(transcript: self, toolGroup: toolGroup)
 	}
@@ -13,7 +13,7 @@ public extension Transcript {
 	/// An immutable **projection** of a transcript with tool runs resolved.
 	///
 	/// You can obtain instances via ``Transcript/resolved(using:)``.
-	struct PartiallyResolved<ToolGroup: ResolvableToolGroup>: Equatable {
+	struct PartiallyResolved<ToolGroup: TranscriptDecodable>: Equatable {
 		/// All transcript entries with resolved tool runs attached where available.
 		public package(set) var entries: [Entry]
 

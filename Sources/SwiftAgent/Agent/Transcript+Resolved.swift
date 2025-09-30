@@ -3,7 +3,6 @@
 import Foundation
 import FoundationModels
 
-
 public extension Transcript {
 	/// Builds a *resolved transcript* — an immutable, read‑only **projection** of this transcript in which
 	/// tool‑related events are materialized as strongly-typed runs.
@@ -46,7 +45,7 @@ public extension Transcript {
 	/// An immutable **projection** of a transcript with tool runs resolved.
 	///
 	/// You can obtain instances via ``Transcript/resolved(using:)``.
-	struct Resolved<ToolGroup: ResolvableToolGroup>: Equatable {
+	struct Resolved<ToolGroup: TranscriptDecodable>: Equatable {
 		/// All transcript entries with resolved tool runs attached where available.
 		public package(set) var entries: [Entry]
 

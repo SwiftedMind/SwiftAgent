@@ -1,42 +1,42 @@
 // By Dennis Müller
 
-/// Marks a property as a resolvable tool within a `@Resolvable` tool group.
+/// Marks a property as a decodable tool within a `@TranscriptDecoder` tool group.
 ///
-/// This attribute is used in conjunction with `@Resolvable` to identify which properties
-/// should be wrapped as resolvable tools. Generates a wrapper type prefixed with "Resolvable".
+/// This attribute is used in conjunction with `@TranscriptDecoder` to identify which properties
+/// should be wrapped as decodable tools. Generates a wrapper type prefixed with "Decoder".
 ///
 /// Example:
 /// ```swift
-/// @Resolvable
+/// @TranscriptDecoder
 /// struct ToolGroup {
-///   @ResolvableTool var addMovie = AddMovieTool()
+///   @ToolDecoder var addMovie = AddMovieTool()
 /// }
 /// ```
 @attached(peer, names: arbitrary)
-public macro ResolvableTool() = #externalMacro(
+public macro ToolDecoder() = #externalMacro(
 	module: "SwiftAgentMacros",
-	type: "ResolvableToolMacro",
+	type: "ToolDecoderMacro",
 )
 
-/// Synthesizes a resolvable tool group with automatic wrapper generation.
+/// Synthesizes a transcript decoder tool group with automatic wrapper generation.
 ///
-/// This macro transforms a struct with `@ResolvableTool` properties into a complete
-/// `ResolvableToolGroup` implementation, including:
-/// - Conformance to `ResolvableToolGroup`
+/// This macro transforms a struct with `@ToolDecoder` properties into a complete
+/// `TranscriptDecodable` implementation, including:
+/// - Conformance to `TranscriptDecodable`
 /// - An `allTools` property containing all wrapped tools
 /// - `ResolvedToolRun` and `PartiallyResolvedToolRun` enums
 /// - Nested wrapper types for each tool
 ///
 /// Example:
 /// ```swift
-/// @Resolvable
+/// @TranscriptDecoder
 /// fileprivate struct ToolGroup {
-///   @ResolvableTool var addMovie = AddMovieTool()
+///   @ToolDecoder var addMovie = AddMovieTool()
 /// }
 /// ```
 @attached(member, names: arbitrary)
-@attached(extension, conformances: ResolvableToolGroup)
-public macro Resolvable() = #externalMacro(
+@attached(extension, conformances: TranscriptDecodable)
+public macro TranscriptDecoder() = #externalMacro(
 	module: "SwiftAgentMacros",
-	type: "ResolvableMacro",
+	type: "TranscriptDecoderMacro",
 )

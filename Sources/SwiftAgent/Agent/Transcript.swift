@@ -3,6 +3,8 @@
 import Foundation
 import FoundationModels
 
+// TODO: Remove generic type
+
 public struct Transcript<Context: PromptContextSource>: Sendable, Equatable {
 	public var entries: [Entry]
 

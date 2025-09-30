@@ -74,12 +74,12 @@ public extension Transcript {
 ///
 /// By using a shared `ToolRunKind` type across all your tools, the resolver ensures
 /// compile-time safety when handling different tool types in a unified way.
-public struct ToolResolver<Context: PromptContextSource, ToolGroup: ResolvableToolGroup> {
+public struct ToolResolver<Context: PromptContextSource, ToolGroup: TranscriptDecodable> {
 	/// The tool call type from the associated transcript.
 	public typealias ToolCall = Transcript<Context>.ToolCall
 
 	/// Dictionary mapping tool names to their implementations for fast lookup.
-	private let toolsByName: [String: any ResolvableTool<ToolGroup>]
+	private let toolsByName: [String: any ToolDecodable<ToolGroup>]
 
 	/// All tool outputs extracted from the conversation transcript.
 	private let transcriptToolOutputs: [Transcript<Context>.ToolOutput]
@@ -153,7 +153,7 @@ public struct ToolResolver<Context: PromptContextSource, ToolGroup: ResolvableTo
 			throw error
 		}
 	}
-	
+
 	public func resolvePartially(_ call: ToolCall) throws -> ToolGroup.PartiallyResolvedToolRun {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
@@ -163,11 +163,10 @@ public struct ToolResolver<Context: PromptContextSource, ToolGroup: ResolvableTo
 			)
 			throw AgentToolRunKindError.unknownTool(name: call.toolName)
 		}
-		
+
 		let output = findOutput(for: call)
-		
+
 		do {
-			
 			let resolvedTool = try tool.resolvePartially(arguments: call.arguments, output: output)
 			return resolvedTool
 		} catch {

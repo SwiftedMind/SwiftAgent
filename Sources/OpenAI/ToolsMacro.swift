@@ -2,13 +2,13 @@
 
 import SwiftAgent
 
-/// Synthesizes a resolvable tool group and conformances for the provided tool initializers.
+/// Synthesizes a tool group decoder and conformances for the provided tool initializers.
 ///
 /// - Parameters:
 ///   - name: The name of the generated enum. Defaults to "Tools".
 ///   - accessLevel: The access level for the generated types. Defaults to `.internal`.
 ///   - build: A closure that returns the tool instances to include.
-@freestanding(declaration, names: prefixed(Resolvable), named(Tools))
+@freestanding(declaration, names: prefixed(Decoder), named(Tools))
 public macro tools(
 	name: String = "Tools",
 	accessLevel: ToolsAccessLevel = .internal,

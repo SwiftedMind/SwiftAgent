@@ -6,13 +6,13 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-// MARK: - ResolvableToolMacro
+// MARK: - ToolDecoderMacro
 
-/// Peer macro that generates a wrapper type for a tool property marked with @ResolvableTool.
+/// Peer macro that generates a wrapper type for a tool property marked with @ToolDecoder.
 ///
-/// For a property like `@ResolvableTool var addMovie = AddMovieTool()`, this generates
-/// a `ResolvableAddMovieTool` wrapper struct that conforms to `ResolvableTool`.
-public struct ResolvableToolMacro: PeerMacro {
+/// For a property like `@ToolDecoder var addMovie = AddMovieTool()`, this generates
+/// a `DecoderAddMovieTool` wrapper struct that conforms to `ToolDecodable`.
+public struct ToolDecoderMacro: PeerMacro {
 	public static func expansion(
 		of node: AttributeSyntax,
 		providingPeersOf declaration: some DeclSyntaxProtocol,
@@ -20,7 +20,7 @@ public struct ResolvableToolMacro: PeerMacro {
 	) throws -> [DeclSyntax] {
 		// Validate that the macro is applied to a property declaration
 		guard let varDecl = declaration.as(VariableDeclSyntax.self) else {
-			context.diagnose(node, message: .resolvableToolOnlyOnProperties)
+			context.diagnose(node, message: .toolDecoderOnlyOnProperties)
 			return []
 		}
 
@@ -28,7 +28,7 @@ public struct ResolvableToolMacro: PeerMacro {
 		guard let binding = varDecl.bindings.first,
 		      let identifier = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text
 		else {
-			context.diagnose(node, message: .resolvableToolInvalidProperty)
+			context.diagnose(node, message: .toolDecoderInvalidProperty)
 			return []
 		}
 
@@ -36,11 +36,11 @@ public struct ResolvableToolMacro: PeerMacro {
 		guard let initializer = binding.initializer?.value,
 		      let toolType = extractToolType(from: initializer)
 		else {
-			context.diagnose(node, message: .resolvableToolMissingInitializer)
+			context.diagnose(node, message: .toolDecoderMissingInitializer)
 			return []
 		}
 
-		let wrapperName = "Resolvable\(toolType)"
+		let wrapperName = "Decoder\(toolType)"
 		let accessLevel = extractAccessLevel(from: varDecl.modifiers)
 
 		return [
@@ -54,16 +54,16 @@ public struct ResolvableToolMacro: PeerMacro {
 	}
 }
 
-// MARK: - ResolvableMacro
+// MARK: - TranscriptDecoderMacro
 
-/// Member and extension macro that synthesizes a complete `ResolvableToolGroup` implementation.
+/// Member and extension macro that synthesizes a complete `TranscriptDecodable` implementation.
 ///
 /// This macro:
 /// 1. Generates an `allTools` property containing all wrapped tools
 /// 2. Creates `ResolvedToolRun` and `PartiallyResolvedToolRun` enums
 /// 3. Adds the `ToolGroupType` typealias
-/// 4. Adds conformance to `ResolvableToolGroup`
-public struct ResolvableMacro: MemberMacro, ExtensionMacro {
+/// 4. Adds conformance to `TranscriptDecodable`
+public struct TranscriptDecoderMacro: MemberMacro, ExtensionMacro {
 	// MARK: Member Expansion
 
 	public static func expansion(
@@ -80,13 +80,13 @@ public struct ResolvableMacro: MemberMacro, ExtensionMacro {
 		let accessLevel = extractAccessLevel(from: structDecl.modifiers)
 		let toolProperties = extractToolProperties(from: structDecl, in: context)
 
-		// Ensure at least one @ResolvableTool property exists
+		// Ensure at least one @ToolDecoder property exists
 		guard !toolProperties.isEmpty else {
-			context.diagnose(node, message: .noResolvableToolsFound)
+			context.diagnose(node, message: .noToolDecodersFound)
 			return []
 		}
 
-		// Generate all required members for ResolvableToolGroup conformance
+		// Generate all required members for TranscriptDecodable conformance
 		return [
 			makeAllToolsProperty(for: toolProperties, accessLevel: accessLevel),
 			makeResolvedToolRunEnum(for: toolProperties, accessLevel: accessLevel),
@@ -104,14 +104,14 @@ public struct ResolvableMacro: MemberMacro, ExtensionMacro {
 		conformingTo protocols: [TypeSyntax],
 		in context: some MacroExpansionContext,
 	) throws -> [ExtensionDeclSyntax] {
-		let conformance: DeclSyntax = "extension \(type): ResolvableToolGroup {}"
+		let conformance: DeclSyntax = "extension \(type): TranscriptDecodable {}"
 		return [conformance.cast(ExtensionDeclSyntax.self)]
 	}
 }
 
 // MARK: - Helper Types
 
-/// Represents metadata about a tool property marked with @ResolvableTool.
+/// Represents metadata about a tool property marked with @ToolDecoder.
 private struct ToolProperty {
 	let propertyName: String
 	let toolTypeName: String
@@ -133,7 +133,7 @@ private func extractAccessLevel(from modifiers: DeclModifierListSyntax) -> Strin
 	return "internal"
 }
 
-/// Extracts all tool properties marked with @ResolvableTool from a struct declaration.
+/// Extracts all tool properties marked with @ToolDecoder from a struct declaration.
 /// Validates access levels and diagnoses errors for invalid configurations.
 private func extractToolProperties(
 	from structDecl: StructDeclSyntax,
@@ -148,16 +148,16 @@ private func extractToolProperties(
 			continue
 		}
 
-		// Check if the property has the @ResolvableTool attribute
-		let hasResolvableToolAttribute = varDecl.attributes.contains { attribute in
+		// Check if the property has the @ToolDecoder attribute
+		let hasToolDecoderAttribute = varDecl.attributes.contains { attribute in
 			guard let attributeSyntax = attribute.as(AttributeSyntax.self) else {
 				return false
 			}
 
-			return attributeSyntax.attributeName.trimmedDescription == "ResolvableTool"
+			return attributeSyntax.attributeName.trimmedDescription == "ToolDecoder"
 		}
 
-		guard hasResolvableToolAttribute else {
+		guard hasToolDecoderAttribute else {
 			continue
 		}
 
@@ -190,7 +190,7 @@ private func extractToolProperties(
 			continue
 		}
 
-		let wrapperName = "Resolvable\(toolType)"
+		let wrapperName = "Decoder\(toolType)"
 		let caseName = identifier // Use property name directly as the case name
 
 		properties.append(
@@ -250,7 +250,7 @@ private func makeAllToolsProperty(
 
 	return DeclSyntax(
 		stringLiteral: """
-		\(accessLevel) var allTools: [any ResolvableTool<Self>] {
+		\(accessLevel) var allTools: [any ToolDecodable<Self>] {
 		  [
 		\(toolsList)
 		  ]
@@ -303,7 +303,7 @@ private func makeToolGroupTypeAlias(accessLevel: String) -> DeclSyntax {
 	DeclSyntax(stringLiteral: "\(accessLevel) typealias ToolGroupType = Self")
 }
 
-/// Generates a wrapper struct for a tool that conforms to `ResolvableTool`.
+/// Generates a wrapper struct for a tool that conforms to `ToolDecodable`.
 /// The wrapper forwards all tool methods to the base tool and provides resolve methods
 /// that map tool runs to the appropriate enum cases in the tool group.
 private func makeWrapperType(
@@ -314,7 +314,7 @@ private func makeWrapperType(
 ) -> DeclSyntax {
 	DeclSyntax(
 		stringLiteral: """
-		\(accessLevel) struct \(wrapperName): ResolvableTool {
+		\(accessLevel) struct \(wrapperName): ToolDecodable {
 		  \(accessLevel) typealias ToolGroup = ToolGroupType
 		  \(accessLevel) typealias BaseTool = \(toolTypeName)
 		  \(accessLevel) typealias Arguments = BaseTool.Arguments
@@ -367,32 +367,32 @@ private extension MacroExpansionContext {
 	}
 }
 
-/// Diagnostic messages for @Resolvable and @ResolvableTool macro errors.
+/// Diagnostic messages for @TranscriptDecoder and @ToolDecoder macro errors.
 private enum ResolvableMacroDiagnostic: DiagnosticMessage {
 	case onlyApplicableToStructs
-	case noResolvableToolsFound
+	case noToolDecodersFound
 	case missingToolInitializer
-	case resolvableToolOnlyOnProperties
-	case resolvableToolInvalidProperty
-	case resolvableToolMissingInitializer
+	case toolDecoderOnlyOnProperties
+	case toolDecoderInvalidProperty
+	case toolDecoderMissingInitializer
 	case propertyAccessLevelTooRestrictive(property: String, propertyLevel: String, structLevel: String)
 
 	var message: String {
 		switch self {
 		case .onlyApplicableToStructs:
-			"@Resolvable can only be applied to struct declarations."
-		case .noResolvableToolsFound:
-			"@Resolvable requires at least one property marked with @ResolvableTool."
+			"@TranscriptDecoder can only be applied to struct declarations."
+		case .noToolDecodersFound:
+			"@TranscriptDecoder requires at least one property marked with @ToolDecoder."
 		case .missingToolInitializer:
-			"@ResolvableTool property must be initialized with a tool instance."
-		case .resolvableToolOnlyOnProperties:
-			"@ResolvableTool can only be applied to property declarations."
-		case .resolvableToolInvalidProperty:
-			"@ResolvableTool property must have a valid identifier."
-		case .resolvableToolMissingInitializer:
-			"@ResolvableTool property must be initialized with a tool instance."
+			"@ToolDecoder property must be initialized with a tool instance."
+		case .toolDecoderOnlyOnProperties:
+			"@ToolDecoder can only be applied to property declarations."
+		case .toolDecoderInvalidProperty:
+			"@ToolDecoder property must have a valid identifier."
+		case .toolDecoderMissingInitializer:
+			"@ToolDecoder property must be initialized with a tool instance."
 		case let .propertyAccessLevelTooRestrictive(property, propertyLevel, structLevel):
-			"@ResolvableTool property '\(property)' has access level '\(propertyLevel)' which is less accessible than the struct's '\(structLevel)' access level. The property must be '\(structLevel)' or more accessible."
+			"@ToolDecoder property '\(property)' has access level '\(propertyLevel)' which is less accessible than the struct's '\(structLevel)' access level. The property must be '\(structLevel)' or more accessible."
 		}
 	}
 
@@ -404,16 +404,16 @@ private enum ResolvableMacroDiagnostic: DiagnosticMessage {
 		switch self {
 		case .onlyApplicableToStructs:
 			"onlyApplicableToStructs"
-		case .noResolvableToolsFound:
-			"noResolvableToolsFound"
+		case .noToolDecodersFound:
+			"noToolDecodersFound"
 		case .missingToolInitializer:
 			"missingToolInitializer"
-		case .resolvableToolOnlyOnProperties:
-			"resolvableToolOnlyOnProperties"
-		case .resolvableToolInvalidProperty:
-			"resolvableToolInvalidProperty"
-		case .resolvableToolMissingInitializer:
-			"resolvableToolMissingInitializer"
+		case .toolDecoderOnlyOnProperties:
+			"toolDecoderOnlyOnProperties"
+		case .toolDecoderInvalidProperty:
+			"toolDecoderInvalidProperty"
+		case .toolDecoderMissingInitializer:
+			"toolDecoderMissingInitializer"
 		case .propertyAccessLevelTooRestrictive:
 			"propertyAccessLevelTooRestrictive"
 		}

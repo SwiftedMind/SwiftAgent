@@ -4,19 +4,13 @@ import Foundation
 import FoundationModels
 import Internal
 
-public protocol ResolvableToolGroup: Equatable {
-	associatedtype ResolvedToolRun: Equatable
-	associatedtype PartiallyResolvedToolRun: Equatable
-	var allTools: [any ResolvableTool<Self>] { get }
-}
-
-public protocol ResolvableTool<ToolGroup>: Equatable where Self: SwiftAgentTool, Self.Arguments: Equatable,
+public protocol ToolDecodable<ToolGroup>: Equatable where Self: SwiftAgentTool, Self.Arguments: Equatable,
 	Self.Arguments.PartiallyGenerated: Equatable, Self.Output: Equatable {
 	/// The type returned when this tool is resolved.
 	///
 	/// Defaults to `Void` for tools that don't need custom resolution logic.
 	/// Override to return domain-specific types that represent the resolved tool execution.
-	associatedtype ToolGroup: ResolvableToolGroup
+	associatedtype ToolGroup: TranscriptDecodable
 
 	/// Resolves a tool run into a domain-specific result.
 	///
@@ -31,7 +25,7 @@ public protocol ResolvableTool<ToolGroup>: Equatable where Self: SwiftAgentTool,
 	func resolvePartially(_ run: PartialToolRun<Self>) -> ToolGroup.PartiallyResolvedToolRun
 }
 
-public extension ResolvableTool {
+public extension ToolDecodable {
 	/// Resolves a tool with raw GeneratedContent arguments and output.
 	///
 	/// This is the internal bridge method that converts between Apple's FoundationModels
@@ -58,7 +52,7 @@ public extension ResolvableTool {
 	}
 }
 
-package extension ResolvableTool {
+package extension ToolDecodable {
 	/// Creates a strongly typed tool run from raw content.
 	///
 	/// - Parameters:
