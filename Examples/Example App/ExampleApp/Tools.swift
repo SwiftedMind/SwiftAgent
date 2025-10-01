@@ -4,10 +4,13 @@ import Foundation
 import FoundationModels
 import OpenAISession
 
+// TODO: Fix Grounding enum ergonomics
+// TODO: Implement Grounding decoding in Transcript resolution
+
 @SwiftAgentSession(provider: .openAI) @Observable
 final class OpenAISession {
-	@ResolvableTool let calculator: CalculatorTool = .init()
-	@ResolvableTool let weather: WeatherTool = .init()
+	@ResolvableTool let calculator: CalculatorTool = CalculatorTool()
+	@ResolvableTool let weather: WeatherTool = WeatherTool()
 }
 
 func test() {
