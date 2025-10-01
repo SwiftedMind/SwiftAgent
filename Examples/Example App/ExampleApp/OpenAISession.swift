@@ -6,11 +6,12 @@ import OpenAISession
 
 // TODO: Fix Grounding enum ergonomics
 // TODO: Implement Grounding decoding in Transcript resolution
+// TODO: Any way to improve error messages when you pass a non-SwiftAgentTool type to @ResolvableTool?
 
 @SwiftAgentSession(provider: .openAI) @Observable
 final class OpenAISession {
-	@ResolvableTool let calculator: CalculatorTool = CalculatorTool()
-	@ResolvableTool let weather: WeatherTool = WeatherTool()
+	@ResolvableTool let calculator = CalculatorTool()
+	@ResolvableTool let weather = WeatherTool()
 }
 
 func test() {
