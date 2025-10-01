@@ -4,7 +4,7 @@ import Foundation
 import FoundationModels
 import OpenAISession
 
-@SwiftAgentSession(provider: .openAI)
+@SwiftAgentSession(provider: .openAI) @Observable
 final class OpenAISession {
 	@ResolvableTool let calculator: CalculatorTool = .init()
 	@ResolvableTool let weather: WeatherTool = .init()
@@ -18,7 +18,7 @@ func test() {
 // final class OpenAISession: ModelSession {
 //	let calculator: CalculatorTool
 //
-//	enum Grounding: GroundingDecodable {
+//	enum Grounding: GroundingRepresentable {
 //		case vectorSearch(String)
 //		case linkPreview(URL)
 //	}

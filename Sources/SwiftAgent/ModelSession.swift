@@ -77,7 +77,7 @@ public protocol ModelSession<Adapter>: AnyObject {
 	associatedtype Adapter: SwiftAgent.Adapter & SendableMetatype
 	associatedtype ResolvedToolRun: Equatable
 	associatedtype PartiallyResolvedToolRun: Equatable
-	associatedtype Grounding: GroundingDecodable
+	associatedtype Grounding: GroundingRepresentable
 	nonisolated var tools: [any ResolvableTool<Self>] { get }
 	
 	var adapter: Adapter { get }

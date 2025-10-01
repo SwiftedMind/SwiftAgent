@@ -1,108 +1,9 @@
 // By Dennis Müller
 
-import SwiftCompilerPlugin
 import SwiftDiagnostics
 import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
-
-@main
-struct SwiftAgentMacroPlugin: CompilerPlugin {
-	let providingMacros: [Macro.Type] = [
-		ResolvableToolMacro.self,
-		SwiftAgentSessionMacro.self,
-	]
-}
-
-// MARK: - @ResolvableTool Macro
-
-/// Peer macro that generates a ResolvableTool wrapper for a tool property
-public struct ResolvableToolMacro: PeerMacro {
-	public static func expansion(
-		of node: AttributeSyntax,
-		providingPeersOf declaration: some DeclSyntaxProtocol,
-		in context: some MacroExpansionContext,
-	) throws -> [DeclSyntax] {
-		// @ResolvableTool can only be applied to stored properties
-		guard let variableDecl = declaration.as(VariableDeclSyntax.self) else {
-			throw MacroError.notAProperty
-		}
-
-		// Ensure it's a `let` property
-		guard variableDecl.bindingSpecifier.tokenKind == .keyword(.let) else {
-			throw MacroError.mustBeLet
-		}
-
-		// Get the first binding (property)
-		guard let binding = variableDecl.bindings.first else {
-			throw MacroError.noBinding
-		}
-
-		// Get the property name
-		guard let identifier = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier else {
-			throw MacroError.invalidPattern
-		}
-
-		// Get the type annotation
-		guard let typeAnnotation = binding.typeAnnotation else {
-			throw MacroError.missingTypeAnnotation
-		}
-
-		let toolTypeName = typeAnnotation.type.trimmedDescription
-
-		// Generate the wrapper struct name
-		let wrapperName = "Resolvable\(identifier.text.capitalizedFirstLetter())Tool"
-
-		// Generate the wrapper struct
-		let wrapperStruct: DeclSyntax =
-			"""
-			struct \(raw: wrapperName): ResolvableTool {
-			  typealias Session = SessionType
-			  typealias BaseTool = \(raw: toolTypeName)
-			  typealias Arguments = BaseTool.Arguments
-			  typealias Output = BaseTool.Output
-
-			  private let baseTool: BaseTool
-
-			  init(baseTool: \(raw: toolTypeName)) {
-			    self.baseTool = baseTool
-			  }
-
-			  var name: String {
-			    baseTool.name
-			  }
-
-			  var description: String {
-			    baseTool.description
-			  }
-
-			  var parameters: GenerationSchema {
-			    baseTool.parameters
-			  }
-
-			  func call(arguments: Arguments) async throws -> Output {
-			    try await baseTool.call(arguments: arguments)
-			  }
-
-			  func resolve(
-			    _ run: ToolRun<\(raw: wrapperName)>
-			  ) -> Session.ResolvedToolRun {
-			    .\(identifier)(run)
-			  }
-
-			  func resolvePartially(
-			    _ run: PartialToolRun<\(raw: wrapperName)>
-			  ) -> Session.PartiallyResolvedToolRun {
-			    .\(identifier)(run)
-			  }
-			}
-			"""
-
-		return [wrapperStruct]
-	}
-}
-
-// MARK: - @SwiftAgentSession Macro
 
 /// Provider type enumeration for different AI providers
 enum Provider: String {
@@ -126,7 +27,7 @@ public struct SwiftAgentSessionMacro: MemberMacro, ExtensionMacro {
 	public static func expansion(
 		of node: AttributeSyntax,
 		providingMembersOf declaration: some DeclGroupSyntax,
-		in context: some MacroExpansionContext,
+		in context: some MacroExpansionContext
 	) throws -> [DeclSyntax] {
 		// Validate that this is applied to a class
 		guard let classDecl = declaration.as(ClassDeclSyntax.self) else {
@@ -154,41 +55,41 @@ public struct SwiftAgentSessionMacro: MemberMacro, ExtensionMacro {
 		members.append(
 			"""
 			typealias Adapter = \(raw: provider.adapterTypeName)
-			""",
+			"""
 		)
 		members.append(
 			"""
 			typealias SessionType = \(raw: classDecl.name.text)
-			""",
+			"""
 		)
 
 		// Add adapter, transcript, tokenUsage properties if not already declared
 		members.append(
 			"""
 			var adapter: \(raw: provider.adapterTypeName)
-			""",
+			"""
 		)
 		members.append(
 			"""
 			var transcript: SwiftAgent.Transcript
-			""",
+			"""
 		)
 		members.append(
 			"""
 			var tokenUsage: TokenUsage
-			""",
+			"""
 		)
 		members.append(
 			"""
 			nonisolated let tools: [any ResolvableTool<\(raw: classDecl.name.text)>]
-			""",
+			"""
 		)
 
 		// Generate initializers
 		let initializers = try generateInitializers(
 			for: resolvableTools,
 			provider: provider,
-			className: classDecl.name.text,
+			className: classDecl.name.text
 		)
 		members.append(contentsOf: initializers)
 
@@ -203,7 +104,7 @@ public struct SwiftAgentSessionMacro: MemberMacro, ExtensionMacro {
 		// Add Grounding enum with manual Codable implementation for empty enum
 		members.append(
 			"""
-			enum Grounding: GroundingDecodable {
+			enum Grounding: GroundingRepresentable {
 			  init(from decoder: Decoder) throws {
 			    let container = try decoder.singleValueContainer()
 			    throw DecodingError.dataCorrupted(
@@ -219,7 +120,7 @@ public struct SwiftAgentSessionMacro: MemberMacro, ExtensionMacro {
 			    try container.encodeNil()
 			  }
 			}
-			""",
+			"""
 		)
 
 		return members
@@ -249,7 +150,7 @@ public struct SwiftAgentSessionMacro: MemberMacro, ExtensionMacro {
 	private static func generateInitializers(
 		for tools: [VariableDeclSyntax],
 		provider: Provider,
-		className: String,
+		className: String
 	) throws -> [DeclSyntax] {
 		var initializers: [DeclSyntax] = []
 
@@ -319,7 +220,7 @@ public struct SwiftAgentSessionMacro: MemberMacro, ExtensionMacro {
 			  transcript = Transcript()
 			  tokenUsage = TokenUsage()
 			}
-			""",
+			"""
 		)
 
 		// Second initializer with configuration
@@ -345,7 +246,7 @@ public struct SwiftAgentSessionMacro: MemberMacro, ExtensionMacro {
 			  transcript = Transcript()
 			  tokenUsage = TokenUsage()
 			}
-			""",
+			"""
 		)
 
 		return initializers
@@ -405,7 +306,7 @@ public struct SwiftAgentSessionMacro: MemberMacro, ExtensionMacro {
 		attachedTo declaration: some DeclGroupSyntax,
 		providingExtensionsOf type: some TypeSyntaxProtocol,
 		conformingTo protocols: [TypeSyntax],
-		in context: some MacroExpansionContext,
+		in context: some MacroExpansionContext
 	) throws -> [ExtensionDeclSyntax] {
 		// Generate extension for ModelSession conformance
 		let extensionDecl: DeclSyntax =
@@ -418,47 +319,5 @@ public struct SwiftAgentSessionMacro: MemberMacro, ExtensionMacro {
 		}
 
 		return [extensionDeclSyntax]
-	}
-}
-
-// MARK: - Errors
-
-enum MacroError: Error, CustomStringConvertible {
-	case notAProperty
-	case mustBeLet
-	case noBinding
-	case invalidPattern
-	case missingTypeAnnotation
-	case onlyApplicableToClass
-	case missingProvider
-	case invalidProvider
-
-	var description: String {
-		switch self {
-		case .notAProperty:
-			"@ResolvableTool can only be applied to properties"
-		case .mustBeLet:
-			"@ResolvableTool properties must be declared with 'let'"
-		case .noBinding:
-			"Property has no binding"
-		case .invalidPattern:
-			"Property pattern must be a simple identifier"
-		case .missingTypeAnnotation:
-			"@ResolvableTool properties must have explicit type annotations"
-		case .onlyApplicableToClass:
-			"@SwiftAgentSession can only be applied to a class"
-		case .missingProvider:
-			"@SwiftAgentSession requires a 'provider' argument"
-		case .invalidProvider:
-			"Invalid provider. Valid providers: .openAI"
-		}
-	}
-}
-
-// MARK: - Helpers
-
-extension String {
-	func capitalizedFirstLetter() -> String {
-		prefix(1).uppercased() + dropFirst()
 	}
 }
