@@ -22,7 +22,6 @@ struct ConversationalAgentExampleView: View {
 
 	private func setupAgent() {
 		session = OpenAISession(
-			calculator: .init(),
 			instructions: """
 			You are a helpful assistant with access to several tools.
 			Use the available tools when appropriate to help answer questions.

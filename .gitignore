@@ -12,3 +12,4 @@ Examples/Example App/.build/
 Utility/.build/
 Utility/Utility App/.build/
 Examples/.build/index-build
+buildServer.json
