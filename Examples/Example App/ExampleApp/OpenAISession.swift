@@ -6,7 +6,7 @@ import OpenAISession
 
 // TODO: Fix Grounding enum ergonomics
 // TODO: Implement Grounding decoding in Transcript resolution
-// TODO: Any way to improve error messages when you pass a non-SwiftAgentTool type to @ResolvableTool?
+// TODO: Maybe a @SwiftAgentTool macro that adds Equatable conformance to Generable types?
 
 @SwiftAgentSession(provider: .openAI) @Observable
 final class OpenAISession {
