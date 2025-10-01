@@ -65,12 +65,12 @@ import OSLog
 ///
 /// By using a shared `ToolRunKind` type across all your tools, the resolver ensures
 /// compile-time safety when handling different tool types in a unified way.
-public struct ToolResolver<Resolver: TranscriptResolvable> {
+public struct ToolResolver<Session: ModelSession> {
 	/// The tool call type from the associated transcript.
 	public typealias ToolCall = Transcript.ToolCall
 
 	/// Dictionary mapping tool names to their implementations for fast lookup.
-	private let toolsByName: [String: any ResolvableTool<Resolver>]
+	private let toolsByName: [String: any ResolvableTool<Session>]
 
 	/// All tool outputs extracted from the conversation transcript.
 	private let transcriptToolOutputs: [Transcript.ToolOutput]
@@ -80,8 +80,8 @@ public struct ToolResolver<Resolver: TranscriptResolvable> {
 	/// - Parameters:
 	///   - tools: The tools that can be resolved, all sharing the same `Resolution` type
 	///   - transcript: The conversation transcript containing tool calls and outputs
-	init(for decoder: Resolver, in transcript: Transcript) {
-		toolsByName = Dictionary(uniqueKeysWithValues: decoder.allTools.map { ($0.name, $0) })
+	init(for session: Session, transcript: Transcript) {
+		toolsByName = Dictionary(uniqueKeysWithValues: session.tools.map { ($0.name, $0) })
 		transcriptToolOutputs = transcript.compactMap { entry in
 			switch entry {
 			case let .toolOutput(toolOutput):
@@ -124,7 +124,7 @@ public struct ToolResolver<Resolver: TranscriptResolvable> {
 	/// - Throws: ``AgentToolRunKindError/unknownTool(name:)`` if the tool is not found,
 	///           or conversion/resolution errors from the underlying tool
 	///
-	public func resolve(_ call: ToolCall) throws -> Resolver.ResolvedToolRun {
+	public func resolve(_ call: ToolCall) throws -> Session.ResolvedToolRun {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
 			AgentLog.error(
@@ -145,7 +145,7 @@ public struct ToolResolver<Resolver: TranscriptResolvable> {
 		}
 	}
 
-	public func resolvePartially(_ call: ToolCall) throws -> Resolver.PartiallyResolvedToolRun {
+	public func resolvePartially(_ call: ToolCall) throws -> Session.PartiallyResolvedToolRun {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
 			AgentLog.error(

@@ -17,6 +17,18 @@ public struct Transcript: Sendable, Equatable {
 			entries.append(entry)
 		}
 	}
+
+	public func resolved<Session: ModelSession>(
+		in session: Session
+	) throws -> Session.ResolvedTranscript {
+		try Transcript.Resolved(transcript: self, session: session)
+	}
+
+	public func partiallyResolved<Session: ModelSession>(
+		in session: Session
+	) throws -> Session.PartiallyResolvedTranscript {
+		try Transcript.PartiallyResolved(transcript: self, session: session)
+	}
 }
 
 // MARK: - RandomAccessCollection Conformance
@@ -80,7 +92,7 @@ public extension SwiftAgent.Transcript {
 			id: String = UUID().uuidString,
 			input: String,
 			sources: Data,
-			embeddedPrompt: String,
+			embeddedPrompt: String
 		) {
 			self.id = id
 			self.input = input
@@ -99,7 +111,7 @@ public extension SwiftAgent.Transcript {
 			id: String,
 			summary: [String],
 			encryptedReasoning: String?,
-			status: Status? = nil,
+			status: Status? = nil
 		) {
 			self.id = id
 			self.summary = summary
@@ -152,7 +164,7 @@ extension Transcript.ToolCalls: RandomAccessCollection, RangeReplaceableCollecti
 
 	public mutating func replaceSubrange(
 		_ subrange: Range<Int>,
-		with newElements: some Collection<Transcript.ToolCall>,
+		with newElements: some Collection<Transcript.ToolCall>
 	) {
 		calls.replaceSubrange(subrange, with: newElements)
 	}
@@ -171,7 +183,7 @@ public extension Transcript {
 			callId: String,
 			toolName: String,
 			arguments: GeneratedContent,
-			status: Status?,
+			status: Status?
 		) {
 			self.id = id
 			self.callId = callId
@@ -193,7 +205,7 @@ public extension Transcript {
 			callId: String,
 			toolName: String,
 			segment: Segment,
-			status: Status?,
+			status: Status?
 		) {
 			self.id = id
 			self.callId = callId
@@ -211,7 +223,7 @@ public extension Transcript {
 		public init(
 			id: String,
 			segments: [Segment],
-			status: Status,
+			status: Status
 		) {
 			self.id = id
 			self.segments = segments
@@ -321,7 +333,7 @@ private extension Transcript.Prompt {
 		lines.append(contentsOf: transcriptPrettyField(
 			name: "embeddedPrompt",
 			value: embeddedPrompt,
-			indentationLevel: indentationLevel + 1,
+			indentationLevel: indentationLevel + 1
 		))
 		lines.append("\(currentIndentation)}")
 		return lines
@@ -336,17 +348,17 @@ private extension Transcript.Reasoning {
 		lines.append(contentsOf: transcriptPrettyStringCollection(
 			name: "summary",
 			values: summary,
-			indentationLevel: indentationLevel + 1,
+			indentationLevel: indentationLevel + 1
 		))
 		lines.append(contentsOf: transcriptPrettyOptionalField(
 			name: "encryptedReasoning",
 			value: encryptedReasoning,
-			indentationLevel: indentationLevel + 1,
+			indentationLevel: indentationLevel + 1
 		))
 		lines.append(contentsOf: transcriptPrettyOptionalField(
 			name: "status",
 			value: status.map { String(describing: $0) },
-			indentationLevel: indentationLevel + 1,
+			indentationLevel: indentationLevel + 1
 		))
 		lines.append("\(currentIndentation)}")
 		return lines
@@ -364,7 +376,7 @@ private extension Transcript.ToolCalls {
 			elements: calls,
 			renderElement: { call, elementIndentationLevel in
 				call.prettyPrintedLines(indentedBy: elementIndentationLevel)
-			},
+			}
 		))
 		lines.append("\(currentIndentation)}")
 		return lines
@@ -379,22 +391,22 @@ private extension Transcript.ToolCall {
 		lines.append(contentsOf: transcriptPrettyField(
 			name: "callId",
 			value: callId,
-			indentationLevel: indentationLevel + 1,
+			indentationLevel: indentationLevel + 1
 		))
 		lines.append(contentsOf: transcriptPrettyField(
 			name: "toolName",
 			value: toolName,
-			indentationLevel: indentationLevel + 1,
+			indentationLevel: indentationLevel + 1
 		))
 		lines.append(contentsOf: transcriptPrettyValue(
 			value: transcriptPrettyJSONString(from: arguments),
 			indentationLevel: indentationLevel + 1,
-			name: "arguments",
+			name: "arguments"
 		))
 		lines.append(contentsOf: transcriptPrettyOptionalField(
 			name: "status",
 			value: status.map { String(describing: $0) },
-			indentationLevel: indentationLevel + 1,
+			indentationLevel: indentationLevel + 1
 		))
 		lines.append("\(currentIndentation)}")
 		return lines
@@ -409,17 +421,17 @@ private extension Transcript.ToolOutput {
 		lines.append(contentsOf: transcriptPrettyField(
 			name: "callId",
 			value: callId,
-			indentationLevel: indentationLevel + 1,
+			indentationLevel: indentationLevel + 1
 		))
 		lines.append(contentsOf: transcriptPrettyField(
 			name: "toolName",
 			value: toolName,
-			indentationLevel: indentationLevel + 1,
+			indentationLevel: indentationLevel + 1
 		))
 		lines.append(contentsOf: transcriptPrettyOptionalField(
 			name: "status",
 			value: status.map { String(describing: $0) },
-			indentationLevel: indentationLevel + 1,
+			indentationLevel: indentationLevel + 1
 		))
 		lines.append(contentsOf: transcriptPrettyCollection(
 			name: "segment",
@@ -427,7 +439,7 @@ private extension Transcript.ToolOutput {
 			elements: [segment],
 			renderElement: { segment, elementIndentationLevel in
 				segment.prettyPrintedLines(indentedBy: elementIndentationLevel)
-			},
+			}
 		))
 		lines.append("\(currentIndentation)}")
 		return lines
@@ -442,7 +454,7 @@ private extension Transcript.Response {
 		lines.append(contentsOf: transcriptPrettyField(
 			name: "status",
 			value: String(describing: status),
-			indentationLevel: indentationLevel + 1,
+			indentationLevel: indentationLevel + 1
 		))
 		lines.append(contentsOf: transcriptPrettyCollection(
 			name: "segments",
@@ -450,7 +462,7 @@ private extension Transcript.Response {
 			elements: segments,
 			renderElement: { segment, elementIndentationLevel in
 				segment.prettyPrintedLines(indentedBy: elementIndentationLevel)
-			},
+			}
 		))
 		lines.append("\(currentIndentation)}")
 		return lines
@@ -476,7 +488,7 @@ private extension Transcript.TextSegment {
 		lines.append(contentsOf: transcriptPrettyField(
 			name: "content",
 			value: content,
-			indentationLevel: indentationLevel + 1,
+			indentationLevel: indentationLevel + 1
 		))
 		lines.append("\(currentIndentation)}")
 		return lines
@@ -491,7 +503,7 @@ private extension Transcript.StructuredSegment {
 		lines.append(contentsOf: transcriptPrettyValue(
 			value: transcriptPrettyJSONString(from: content),
 			indentationLevel: indentationLevel + 1,
-			name: "content",
+			name: "content"
 		))
 		lines.append("\(currentIndentation)}")
 		return lines
@@ -517,7 +529,7 @@ private func transcriptPrettyOptionalField(name: String, value: String?, indenta
 private func transcriptPrettyStringCollection(
 	name: String,
 	values: [String],
-	indentationLevel: Int,
+	indentationLevel: Int
 ) -> [String] {
 	let indentation = transcriptIndentation(for: indentationLevel)
 	guard !values.isEmpty else {
@@ -529,7 +541,7 @@ private func transcriptPrettyStringCollection(
 		lines.append(contentsOf: transcriptPrettyValue(
 			value: value,
 			indentationLevel: indentationLevel + 1,
-			bullet: "- ",
+			bullet: "- "
 		))
 	}
 	lines.append("\(indentation)]")
@@ -540,7 +552,7 @@ private func transcriptPrettyCollection<Element>(
 	name: String,
 	indentationLevel: Int,
 	elements: [Element],
-	renderElement: (Element, Int) -> [String],
+	renderElement: (Element, Int) -> [String]
 ) -> [String] {
 	let indentation = transcriptIndentation(for: indentationLevel)
 	guard !elements.isEmpty else {
@@ -559,7 +571,7 @@ private func transcriptPrettyValue(
 	value: String,
 	indentationLevel: Int,
 	name: String? = nil,
-	bullet: String? = nil,
+	bullet: String? = nil
 ) -> [String] {
 	let indentation = transcriptIndentation(for: indentationLevel)
 	let rawLines = value.components(separatedBy: "\n")

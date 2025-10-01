@@ -1,6 +1,5 @@
 // By Dennis Müller
 
-import Dependencies
 import Foundation
 import FoundationModels
 import Internal
@@ -8,18 +7,15 @@ import OpenAI
 import OSLog
 import SwiftAgent
 
-@MainActor
-public final class OpenAIAdapter: Adapter {
-	@Dependency(\.uuid) var uuid
-
+public actor OpenAIAdapter: Adapter {
 	public typealias Model = OpenAIModel
 	public typealias Transcript = SwiftAgent.Transcript
 	public typealias ConfigurationError = OpenAIGenerationOptionsError
 
-	var tools: [any SwiftAgentTool]
-	private var instructions: String = ""
-	let httpClient: HTTPClient
-	let responsesPath: String = "/v1/responses"
+	package let tools: [any SwiftAgentTool]
+	package let instructions: String
+	package let httpClient: HTTPClient
+	package let responsesPath: String = "/v1/responses"
 
 	public init(
 		tools: [any SwiftAgentTool],
@@ -31,7 +27,7 @@ public final class OpenAIAdapter: Adapter {
 		httpClient = configuration.httpClient
 	}
 
-	public func respond(
+	public nonisolated func respond(
 		to prompt: Transcript.Prompt,
 		generating type: (some Generable).Type,
 		using model: Model = .default,
@@ -81,7 +77,7 @@ public final class OpenAIAdapter: Adapter {
 		return setup.stream
 	}
 
-	private func run(
+	private nonisolated func run(
 		transcript: Transcript,
 		generating type: (some Generable).Type,
 		using model: Model = .default,
@@ -96,7 +92,7 @@ public final class OpenAIAdapter: Adapter {
 			currentStep += 1
 			AgentLog.stepRequest(step: currentStep)
 
-			let request = try responseQuery(
+			let request = try await responseQuery(
 				including: Transcript(entries: transcript.entries + generatedTranscript.entries),
 				generating: type,
 				using: model,
@@ -273,7 +269,7 @@ public final class OpenAIAdapter: Adapter {
 		let generatedContent = try GeneratedContent(json: functionCall.arguments)
 
 		let toolCall = Transcript.ToolCall(
-			id: functionCall.id ?? uuid().uuidString,
+			id: functionCall.id ?? UUID().uuidString,
 			callId: functionCall.callId,
 			toolName: functionCall.name,
 			arguments: generatedContent,
@@ -322,7 +318,7 @@ public final class OpenAIAdapter: Adapter {
 			continuation.yield(.transcript(transcriptEntry))
 		} catch let toolRunProblem as ToolRunProblem {
 			let toolOutputEntry = Transcript.ToolOutput(
-				id: functionCall.id ?? uuid().uuidString,
+				id: functionCall.id ?? UUID().uuidString,
 				callId: functionCall.callId,
 				toolName: functionCall.name,
 				segment: .structure(Transcript.StructuredSegment(content: toolRunProblem.generatedContent)),

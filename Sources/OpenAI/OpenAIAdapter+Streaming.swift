@@ -22,7 +22,7 @@ extension OpenAIAdapter {
 
 		AgentLog.start(
 			model: String(describing: model),
-			toolNames: tools.map(\.name),
+			toolNames: tools.map { $0.name },
 			promptPreview: prompt.input,
 		)
 

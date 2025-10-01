@@ -4,13 +4,13 @@ import Foundation
 import FoundationModels
 import Internal
 
-public protocol ResolvableTool<Resolver>: Equatable where Self: SwiftAgentTool, Self.Arguments: Equatable,
+public protocol ResolvableTool<Session>: Equatable where Self: SwiftAgentTool, Self.Arguments: Equatable,
 	Self.Arguments.PartiallyGenerated: Equatable, Self.Output: Equatable {
 	/// The type returned when this tool is resolved.
 	///
 	/// Defaults to `Void` for tools that don't need custom resolution logic.
 	/// Override to return domain-specific types that represent the resolved tool execution.
-	associatedtype Resolver: TranscriptResolvable
+	associatedtype Session: ModelSession
 
 	/// Resolves a tool run into a domain-specific result.
 	///
@@ -20,9 +20,9 @@ public protocol ResolvableTool<Resolver>: Equatable where Self: SwiftAgentTool, 
 	///
 	/// - Parameter run: The tool run containing typed arguments and optional output
 	/// - Returns: A resolved representation of the tool execution
-	func resolve(_ run: ToolRun<Self>) -> Resolver.ResolvedToolRun
+	func resolve(_ run: ToolRun<Self>) -> Session.ResolvedToolRun
 
-	func resolvePartially(_ run: PartialToolRun<Self>) -> Resolver.PartiallyResolvedToolRun
+	func resolvePartially(_ run: PartialToolRun<Self>) -> Session.PartiallyResolvedToolRun
 }
 
 public extension ResolvableTool {
@@ -39,14 +39,14 @@ public extension ResolvableTool {
 	func resolve(
 		arguments: GeneratedContent,
 		output: GeneratedContent?
-	) throws -> Resolver.ResolvedToolRun {
+	) throws -> Session.ResolvedToolRun {
 		try resolve(run(for: arguments, output: output))
 	}
 
 	func resolvePartially(
 		arguments: GeneratedContent,
 		output: GeneratedContent?
-	) throws -> Resolver.PartiallyResolvedToolRun {
+	) throws -> Session.PartiallyResolvedToolRun {
 		let partialRun = try partialRun(for: arguments, output: output)
 		return resolvePartially(partialRun)
 	}

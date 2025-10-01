@@ -2,32 +2,114 @@
 
 import Foundation
 import FoundationModels
-import SwiftAgent
+import OpenAISession
 
-// TODO: Fix the naming of the resolvableTools synthesis: Current: "DecoderCalculatorTool"
-// TODO: Fix the "pass an array of tools without resolver vs. pass a resolver object" problem
-
-@TranscriptResolver
-struct Resolver {
-	@ResolvableTool var calculator = CalculatorTool()
-	@ResolvableTool var weather = WeatherTool()
-
-	// If no Grounding enum is defined, an empty object is generated "enum Grounding: GroundingDecodable {}"
-
-	///	@GroundingDecoder
+@Observable
+final class OpenAISession: ModelSession {
+	let calculator: CalculatorTool
+	
 	enum Grounding: GroundingDecodable {
 		case vectorSearch(String)
 		case linkPreview(URL)
 	}
 
-	// Only synthesized when enum Grounding is defined
-
-	static func encodeGrounding(_ grounding: [Grounding]) throws -> Data {
-		try JSONEncoder().encode(grounding)
+	enum ResolvedToolRun: Equatable {
+		case calculator(ToolRun<ResolvableCalculatorTool>)
+	}
+	
+	enum PartiallyResolvedToolRun: Equatable {
+		case calculator(PartialToolRun<ResolvableCalculatorTool>)
 	}
 
-	static func decodeGrounding(from data: Data) throws -> [Grounding] {
-		try JSONDecoder().decode([Grounding].self, from: data)
+	typealias Adapter = OpenAIAdapter
+	typealias SessionType = OpenAISession
+
+	var adapter: OpenAIAdapter
+	var transcript: SwiftAgent.Transcript
+	var tokenUsage: TokenUsage
+	nonisolated let tools: [any ResolvableTool<OpenAISession>]
+	
+	init(
+		calculator: CalculatorTool,
+		instructions: String,
+		apiKey: String,
+	) {
+		let tools = [
+			ResolvableCalculatorTool(baseTool: calculator)
+		]
+		
+		self.calculator = calculator
+		self.tools = tools
+		
+		adapter = OpenAIAdapter(
+			tools: tools,
+			instructions: instructions,
+			configuration: .direct(apiKey: apiKey)
+		)
+		transcript = Transcript()
+		tokenUsage = TokenUsage()
+	}
+
+	init(
+		calculator: CalculatorTool,
+		instructions: String,
+		configuration: OpenAIConfiguration,
+	) {
+		let tools = [
+			ResolvableCalculatorTool(baseTool: calculator)
+		]
+		
+		self.calculator = calculator
+		self.tools = tools
+		
+		adapter = OpenAIAdapter(
+			tools: tools,
+			instructions: instructions,
+			configuration: configuration
+		)
+		transcript = Transcript()
+		tokenUsage = TokenUsage()
+	}
+	
+	struct ResolvableCalculatorTool: ResolvableTool {
+		typealias Session = SessionType
+		typealias BaseTool = CalculatorTool
+		typealias Arguments = BaseTool.Arguments
+		typealias Output = BaseTool.Output
+		
+		private let baseTool: BaseTool
+		
+		init(baseTool: CalculatorTool) {
+			self.baseTool = baseTool
+		}
+		
+		var name: String {
+			baseTool.name
+		}
+		
+		var description: String {
+			baseTool.description
+		}
+		
+		var parameters: GenerationSchema {
+			baseTool.parameters
+		}
+		
+		func call(arguments: Arguments) async throws -> Output {
+			try await baseTool.call(arguments: arguments)
+		}
+		
+		func resolve(
+			_ run: ToolRun<ResolvableCalculatorTool>
+		) -> Session.ResolvedToolRun {
+			.calculator(run)
+		}
+		
+		func resolvePartially(
+			_ run: PartialToolRun<ResolvableCalculatorTool>
+		) -> Session.PartiallyResolvedToolRun {
+			.calculator(run)
+		}
 	}
 }
 

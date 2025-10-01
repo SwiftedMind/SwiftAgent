@@ -38,19 +38,19 @@ public extension Transcript {
 	///
 	/// - Parameter tools: The tools available during resolution. All must share the same resolution type.
 	/// - Returns: A read‑only projection that layers resolved tool runs over the original entries, or `nil` on failure.
-	func resolved<Resolver>(using toolGroup: Resolver) throws -> Resolved<Resolver>? {
-		try Resolved(transcript: self, toolGroup: toolGroup)
-	}
+//	func resolved<Resolver>(using toolGroup: Resolver) throws -> Resolved<Resolver>? {
+//		try Resolved(transcript: self, toolGroup: toolGroup)
+//	}
 
 	/// An immutable **projection** of a transcript with tool runs resolved.
 	///
 	/// You can obtain instances via ``Transcript/resolved(using:)``.
-	struct Resolved<Resolver: TranscriptResolvable>: Equatable {
+	struct Resolved<Session: ModelSession>: Equatable {
 		/// All transcript entries with resolved tool runs attached where available.
 		public package(set) var entries: [Entry]
 
-		init(transcript: Transcript, toolGroup: Resolver) throws {
-			let resolver = ToolResolver(for: toolGroup, in: transcript)
+		init(transcript: Transcript, session: Session) throws {
+			let resolver = ToolResolver(for: session, transcript: transcript)
 			entries = []
 
 			for entry in transcript.entries {
@@ -102,12 +102,12 @@ public extension Transcript {
 			public var id: String { call.id }
 
 			/// The tool resolution.
-			public let resolution: Resolver.ResolvedToolRun
+			public let resolution: Session.ResolvedToolRun
 
 			/// The tool name captured within the original call, convenient for switching logic.
 			public var toolName: String { call.toolName }
 
-			init(call: Transcript.ToolCall, resolution: Resolver.ResolvedToolRun) {
+			init(call: Transcript.ToolCall, resolution: Session.ResolvedToolRun) {
 				self.call = call
 				self.resolution = resolution
 			}

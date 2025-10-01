@@ -4,12 +4,11 @@ import Foundation
 import FoundationModels
 import Internal
 
-@MainActor
-public protocol Adapter {
+public protocol Adapter: Actor {
 	associatedtype GenerationOptions: AdapterGenerationOptions<Model>
 	associatedtype Model: AdapterModel
 	associatedtype Configuration: AdapterConfiguration
-	associatedtype ConfigurationError: Error & LocalizedError
+	associatedtype ConfigurationError: Error & Sendable
 
 	init(tools: [any SwiftAgentTool], instructions: String, configuration: Configuration)
 
@@ -48,7 +47,7 @@ public protocol AdapterGenerationOptions<Model>: Sendable {
 
 // MARK: - Model
 
-public protocol AdapterModel {
+public protocol AdapterModel: Sendable {
 	static var `default`: Self { get }
 }
 

@@ -3,6 +3,7 @@
 import Foundation
 import Internal
 import OpenAI
+import SwiftAgent
 
 public struct OpenAIGenerationOptions: AdapterGenerationOptions {
 	public typealias Model = OpenAIModel
@@ -22,7 +23,8 @@ public struct OpenAIGenerationOptions: AdapterGenerationOptions {
 		return options
 	}
 
-	/// Specifies additional outputs to include with the response, such as code interpreter results, search outputs, or logprobs.
+	/// Specifies additional outputs to include with the response, such as code interpreter results, search outputs, or
+	/// logprobs.
 	public var include: [Include]?
 
 	/// The maximum number of tokens that the model can generate in its response.
@@ -43,13 +45,16 @@ public struct OpenAIGenerationOptions: AdapterGenerationOptions {
 	/// Controls the randomness of the output. Values range from 0 to 2, where higher values produce more random results.
 	public var temperature: Double?
 
-	/// Specifies how the model should choose which tools to call, if any. Options include automatic, none, required, or a specific tool.
+	/// Specifies how the model should choose which tools to call, if any. Options include automatic, none, required, or a
+	/// specific tool.
 	public var toolChoice: ToolChoice?
 
-	/// The number of most likely tokens to return at each token position, along with their log probabilities. Must be between 0 and 20.
+	/// The number of most likely tokens to return at each token position, along with their log probabilities. Must be
+	/// between 0 and 20.
 	public var topLogProbs: UInt?
 
-	/// An alternative to temperature sampling. Only tokens with cumulative probability up to this threshold are considered.
+	/// An alternative to temperature sampling. Only tokens with cumulative probability up to this threshold are
+	/// considered.
 	public var topP: Double?
 
 	/// Defines how the model should handle inputs that exceed the context window limits.
@@ -67,7 +72,7 @@ public struct OpenAIGenerationOptions: AdapterGenerationOptions {
 		temperature: Double? = nil,
 		toolChoice: ToolChoice? = nil,
 		topP: Double? = nil,
-		truncation: Truncation? = nil,
+		truncation: Truncation? = nil
 	) {
 		self.include = include
 		self.maxOutputTokens = maxOutputTokens

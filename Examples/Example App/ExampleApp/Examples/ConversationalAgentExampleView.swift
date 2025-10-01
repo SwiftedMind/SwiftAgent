@@ -6,8 +6,8 @@ import SwiftUI
 
 struct ConversationalAgentExampleView: View {
 	@State private var userInput = ""
-//	@State private var transcript: Transcript<ContextSource>.PartiallyResolved<Resolver> = .init([])
-//	@State private var session: OpenAIContextualSession<ContextSource>?
+	///	@State private var transcript: Transcript<ContextSource>.PartiallyResolved<Resolver> = .init([])
+	@State private var session: OpenAISession?
 
 	// MARK: - Body
 
@@ -21,16 +21,17 @@ struct ConversationalAgentExampleView: View {
 	// MARK: - Setup
 
 	private func setupAgent() {
-//		session = ModelSession.openAI(
-//			tools: Tools.all,
-//			instructions: """
-//			You are a helpful assistant with access to several tools.
-//			Use the available tools when appropriate to help answer questions.
-//			Be concise but informative in your responses.
-//			""",
-//			context: ContextSource.self,
-//			configuration: .direct(apiKey: Secret.OpenAI.apiKey),
-//		)
+		session = OpenAISession(
+			calculator: .init(),
+			instructions: """
+			You are a helpful assistant with access to several tools.
+			Use the available tools when appropriate to help answer questions.
+			Be concise but informative in your responses.
+			""",
+			configuration: .direct(apiKey: Secret.OpenAI.apiKey),
+		)
+
+//		let transcript = try! session!.transcript.resolved(in: session!)
 	}
 
 	// MARK: - Actions
@@ -73,9 +74,9 @@ struct ConversationalAgentExampleView: View {
 
 // MARK: - Prompt Context
 
-//enum ContextSource: PromptContextSource {
+// enum ContextSource: PromptContextSource {
 //	case currentDate(Date)
-//}
+// }
 
 #Preview {
 	NavigationStack {

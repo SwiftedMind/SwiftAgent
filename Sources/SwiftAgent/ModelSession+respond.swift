@@ -33,8 +33,8 @@ public extension ModelSession {
     to prompt: String,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) async throws -> Response<String> {
-		let sourcesData = try Resolver.encodeGrounding([Resolver.Grounding]())
+  ) async throws -> AgentResponse<String> {
+		let sourcesData = try encodeGrounding([Grounding]())
 		
 		let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, embeddedPrompt: prompt)
     return try await processResponse(from: prompt, generating: String.self, using: model, options: options)
@@ -69,7 +69,7 @@ public extension ModelSession {
     to prompt: Prompt,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) async throws -> Response<String> {
+  ) async throws -> AgentResponse<String> {
     try await respond(to: prompt.formatted(), using: model, options: options)
   }
 
@@ -102,7 +102,7 @@ public extension ModelSession {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder prompt: () throws -> Prompt,
-  ) async throws -> Response<String> {
+  ) async throws -> AgentResponse<String> {
     try await respond(to: prompt().formatted(), using: model, options: options)
   }
 }
@@ -148,8 +148,8 @@ public extension ModelSession {
     generating type: Content.Type = Content.self,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) async throws -> Response<Content> where Content: Generable {
-		let sourcesData = try Resolver.encodeGrounding([Resolver.Grounding]())
+  ) async throws -> AgentResponse<Content> where Content: Generable {
+		let sourcesData = try encodeGrounding([Grounding]())
 		let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, embeddedPrompt: prompt)
     return try await processResponse(from: prompt, generating: type, using: model, options: options)
   }
@@ -189,7 +189,7 @@ public extension ModelSession {
     generating type: Content.Type = Content.self,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) async throws -> Response<Content> where Content: Generable {
+  ) async throws -> AgentResponse<Content> where Content: Generable {
     try await respond(
       to: prompt.formatted(),
       generating: type,
@@ -228,7 +228,7 @@ public extension ModelSession {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder prompt: () throws -> Prompt,
-  ) async throws -> Response<Content> where Content: Generable {
+  ) async throws -> AgentResponse<Content> where Content: Generable {
     try await respond(
       to: prompt().formatted(),
       generating: type,
@@ -282,11 +282,11 @@ public extension ModelSession {
   func respond(
     to input: String,
     using model: Adapter.Model = .default,
-		groundingWith sources: [Resolver.Grounding],
+		groundingWith sources: [Grounding],
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [Resolver.Grounding]) -> Prompt,
-  ) async throws -> Response<String> {
-		let sourcesData = try Resolver.encodeGrounding(sources)
+    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [Grounding]) -> Prompt,
+  ) async throws -> AgentResponse<String> {
+		let sourcesData = try encodeGrounding(sources)
 		
     let prompt = Transcript.Prompt(
       input: input,
@@ -342,11 +342,11 @@ public extension ModelSession {
     to input: String,
     generating type: Content.Type = Content.self,
 		using model: Adapter.Model = .default,
-		groundingWith sources: [Resolver.Grounding],
+		groundingWith sources: [Grounding],
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [Resolver.Grounding]) -> Prompt,
-  ) async throws -> Response<Content> where Content: Generable {
-		let sourcesData = try Resolver.encodeGrounding(sources)
+    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [Grounding]) -> Prompt,
+  ) async throws -> AgentResponse<Content> where Content: Generable {
+		let sourcesData = try encodeGrounding(sources)
 		
     let prompt = Transcript.Prompt(
       input: input,

@@ -7,8 +7,7 @@ import OpenAI
 import OSLog
 import SwiftAgent
 
-@MainActor
-public struct SimulationAdapter {
+public actor SimulationAdapter {
 	public typealias Model = SimulationModel
 	public typealias Transcript = SwiftAgent.Transcript
 

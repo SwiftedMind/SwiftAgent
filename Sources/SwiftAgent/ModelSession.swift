@@ -67,70 +67,64 @@ import Internal
 /// print("Total output tokens: \(session.sessionTokenUsage.outputTokens ?? 0)")
 /// ```
 ///
-/// - Note: ModelSession is `@MainActor` isolated and `@Observable` for SwiftUI integration.
-@Observable @MainActor
-public final class ModelSession<Adapter: SwiftAgent.Adapter & SendableMetatype, Resolver: TranscriptResolvable> {
+@MainActor
+public protocol ModelSession<Adapter>: AnyObject {
 	/// The transcript type for this session, containing the conversation history.
-	public typealias Transcript = SwiftAgent.Transcript
-
-	/// The context type for this session, containing additional prompt context.
-	public typealias Grounding = Resolver.Grounding
-
-	/// The response type for this session, containing generated content and metadata.
-	public typealias Response<Content: Generable> = AgentResponse<Content>
-
-	public typealias Snapshot<Content: Generable> = AgentSnapshot< Content>
-
-	/// The adapter instance that handles communication with the AI provider.
-	package let adapter: Adapter
-
-	/// The conversation transcript containing all prompts, responses, and tool calls.
-	///
-	/// The transcript maintains the complete history of interactions and can be used
-	/// to access previous responses, analyze tool usage, or continue conversations.
-	public var transcript: Transcript
+	typealias Transcript = SwiftAgent.Transcript
+	typealias ResolvedTranscript = Transcript.Resolved<Self>
+	typealias PartiallyResolvedTranscript = Transcript.PartiallyResolved<Self>
 	
-	public var resolver: Resolver
+	associatedtype Adapter: SwiftAgent.Adapter & SendableMetatype
+	associatedtype ResolvedToolRun: Equatable
+	associatedtype PartiallyResolvedToolRun: Equatable
+	associatedtype Grounding: GroundingDecodable
+	nonisolated var tools: [any ResolvableTool<Self>] { get }
+	
+	var adapter: Adapter { get }
+	var transcript: Transcript { get set }
+	var tokenUsage: TokenUsage { get set }
+	
+	func encodeGrounding(_ grounding: [Grounding]) throws -> Data
+	func decodeGrounding(from data: Data) throws -> [Grounding]
+	func resetTokenUsage()
+	func toolResolver() -> ToolResolver<Self>
+	
+	@discardableResult
+	func withAuthorization<T>(
+		token: String,
+		refresh: (@Sendable () async throws -> String)?,
+		perform: () async throws -> T
+	) async rethrows -> T
+}
 
-	/// Cumulative token usage across all responses in this session.
-	///
-	/// This property tracks the total token consumption for the entire session,
-	/// aggregating usage from all responses. It's updated automatically after
-	/// each generation and can be observed for real-time usage monitoring.
-	public var tokenUsage = TokenUsage()
-
-	/// Provider for fetching URL metadata for link previews in prompts.
-	private let metadataProvider = URLMetadataProvider()
-
-	/// Creates a new ModelSession with the specified adapter.
-	///
-	/// - Parameter adapter: The adapter instance that will handle AI provider communication.
-	///
-	/// - Note: This is a package-internal initializer. Use the public factory methods like
-	///   `ModelSession.openAI(tools:instructions:apiKey:)` to create sessions.
-	package init(adapter: Adapter, resolver: Resolver) {
-		transcript = Transcript()
-		self.adapter = adapter
-		self.resolver = resolver
+public extension ModelSession {
+	func encodeGrounding(_ grounding: [Grounding]) throws -> Data {
+		try JSONEncoder().encode(grounding)
 	}
 
+	func decodeGrounding(from data: Data) throws -> [Grounding] {
+		try JSONDecoder().decode([Grounding].self, from: data)
+	}
+}
+
+package extension ModelSession {
 	// MARK: - Private Response Helpers
 
-	package func processResponse<Content>(
+	func processResponse<Content>(
 		from prompt: Transcript.Prompt,
 		generating type: Content.Type,
 		using model: Adapter.Model,
-		options: Adapter.GenerationOptions?,
-	) async throws -> Response<Content> where Content: Generable {
+		options: Adapter.GenerationOptions?
+	) async throws -> AgentResponse<Content> where Content: Generable {
 		let promptEntry = Transcript.Entry.prompt(prompt)
 		transcript.append(promptEntry)
 
-		let stream = adapter.respond(
+		let stream = await adapter.respond(
 			to: prompt,
 			generating: type,
 			using: model,
 			including: transcript,
-			options: options ?? .automatic(for: model),
+			options: options ?? .automatic(for: model)
 		)
 
 		var generatedTranscript = Transcript()
@@ -161,7 +155,7 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter & SendableMetatype, 
 								return try AgentResponse<Content>(
 									content: Content(structuredSegment.content),
 									transcript: generatedTranscript,
-									tokenUsage: generatedUsage,
+									tokenUsage: generatedUsage
 								)
 							}
 						}
@@ -198,7 +192,7 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter & SendableMetatype, 
 			return AgentResponse<Content>(
 				content: finalResponseSegments.joined(separator: "\n") as! Content,
 				transcript: generatedTranscript,
-				tokenUsage: generatedUsage,
+				tokenUsage: generatedUsage
 			)
 		} else {
 			// For structured content, if we reach here, no structured segment was found
@@ -207,25 +201,25 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter & SendableMetatype, 
 		}
 	}
 
-	package func processResponseStream<Content: Generable>(
+	func processResponseStream<Content: Generable>(
 		from prompt: Transcript.Prompt,
 		generating type: Content.Type,
 		using model: Adapter.Model,
-		options: Adapter.GenerationOptions?,
-	) -> AsyncThrowingStream<Snapshot<Content>, any Error> {
-		let setup = AsyncThrowingStream<Snapshot<Content>, any Error>.makeStream()
+		options: Adapter.GenerationOptions?
+	) -> AsyncThrowingStream<AgentSnapshot<Content>, any Error> {
+		let setup = AsyncThrowingStream<AgentSnapshot<Content>, any Error>.makeStream()
 
 		let task = Task<Void, Never> {
 			do {
 				let promptEntry = Transcript.Entry.prompt(prompt)
 				transcript.append(promptEntry)
 
-				let stream = adapter.streamResponse(
+				let stream = await adapter.streamResponse(
 					to: prompt,
 					generating: type,
 					using: model,
 					including: transcript,
-					options: options ?? .automatic(for: model),
+					options: options ?? .automatic(for: model)
 				)
 
 				var generatedTranscript = Transcript()
@@ -316,7 +310,7 @@ public extension ModelSession {
 	func withAuthorization<T>(
 		token: String,
 		refresh: (@Sendable () async throws -> String)? = nil,
-		perform: () async throws -> T,
+		perform: () async throws -> T
 	) async rethrows -> T {
 		precondition(!token.isEmpty, "Authorization token must not be empty.")
 		let context = AuthorizationContext(bearerToken: token, refreshToken: refresh)
@@ -353,13 +347,12 @@ public extension ModelSession {
 	func resetTokenUsage() {
 		tokenUsage = TokenUsage()
 	}
-	
-	// TODO: Does this need an instance, or is type enough?
-	// TODO: Instance is needed because the tools are initialized!
-	// TODO: So I need a default Decoder that does nothing
-	// TODO: Decoder to Coder?
-	// TODO: "Resolve" to "decode"
-	func toolResolver() -> ToolResolver<Resolver> {
-		ToolResolver(for: resolver, in: transcript)
+
+	func toolResolver() -> ToolResolver<Self> {
+		ToolResolver(for: self, transcript: transcript)
 	}
+}
+
+public struct NoTools {
+	public init() {}
 }

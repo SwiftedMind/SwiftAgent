@@ -18,13 +18,13 @@ public extension ModelSession {
 		to prompt: String,
 		generations: [SimulatedGeneration<String>],
 		configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-	) async throws -> Response<String> {
-		let sourcesData = try Resolver.encodeGrounding([Resolver.Grounding]())
+	) async throws -> AgentResponse<String> {
+		let sourcesData = try encodeGrounding([Grounding]())
 		let transcriptPrompt = Transcript.Prompt(input: prompt, sources: sourcesData, embeddedPrompt: prompt)
 		let promptEntry = Transcript.Entry.prompt(transcriptPrompt)
 		transcript.append(promptEntry)
 
-		let stream = simulationAdapter(with: configuration).respond(
+		let stream = await simulationAdapter(with: configuration).respond(
 			to: transcriptPrompt,
 			generating: String.self,
 			generations: generations,
@@ -71,13 +71,13 @@ public extension ModelSession {
 		to prompt: String,
 		generations: [SimulatedGeneration<Content>],
 		configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-	) async throws -> Response<Content> where Content: MockableGenerable {
-		let sourcesData = try Resolver.encodeGrounding([Resolver.Grounding]())
+	) async throws -> AgentResponse<Content> where Content: MockableGenerable {
+		let sourcesData = try encodeGrounding([Grounding]())
 		let transcriptPrompt = Transcript.Prompt(input: prompt, sources: sourcesData, embeddedPrompt: prompt)
 		let promptEntry = Transcript.Entry.prompt(transcriptPrompt)
 		transcript.append(promptEntry)
 
-		let stream = simulationAdapter(with: configuration).respond(
+		let stream = await simulationAdapter(with: configuration).respond(
 			to: transcriptPrompt,
 			generating: Content.self,
 			generations: generations,
@@ -124,7 +124,7 @@ public extension ModelSession {
 		to prompt: SwiftAgent.Prompt,
 		generations: [SimulatedGeneration<String>],
 		configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-	) async throws -> Response<String> {
+	) async throws -> AgentResponse<String> {
 		try await simulateResponse(to: prompt.formatted(), generations: generations, configuration: configuration)
 	}
 
@@ -133,7 +133,7 @@ public extension ModelSession {
 		to prompt: SwiftAgent.Prompt,
 		generations: [SimulatedGeneration<Content>],
 		configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-	) async throws -> Response<Content> where Content: MockableGenerable {
+	) async throws -> AgentResponse<Content> where Content: MockableGenerable {
 		try await simulateResponse(to: prompt.formatted(), generations: generations, configuration: configuration)
 	}
 
@@ -142,7 +142,7 @@ public extension ModelSession {
 		generations: [SimulatedGeneration<String>],
 		configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
 		@SwiftAgent.PromptBuilder prompt: () throws -> SwiftAgent.Prompt,
-	) async throws -> Response<String> {
+	) async throws -> AgentResponse<String> {
 		try await simulateResponse(to: prompt().formatted(), generations: generations, configuration: configuration)
 	}
 
@@ -151,7 +151,7 @@ public extension ModelSession {
 		generations: [SimulatedGeneration<Content>],
 		configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
 		@SwiftAgent.PromptBuilder prompt: () throws -> SwiftAgent.Prompt,
-	) async throws -> Response<Content> where Content: MockableGenerable {
+	) async throws -> AgentResponse<Content> where Content: MockableGenerable {
 		try await simulateResponse(to: prompt().formatted(), generations: generations, configuration: configuration)
 	}
 }

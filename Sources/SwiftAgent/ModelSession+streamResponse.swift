@@ -34,8 +34,8 @@ public extension ModelSession {
     to prompt: String,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {
-		let sourcesData = try Resolver.encodeGrounding([Resolver.Grounding]())
+  ) throws -> AsyncThrowingStream<AgentSnapshot<String>, any Error> {
+		let sourcesData = try encodeGrounding([Grounding]())
 		let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, embeddedPrompt: prompt)
     return processResponseStream(from: prompt, generating: String.self, using: model, options: options)
   }
@@ -63,7 +63,7 @@ public extension ModelSession {
   ///   - model: The model to use for generation. Defaults to the adapter's default model.
   ///   - options: Optional generation parameters.
   ///
-  /// - Returns: An `AsyncThrowingStream` of ``AgentSnapshot`` objects containing
+  /// - Returns: An `AsyncThrowingStream` of ``AgentAgentSnapshot`` objects containing
   ///   the current state of the response as it's being generated.
   ///
   /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
@@ -71,7 +71,7 @@ public extension ModelSession {
     to prompt: Prompt,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {
+  ) throws -> AsyncThrowingStream<AgentSnapshot<String>, any Error> {
 		try streamResponse(to: prompt.formatted(), using: model, options: options)
   }
 
@@ -79,7 +79,7 @@ public extension ModelSession {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder prompt: @Sendable () throws -> Prompt,
-  ) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {
+  ) throws -> AsyncThrowingStream<AgentSnapshot<String>, any Error> {
     try streamResponse(to: prompt().formatted(), using: model, options: options)
   }
 }
@@ -117,7 +117,7 @@ public extension ModelSession {
   ///   - model: The model to use for generation. Defaults to the adapter's default model.
   ///   - options: Optional generation parameters.
   ///
-  /// - Returns: An `AsyncThrowingStream` of ``AgentSnapshot`` objects containing
+  /// - Returns: An `AsyncThrowingStream` of ``AgentAgentSnapshot`` objects containing
   ///   the current state of the structured response as it's being generated.
   ///
   /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
@@ -126,8 +126,8 @@ public extension ModelSession {
     generating type: Content.Type = Content.self,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) throws-> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
-		let sourcesData = try Resolver.encodeGrounding([Resolver.Grounding]())
+  ) throws-> AsyncThrowingStream<AgentSnapshot<Content>, any Error> where Content: Generable {
+		let sourcesData = try encodeGrounding([Grounding]())
 		let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, embeddedPrompt: prompt)
     return processResponseStream(from: prompt, generating: type, using: model, options: options)
   }
@@ -161,7 +161,7 @@ public extension ModelSession {
   ///   - model: The model to use for generation. Defaults to the adapter's default model.
   ///   - options: Optional generation parameters.
   ///
-  /// - Returns: An `AsyncThrowingStream` of ``AgentSnapshot`` objects containing
+  /// - Returns: An `AsyncThrowingStream` of ``AgentAgentSnapshot`` objects containing
   ///   the current state of the structured response as it's being generated.
   ///
   /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
@@ -170,7 +170,7 @@ public extension ModelSession {
     generating type: Content.Type = Content.self,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
+  ) throws -> AsyncThrowingStream<AgentSnapshot<Content>, any Error> where Content: Generable {
     try streamResponse(to: prompt.formatted(), generating: type, using: model, options: options)
   }
 
@@ -199,7 +199,7 @@ public extension ModelSession {
   ///   - options: Optional generation parameters.
   ///   - prompt: A closure that builds the prompt using `@PromptBuilder` syntax. Must be `@Sendable`.
   ///
-  /// - Returns: An `AsyncThrowingStream` of ``AgentSnapshot`` objects containing
+  /// - Returns: An `AsyncThrowingStream` of ``AgentAgentSnapshot`` objects containing
   ///   the current state of the structured response as it's being generated.
   ///
   /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
@@ -208,7 +208,7 @@ public extension ModelSession {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder prompt: @Sendable () throws -> Prompt,
-  ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
+  ) throws -> AsyncThrowingStream<AgentSnapshot<Content>, any Error> where Content: Generable {
     try streamResponse(to: prompt().formatted(), generating: type, using: model, options: options)
   }
 }
@@ -219,11 +219,11 @@ public extension ModelSession {
   func streamResponse(
     to input: String,
     using model: Adapter.Model = .default,
-		groundingWith sources: [Resolver.Grounding],
+		groundingWith sources: [Grounding],
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [Resolver.Grounding]) -> Prompt,
-  ) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {
-		let sourcesData = try Resolver.encodeGrounding(sources)
+    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [Grounding]) -> Prompt,
+  ) throws -> AsyncThrowingStream<AgentSnapshot<String>, any Error> {
+		let sourcesData = try encodeGrounding(sources)
 		
 		let prompt = Transcript.Prompt(
 			input: input,
@@ -237,12 +237,12 @@ public extension ModelSession {
   func streamResponse<Content: Generable>(
     to input: String,
     generating type: Content.Type = Content.self,
-		groundingWith sources: [Resolver.Grounding],
+		groundingWith sources: [Grounding],
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [Resolver.Grounding]) -> Prompt,
-  ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> {
-		let sourcesData = try Resolver.encodeGrounding(sources)
+    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [Grounding]) -> Prompt,
+  ) throws -> AsyncThrowingStream<AgentSnapshot<Content>, any Error> {
+		let sourcesData = try encodeGrounding(sources)
 		
 		let prompt = Transcript.Prompt(
 			input: input,

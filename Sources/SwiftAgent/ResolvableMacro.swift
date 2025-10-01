@@ -35,8 +35,8 @@ public macro ResolvableTool() = #externalMacro(
 /// }
 /// ```
 @attached(member, names: arbitrary)
-@attached(extension, conformances: TranscriptResolvable)
+@attached(extension, conformances: ModelSession)
 public macro TranscriptResolver() = #externalMacro(
 	module: "SwiftAgentMacros",
-	type: "TranscriptResolverMacro",
+	type: "SwiftAgentSessionMacro",
 )
