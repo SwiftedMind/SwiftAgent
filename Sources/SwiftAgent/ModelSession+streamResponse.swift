@@ -34,8 +34,9 @@ public extension ModelSession {
     to prompt: String,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) -> AsyncThrowingStream<Snapshot<String>, any Error> {
-    let prompt = Transcript.Prompt(input: prompt, embeddedPrompt: prompt)
+  ) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {
+		let sourcesData = try Resolver.encodeGrounding([Resolver.Grounding]())
+		let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, embeddedPrompt: prompt)
     return processResponseStream(from: prompt, generating: String.self, using: model, options: options)
   }
 
@@ -70,15 +71,15 @@ public extension ModelSession {
     to prompt: Prompt,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) -> AsyncThrowingStream<Snapshot<String>, any Error> {
-    streamResponse(to: prompt.formatted(), using: model, options: options)
+  ) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {
+		try streamResponse(to: prompt.formatted(), using: model, options: options)
   }
 
   func streamResponse(
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder prompt: @Sendable () throws -> Prompt,
-  ) rethrows -> AsyncThrowingStream<Snapshot<String>, any Error> {
+  ) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {
     try streamResponse(to: prompt().formatted(), using: model, options: options)
   }
 }
@@ -125,8 +126,9 @@ public extension ModelSession {
     generating type: Content.Type = Content.self,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
-    let prompt = Transcript.Prompt(input: prompt, embeddedPrompt: prompt)
+  ) throws-> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
+		let sourcesData = try Resolver.encodeGrounding([Resolver.Grounding]())
+		let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, embeddedPrompt: prompt)
     return processResponseStream(from: prompt, generating: type, using: model, options: options)
   }
 
@@ -168,8 +170,8 @@ public extension ModelSession {
     generating type: Content.Type = Content.self,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
-    streamResponse(to: prompt.formatted(), generating: type, using: model, options: options)
+  ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
+    try streamResponse(to: prompt.formatted(), generating: type, using: model, options: options)
   }
 
   /// Generates a streaming structured response using a prompt builder closure.
@@ -206,7 +208,7 @@ public extension ModelSession {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder prompt: @Sendable () throws -> Prompt,
-  ) rethrows -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
+  ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
     try streamResponse(to: prompt().formatted(), generating: type, using: model, options: options)
   }
 }
@@ -216,39 +218,37 @@ public extension ModelSession {
 public extension ModelSession {
   func streamResponse(
     to input: String,
-    supplying contextItems: [Context],
     using model: Adapter.Model = .default,
+		groundingWith sources: [Resolver.Grounding],
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ context: PromptContext<Context>) -> Prompt,
-  ) async -> AsyncThrowingStream<Snapshot<String>, any Error> {
-    let linkPreviews = await fetchLinkPreviews(from: input)
-    let context = PromptContext(sources: contextItems, linkPreviews: linkPreviews)
-
-    let prompt = Transcript.Prompt(
-      input: input,
-      context: context,
-      embeddedPrompt: prompt(input, context).formatted(),
-    )
+    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [Resolver.Grounding]) -> Prompt,
+  ) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {
+		let sourcesData = try Resolver.encodeGrounding(sources)
+		
+		let prompt = Transcript.Prompt(
+			input: input,
+			sources: sourcesData,
+			embeddedPrompt: prompt(input, sources).formatted(),
+		)
     return processResponseStream(from: prompt, generating: String.self, using: model, options: options)
   }
 
   @discardableResult
   func streamResponse<Content: Generable>(
     to input: String,
-    supplying contextItems: [Context],
     generating type: Content.Type = Content.self,
+		groundingWith sources: [Resolver.Grounding],
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ context: PromptContext<Context>) -> Prompt,
-  ) async -> AsyncThrowingStream<Snapshot<Content>, any Error> {
-    let linkPreviews = await fetchLinkPreviews(from: input)
-    let context = PromptContext(sources: contextItems, linkPreviews: linkPreviews)
-
-    let prompt = Transcript.Prompt(
-      input: input,
-      context: context,
-      embeddedPrompt: prompt(input, context).formatted(),
-    )
+    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [Resolver.Grounding]) -> Prompt,
+  ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> {
+		let sourcesData = try Resolver.encodeGrounding(sources)
+		
+		let prompt = Transcript.Prompt(
+			input: input,
+			sources: sourcesData,
+			embeddedPrompt: prompt(input, sources).formatted(),
+		)
     return processResponseStream(from: prompt, generating: type, using: model, options: options)
   }
 }

@@ -4,13 +4,13 @@ import Foundation
 import FoundationModels
 import Internal
 
-public protocol ToolDecodable<ToolGroup>: Equatable where Self: SwiftAgentTool, Self.Arguments: Equatable,
+public protocol ResolvableTool<Resolver>: Equatable where Self: SwiftAgentTool, Self.Arguments: Equatable,
 	Self.Arguments.PartiallyGenerated: Equatable, Self.Output: Equatable {
 	/// The type returned when this tool is resolved.
 	///
 	/// Defaults to `Void` for tools that don't need custom resolution logic.
 	/// Override to return domain-specific types that represent the resolved tool execution.
-	associatedtype ToolGroup: TranscriptDecodable
+	associatedtype Resolver: TranscriptResolvable
 
 	/// Resolves a tool run into a domain-specific result.
 	///
@@ -20,12 +20,12 @@ public protocol ToolDecodable<ToolGroup>: Equatable where Self: SwiftAgentTool, 
 	///
 	/// - Parameter run: The tool run containing typed arguments and optional output
 	/// - Returns: A resolved representation of the tool execution
-	func resolve(_ run: ToolRun<Self>) -> ToolGroup.ResolvedToolRun
+	func resolve(_ run: ToolRun<Self>) -> Resolver.ResolvedToolRun
 
-	func resolvePartially(_ run: PartialToolRun<Self>) -> ToolGroup.PartiallyResolvedToolRun
+	func resolvePartially(_ run: PartialToolRun<Self>) -> Resolver.PartiallyResolvedToolRun
 }
 
-public extension ToolDecodable {
+public extension ResolvableTool {
 	/// Resolves a tool with raw GeneratedContent arguments and output.
 	///
 	/// This is the internal bridge method that converts between Apple's FoundationModels
@@ -39,20 +39,20 @@ public extension ToolDecodable {
 	func resolve(
 		arguments: GeneratedContent,
 		output: GeneratedContent?
-	) throws -> ToolGroup.ResolvedToolRun {
+	) throws -> Resolver.ResolvedToolRun {
 		try resolve(run(for: arguments, output: output))
 	}
 
 	func resolvePartially(
 		arguments: GeneratedContent,
 		output: GeneratedContent?
-	) throws -> ToolGroup.PartiallyResolvedToolRun {
+	) throws -> Resolver.PartiallyResolvedToolRun {
 		let partialRun = try partialRun(for: arguments, output: output)
 		return resolvePartially(partialRun)
 	}
 }
 
-package extension ToolDecodable {
+package extension ResolvableTool {
 	/// Creates a strongly typed tool run from raw content.
 	///
 	/// - Parameters:

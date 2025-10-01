@@ -19,7 +19,8 @@ public extension ModelSession {
 		generations: [SimulatedGeneration<String>],
 		configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
 	) async throws -> Response<String> {
-		let transcriptPrompt = Transcript.Prompt(input: prompt, embeddedPrompt: prompt)
+		let sourcesData = try Resolver.encodeGrounding([Resolver.Grounding]())
+		let transcriptPrompt = Transcript.Prompt(input: prompt, sources: sourcesData, embeddedPrompt: prompt)
 		let promptEntry = Transcript.Entry.prompt(transcriptPrompt)
 		transcript.append(promptEntry)
 
@@ -58,7 +59,7 @@ public extension ModelSession {
 			}
 		}
 
-		return AgentResponse<Adapter, Context, String>(
+		return AgentResponse<String>(
 			content: responseContent.joined(separator: "\n"),
 			transcript: Transcript(entries: addedEntities),
 			tokenUsage: aggregatedUsage,
@@ -71,7 +72,8 @@ public extension ModelSession {
 		generations: [SimulatedGeneration<Content>],
 		configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
 	) async throws -> Response<Content> where Content: MockableGenerable {
-		let transcriptPrompt = Transcript.Prompt(input: prompt, embeddedPrompt: prompt)
+		let sourcesData = try Resolver.encodeGrounding([Resolver.Grounding]())
+		let transcriptPrompt = Transcript.Prompt(input: prompt, sources: sourcesData, embeddedPrompt: prompt)
 		let promptEntry = Transcript.Entry.prompt(transcriptPrompt)
 		transcript.append(promptEntry)
 
@@ -95,7 +97,7 @@ public extension ModelSession {
 						case .text:
 							break
 						case let .structure(structuredSegment):
-							return try AgentResponse<Adapter, Context, Content>(
+							return try AgentResponse<Content>(
 								content: Content(structuredSegment.content),
 								transcript: Transcript(entries: addedEntities),
 								tokenUsage: aggregatedUsage,

@@ -38,18 +38,18 @@ public extension Transcript {
 	///
 	/// - Parameter tools: The tools available during resolution. All must share the same resolution type.
 	/// - Returns: A read‑only projection that layers resolved tool runs over the original entries, or `nil` on failure.
-	func resolved<ToolGroup>(using toolGroup: ToolGroup) throws -> Resolved<ToolGroup>? {
+	func resolved<Resolver>(using toolGroup: Resolver) throws -> Resolved<Resolver>? {
 		try Resolved(transcript: self, toolGroup: toolGroup)
 	}
 
 	/// An immutable **projection** of a transcript with tool runs resolved.
 	///
 	/// You can obtain instances via ``Transcript/resolved(using:)``.
-	struct Resolved<ToolGroup: TranscriptDecodable>: Equatable {
+	struct Resolved<Resolver: TranscriptResolvable>: Equatable {
 		/// All transcript entries with resolved tool runs attached where available.
 		public package(set) var entries: [Entry]
 
-		init(transcript: Transcript<Context>, toolGroup: ToolGroup) throws {
+		init(transcript: Transcript, toolGroup: Resolver) throws {
 			let resolver = ToolResolver(for: toolGroup, in: transcript)
 			entries = []
 
@@ -75,10 +75,10 @@ public extension Transcript {
 
 		/// Transcript entry augmented with resolved tool runs.
 		public enum Entry: Identifiable, Equatable {
-			case prompt(Transcript<Context>.Prompt)
-			case reasoning(Transcript<Context>.Reasoning)
+			case prompt(Transcript.Prompt)
+			case reasoning(Transcript.Reasoning)
 			case toolRun(ToolRunKind)
-			case response(Transcript<Context>.Response)
+			case response(Transcript.Response)
 
 			public var id: String {
 				switch self {
@@ -96,18 +96,18 @@ public extension Transcript {
 
 		/// A resolved tool run.
 		public struct ToolRunKind: Identifiable, Equatable {
-			private let call: Transcript<Context>.ToolCall
+			private let call: Transcript.ToolCall
 
 			/// The identifier of this run.
 			public var id: String { call.id }
 
 			/// The tool resolution.
-			public let resolution: ToolGroup.ResolvedToolRun
+			public let resolution: Resolver.ResolvedToolRun
 
 			/// The tool name captured within the original call, convenient for switching logic.
 			public var toolName: String { call.toolName }
 
-			init(call: Transcript<Context>.ToolCall, resolution: ToolGroup.ResolvedToolRun) {
+			init(call: Transcript.ToolCall, resolution: Resolver.ResolvedToolRun) {
 				self.call = call
 				self.resolution = resolution
 			}

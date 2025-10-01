@@ -6,14 +6,14 @@ import SwiftUI
 
 struct ConversationalAgentExampleView: View {
 	@State private var userInput = ""
-	@State private var transcript: Transcript<ContextSource>.PartiallyResolved<ToolGroup> = .init([])
-	@State private var session: OpenAIContextualSession<ContextSource>?
+//	@State private var transcript: Transcript<ContextSource>.PartiallyResolved<Resolver> = .init([])
+//	@State private var session: OpenAIContextualSession<ContextSource>?
 
 	// MARK: - Body
 
 	var body: some View {
 		Form {}
-			.animation(.default, value: transcript)
+//			.animation(.default, value: transcript)
 			.formStyle(.grouped)
 			.onAppear(perform: setupAgent)
 	}
@@ -73,9 +73,9 @@ struct ConversationalAgentExampleView: View {
 
 // MARK: - Prompt Context
 
-enum ContextSource: PromptContextSource {
-	case currentDate(Date)
-}
+//enum ContextSource: PromptContextSource {
+//	case currentDate(Date)
+//}
 
 #Preview {
 	NavigationStack {

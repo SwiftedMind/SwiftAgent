@@ -11,14 +11,14 @@ private enum StreamingError: Error {
 }
 
 extension OpenAIAdapter {
-	public func streamResponse<Context>(
-		to prompt: Transcript<Context>.Prompt,
+	public func streamResponse(
+		to prompt: Transcript.Prompt,
 		generating type: (some Generable).Type,
 		using model: Model = .default,
-		including transcript: Transcript<Context>,
+		including transcript: Transcript,
 		options: OpenAIGenerationOptions,
-	) -> AsyncThrowingStream<AdapterUpdate<Context>, any Error> where Context: PromptContextSource {
-		let setup = AsyncThrowingStream<AdapterUpdate<Context>, any Error>.makeStream()
+	) -> AsyncThrowingStream<AdapterUpdate, any Error> {
+		let setup = AsyncThrowingStream<AdapterUpdate, any Error>.makeStream()
 
 		AgentLog.start(
 			model: String(describing: model),
@@ -59,17 +59,17 @@ extension OpenAIAdapter {
 		return setup.stream
 	}
 
-	private func runStreamResponse<Context>(
-		transcript: Transcript<Context>,
+	private func runStreamResponse(
+		transcript: Transcript,
 		generating type: (some Generable).Type,
 		using model: Model,
 		options: OpenAIGenerationOptions,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) async throws where Context: PromptContextSource {
-		var generatedTranscript = Transcript<Context>()
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) async throws {
+		var generatedTranscript = Transcript()
 		var entryIndices: [String: Int] = [:]
-		var messageStates: [String: StreamingMessageState<Context>] = [:]
-		var functionCallStates: [String: StreamingFunctionCallState<Context>] = [:]
+		var messageStates: [String: StreamingMessageState] = [:]
+		var functionCallStates: [String: StreamingFunctionCallState] = [:]
 		var functionCallOrder: [String] = []
 
 		let isGeneratingString = (type == String.self)
@@ -81,7 +81,7 @@ extension OpenAIAdapter {
 			currentStep += 1
 			AgentLog.stepRequest(step: currentStep)
 
-			let accumulatedTranscript = Transcript<Context>(entries: transcript.entries + generatedTranscript.entries)
+			let accumulatedTranscript = Transcript(entries: transcript.entries + generatedTranscript.entries)
 			let request = try responseQuery(
 				including: accumulatedTranscript,
 				generating: type,
@@ -259,21 +259,21 @@ extension OpenAIAdapter {
 		)
 	}
 
-	private func handleOutputItemAdded<Context>(
+	private func handleOutputItemAdded(
 		_ event: ResponseOutputItemAddedEvent,
 		isGeneratingString: Bool,
-		generatedTranscript: inout Transcript<Context>,
+		generatedTranscript: inout Transcript,
 		entryIndices: inout [String: Int],
-		messageStates: inout [String: StreamingMessageState<Context>],
-		functionCallStates: inout [String: StreamingFunctionCallState<Context>],
+		messageStates: inout [String: StreamingMessageState],
+		functionCallStates: inout [String: StreamingFunctionCallState],
 		functionCallOrder: inout [String],
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) throws where Context: PromptContextSource {
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) throws {
 		switch event.item {
 		case let .outputMessage(message):
-			let status: SwiftAgent.Transcript<Context>.Status = transcriptStatusForMessage(message.status)
-			let response = Transcript<Context>.Response(id: message.id, segments: [], status: status)
-			let entry = Transcript<Context>.Entry.response(response)
+			let status: SwiftAgent.Transcript.Status = transcriptStatusForMessage(message.status)
+			let response = Transcript.Response(id: message.id, segments: [], status: status)
+			let entry = Transcript.Entry.response(response)
 			let entryIndex = appendEntry(
 				entry,
 				to: &generatedTranscript,
@@ -287,15 +287,15 @@ extension OpenAIAdapter {
 			)
 		case let .functionToolCall(functionCall):
 			let placeholderArguments = try GeneratedContent(json: "{}")
-			let toolCall = Transcript<Context>.ToolCall(
+			let toolCall = Transcript.ToolCall(
 				id: functionCall.id ?? UUID().uuidString,
 				callId: functionCall.callId,
 				toolName: functionCall.name,
 				arguments: placeholderArguments,
 				status: transcriptStatusForFunctionCall(functionCall.status),
 			)
-			let toolCalls = Transcript<Context>.ToolCalls(calls: [toolCall])
-			let entry = Transcript<Context>.Entry.toolCalls(toolCalls)
+			let toolCalls = Transcript.ToolCalls(calls: [toolCall])
+			let entry = Transcript.Entry.toolCalls(toolCalls)
 			let entryIndex = appendEntry(
 				entry,
 				to: &generatedTranscript,
@@ -316,28 +316,28 @@ extension OpenAIAdapter {
 			functionCallOrder.append(identifier)
 		case let .reasoning(reasoning):
 			let summary = reasoning.summary.map(\.text)
-			let entryData = Transcript<Context>.Reasoning(
+			let entryData = Transcript.Reasoning(
 				id: reasoning.id,
 				summary: summary,
 				encryptedReasoning: reasoning.encryptedContent,
 				status: transcriptStatusForReasoning(reasoning.status),
 			)
-			let entry = Transcript<Context>.Entry.reasoning(entryData)
+			let entry = Transcript.Entry.reasoning(entryData)
 			_ = appendEntry(entry, to: &generatedTranscript, entryIndices: &entryIndices, continuation: continuation)
 		default:
 			return
 		}
 	}
 
-	private func handleOutputItemDone<Context>(
+	private func handleOutputItemDone(
 		_ event: ResponseOutputItemDoneEvent,
 		expectedTypeName: String,
-		generatedTranscript: inout Transcript<Context>,
+		generatedTranscript: inout Transcript,
 		entryIndices: inout [String: Int],
-		messageStates: inout [String: StreamingMessageState<Context>],
-		functionCallStates: inout [String: StreamingFunctionCallState<Context>],
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) throws where Context: PromptContextSource {
+		messageStates: inout [String: StreamingMessageState],
+		functionCallStates: inout [String: StreamingFunctionCallState],
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) throws {
 		switch event.item {
 		case let .outputMessage(message):
 			guard var state = messageStates[message.id] else { return }
@@ -382,12 +382,12 @@ extension OpenAIAdapter {
 		}
 	}
 
-	private func handleContentPartAdded<Context>(
+	private func handleContentPartAdded(
 		_ event: Components.Schemas.ResponseContentPartAddedEvent,
-		messageStates: inout [String: StreamingMessageState<Context>],
-		generatedTranscript: inout Transcript<Context>,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) throws where Context: PromptContextSource {
+		messageStates: inout [String: StreamingMessageState],
+		generatedTranscript: inout Transcript,
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) throws {
 		try updateMessageState(
 			for: event.itemId,
 			messageStates: &messageStates,
@@ -404,12 +404,12 @@ extension OpenAIAdapter {
 		}
 	}
 
-	private func handleContentPartDone<Context>(
+	private func handleContentPartDone(
 		_ event: Components.Schemas.ResponseContentPartDoneEvent,
-		messageStates: inout [String: StreamingMessageState<Context>],
-		generatedTranscript: inout Transcript<Context>,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) throws where Context: PromptContextSource {
+		messageStates: inout [String: StreamingMessageState],
+		generatedTranscript: inout Transcript,
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) throws {
 		try updateMessageState(
 			for: event.itemId,
 			messageStates: &messageStates,
@@ -426,12 +426,12 @@ extension OpenAIAdapter {
 		}
 	}
 
-	private func handleOutputTextDelta<Context>(
+	private func handleOutputTextDelta(
 		_ event: Components.Schemas.ResponseTextDeltaEvent,
-		messageStates: inout [String: StreamingMessageState<Context>],
-		generatedTranscript: inout Transcript<Context>,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) throws where Context: PromptContextSource {
+		messageStates: inout [String: StreamingMessageState],
+		generatedTranscript: inout Transcript,
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) throws {
 		try updateMessageState(
 			for: event.itemId,
 			messageStates: &messageStates,
@@ -443,12 +443,12 @@ extension OpenAIAdapter {
 		}
 	}
 
-	private func handleOutputTextDone<Context>(
+	private func handleOutputTextDone(
 		_ event: Components.Schemas.ResponseTextDoneEvent,
-		messageStates: inout [String: StreamingMessageState<Context>],
-		generatedTranscript: inout Transcript<Context>,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) throws where Context: PromptContextSource {
+		messageStates: inout [String: StreamingMessageState],
+		generatedTranscript: inout Transcript,
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) throws {
 		guard let currentState = messageStates[event.itemId] else { return }
 
 		let finalizeStructuredContent = !currentState.isGeneratingString
@@ -474,13 +474,13 @@ extension OpenAIAdapter {
 		}
 	}
 
-	private func handleFunctionCallArgumentsDelta<Context>(
+	private func handleFunctionCallArgumentsDelta(
 		_ event: Components.Schemas.ResponseFunctionCallArgumentsDeltaEvent,
-		functionCallStates: inout [String: StreamingFunctionCallState<Context>],
-		generatedTranscript: inout Transcript<Context>,
+		functionCallStates: inout [String: StreamingFunctionCallState],
+		generatedTranscript: inout Transcript,
 		entryIndices: [String: Int],
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) throws where Context: PromptContextSource {
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) throws {
 		guard var state = functionCallStates[event.itemId],
 		      let entryIndex = entryIndices[state.transcriptEntryId] else { return }
 
@@ -497,13 +497,13 @@ extension OpenAIAdapter {
 		}
 	}
 
-	private func handleFunctionCallArgumentsDone<Context>(
+	private func handleFunctionCallArgumentsDone(
 		_ event: Components.Schemas.ResponseFunctionCallArgumentsDoneEvent,
-		functionCallStates: inout [String: StreamingFunctionCallState<Context>],
-		generatedTranscript: inout Transcript<Context>,
+		functionCallStates: inout [String: StreamingFunctionCallState],
+		generatedTranscript: inout Transcript,
 		entryIndices: inout [String: Int],
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) throws where Context: PromptContextSource {
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) throws {
 		guard var state = functionCallStates[event.itemId],
 		      let entryIndex = entryIndices[state.transcriptEntryId] else { return }
 
@@ -524,13 +524,13 @@ extension OpenAIAdapter {
 		}
 	}
 
-	private func executeQueuedToolCalls<Context>(
+	private func executeQueuedToolCalls(
 		inOrder functionCallOrder: [String],
-		functionCallStates: inout [String: StreamingFunctionCallState<Context>],
-		generatedTranscript: inout Transcript<Context>,
+		functionCallStates: inout [String: StreamingFunctionCallState],
+		generatedTranscript: inout Transcript,
 		entryIndices: inout [String: Int],
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) async throws -> Bool where Context: PromptContextSource {
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) async throws -> Bool {
 		var executedAny = false
 
 		for identifier in functionCallOrder {
@@ -554,14 +554,14 @@ extension OpenAIAdapter {
 			do {
 				let argumentsContent = try GeneratedContent(json: state.argumentsBuffer)
 				let output = try await callTool(tool, with: argumentsContent)
-				let toolOutputEntry = Transcript<Context>.ToolOutput(
+				let toolOutputEntry = Transcript.ToolOutput(
 					id: state.callIdentifier,
 					callId: state.callId,
 					toolName: state.toolName,
 					segment: .structure(.init(content: output)),
 					status: state.status,
 				)
-				let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
+				let transcriptEntry = Transcript.Entry.toolOutput(toolOutputEntry)
 				appendEntry(transcriptEntry, to: &generatedTranscript, entryIndices: &entryIndices, continuation: continuation)
 				state.hasInvokedTool = true
 				functionCallStates[identifier] = state
@@ -572,14 +572,14 @@ extension OpenAIAdapter {
 				)
 				executedAny = true
 			} catch let toolRunProblem as ToolRunProblem {
-				let toolOutputEntry = Transcript<Context>.ToolOutput(
+				let toolOutputEntry = Transcript.ToolOutput(
 					id: state.callIdentifier,
 					callId: state.callId,
 					toolName: state.toolName,
 					segment: .structure(.init(content: toolRunProblem.generatedContent)),
 					status: state.status,
 				)
-				let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
+				let transcriptEntry = Transcript.Entry.toolOutput(toolOutputEntry)
 				appendEntry(transcriptEntry, to: &generatedTranscript, entryIndices: &entryIndices, continuation: continuation)
 				state.hasInvokedTool = true
 				functionCallStates[identifier] = state
@@ -598,12 +598,12 @@ extension OpenAIAdapter {
 		return executedAny
 	}
 
-	private func handleReasoningEvent<Context>(
+	private func handleReasoningEvent(
 		_ event: ResponseStreamEvent.ReasoningEvent,
-		generatedTranscript: inout Transcript<Context>,
+		generatedTranscript: inout Transcript,
 		entryIndices: [String: Int],
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) where Context: PromptContextSource {
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	)  {
 		switch event {
 		case .delta:
 			return
@@ -621,11 +621,11 @@ extension OpenAIAdapter {
 	}
 
 	@discardableResult
-	private func appendEntry<Context>(
-		_ entry: Transcript<Context>.Entry,
-		to generatedTranscript: inout Transcript<Context>,
+	private func appendEntry(
+		_ entry: Transcript.Entry,
+		to generatedTranscript: inout Transcript,
 		entryIndices: inout [String: Int],
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
 	) -> Int {
 		generatedTranscript.entries.append(entry)
 		let index = generatedTranscript.entries.count - 1
@@ -635,12 +635,12 @@ extension OpenAIAdapter {
 	}
 
 	@discardableResult
-	private func updateTranscriptEntry<Context>(
+	private func updateTranscriptEntry(
 		at index: Int,
-		in generatedTranscript: inout Transcript<Context>,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-		mutate: (inout Transcript<Context>.Entry) throws -> Void,
-	) rethrows -> Transcript<Context>.Entry {
+		in generatedTranscript: inout Transcript,
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+		mutate: (inout Transcript.Entry) throws -> Void,
+	) rethrows -> Transcript.Entry {
 		var entry = generatedTranscript.entries[index]
 		try mutate(&entry)
 		generatedTranscript.entries[index] = entry
@@ -650,12 +650,12 @@ extension OpenAIAdapter {
 
 	/// Updates the transcript entry to reflect the most recent streaming state, parsing
 	/// structured JSON content as soon as it becomes available.
-	private func updateMessageEntry<Context>(
-		state: inout StreamingMessageState<Context>,
-		generatedTranscript: inout Transcript<Context>,
+	private func updateMessageEntry(
+		state: inout StreamingMessageState,
+		generatedTranscript: inout Transcript,
 		finalizeStructuredContent: Bool,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) throws where Context: PromptContextSource {
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) throws {
 		try updateTranscriptEntry(at: state.entryIndex, in: &generatedTranscript, continuation: continuation) { entry in
 			guard case var .response(response) = entry else { return }
 
@@ -696,14 +696,14 @@ extension OpenAIAdapter {
 
 	/// Applies a mutation to the streaming message state and keeps the backing transcript entry in sync.
 	@discardableResult
-	private func updateMessageState<Context>(
+	private func updateMessageState(
 		for itemId: String,
-		messageStates: inout [String: StreamingMessageState<Context>],
-		generatedTranscript: inout Transcript<Context>,
+		messageStates: inout [String: StreamingMessageState],
+		generatedTranscript: inout Transcript,
 		finalizeStructuredContent: Bool,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-		mutation: (inout StreamingMessageState<Context>) -> Void,
-	) throws -> StreamingMessageState<Context>? where Context: PromptContextSource {
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+		mutation: (inout StreamingMessageState) -> Void,
+	) throws -> StreamingMessageState? {
 		guard var state = messageStates[itemId] else { return nil }
 
 		mutation(&state)
@@ -718,23 +718,23 @@ extension OpenAIAdapter {
 	}
 }
 
-private struct StreamingMessageState<Context: PromptContextSource> {
+private struct StreamingMessageState {
 	var entryIndex: Int
 	var fragments = ContentFragmentBuffer()
 	var structuredContent: GeneratedContent?
 	var refusalText: String?
-	var status: SwiftAgent.Transcript<Context>.Status
+	var status: SwiftAgent.Transcript.Status
 	var isGeneratingString: Bool
 }
 
-private struct StreamingFunctionCallState<Context: PromptContextSource> {
+private struct StreamingFunctionCallState {
 	var entryIndex: Int
 	var callIdentifier: String
 	var toolName: String
 	var callId: String
 	var argumentsBuffer: String
 	var hasInvokedTool: Bool
-	var status: SwiftAgent.Transcript<Context>.Status?
+	var status: SwiftAgent.Transcript.Status?
 	var transcriptEntryId: String
 }
 
@@ -766,45 +766,45 @@ private struct ContentFragmentBuffer {
 	}
 }
 
-private func transcriptStatusForMessage<Context>(
+private func transcriptStatusForMessage(
 	_ status: Components.Schemas.OutputMessage.StatusPayload,
-) -> SwiftAgent.Transcript<Context>.Status where Context: PromptContextSource {
+) -> SwiftAgent.Transcript.Status {
 	switch status {
 	case .completed:
-		SwiftAgent.Transcript<Context>.Status.completed
+		SwiftAgent.Transcript.Status.completed
 	case .incomplete:
-		SwiftAgent.Transcript<Context>.Status.incomplete
+		SwiftAgent.Transcript.Status.incomplete
 	case .inProgress:
-		SwiftAgent.Transcript<Context>.Status.inProgress
+		SwiftAgent.Transcript.Status.inProgress
 	}
 }
 
-private func transcriptStatusForFunctionCall<Context>(
+private func transcriptStatusForFunctionCall(
 	_ status: Components.Schemas.FunctionToolCall.StatusPayload?,
-) -> SwiftAgent.Transcript<Context>.Status? where Context: PromptContextSource {
+) -> SwiftAgent.Transcript.Status? {
 	guard let status else { return nil }
 
 	switch status {
 	case .completed:
-		return SwiftAgent.Transcript<Context>.Status.completed
+		return SwiftAgent.Transcript.Status.completed
 	case .incomplete:
-		return SwiftAgent.Transcript<Context>.Status.incomplete
+		return SwiftAgent.Transcript.Status.incomplete
 	case .inProgress:
-		return SwiftAgent.Transcript<Context>.Status.inProgress
+		return SwiftAgent.Transcript.Status.inProgress
 	}
 }
 
-private func transcriptStatusForReasoning<Context>(
+private func transcriptStatusForReasoning(
 	_ status: Components.Schemas.ReasoningItem.StatusPayload?,
-) -> SwiftAgent.Transcript<Context>.Status? where Context: PromptContextSource {
+) -> SwiftAgent.Transcript.Status? {
 	guard let status else { return nil }
 
 	switch status {
 	case .completed:
-		return SwiftAgent.Transcript<Context>.Status.completed
+		return SwiftAgent.Transcript.Status.completed
 	case .incomplete:
-		return SwiftAgent.Transcript<Context>.Status.incomplete
+		return SwiftAgent.Transcript.Status.incomplete
 	case .inProgress:
-		return SwiftAgent.Transcript<Context>.Status.inProgress
+		return SwiftAgent.Transcript.Status.inProgress
 	}
 }

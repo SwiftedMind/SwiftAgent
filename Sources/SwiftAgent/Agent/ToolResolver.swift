@@ -5,15 +5,6 @@ import FoundationModels
 import Internal
 import OSLog
 
-// MARK: - Tool Resolver
-
-public extension Transcript {
-	/// Creates a tool resolver for type-safe tool call resolution.
-	func toolResolver<ToolGroup>(for toolGroup: ToolGroup) -> ToolResolver<Context, ToolGroup> {
-		ToolResolver(for: toolGroup, in: self)
-	}
-}
-
 /// A type-safe resolver for converting raw tool calls into strongly typed tool runs.
 ///
 /// ``ToolResolver`` bridges the gap between AI model tool calls and your application's
@@ -74,23 +65,23 @@ public extension Transcript {
 ///
 /// By using a shared `ToolRunKind` type across all your tools, the resolver ensures
 /// compile-time safety when handling different tool types in a unified way.
-public struct ToolResolver<Context: PromptContextSource, ToolGroup: TranscriptDecodable> {
+public struct ToolResolver<Resolver: TranscriptResolvable> {
 	/// The tool call type from the associated transcript.
-	public typealias ToolCall = Transcript<Context>.ToolCall
+	public typealias ToolCall = Transcript.ToolCall
 
 	/// Dictionary mapping tool names to their implementations for fast lookup.
-	private let toolsByName: [String: any ToolDecodable<ToolGroup>]
+	private let toolsByName: [String: any ResolvableTool<Resolver>]
 
 	/// All tool outputs extracted from the conversation transcript.
-	private let transcriptToolOutputs: [Transcript<Context>.ToolOutput]
+	private let transcriptToolOutputs: [Transcript.ToolOutput]
 
 	/// Creates a new tool resolver for the given tools and transcript.
 	///
 	/// - Parameters:
 	///   - tools: The tools that can be resolved, all sharing the same `Resolution` type
 	///   - transcript: The conversation transcript containing tool calls and outputs
-	init(for toolGroup: ToolGroup, in transcript: Transcript<Context>) {
-		toolsByName = Dictionary(uniqueKeysWithValues: toolGroup.allTools.map { ($0.name, $0) })
+	init(for decoder: Resolver, in transcript: Transcript) {
+		toolsByName = Dictionary(uniqueKeysWithValues: decoder.allTools.map { ($0.name, $0) })
 		transcriptToolOutputs = transcript.compactMap { entry in
 			switch entry {
 			case let .toolOutput(toolOutput):
@@ -133,7 +124,7 @@ public struct ToolResolver<Context: PromptContextSource, ToolGroup: TranscriptDe
 	/// - Throws: ``AgentToolRunKindError/unknownTool(name:)`` if the tool is not found,
 	///           or conversion/resolution errors from the underlying tool
 	///
-	public func resolve(_ call: ToolCall) throws -> ToolGroup.ResolvedToolRun {
+	public func resolve(_ call: ToolCall) throws -> Resolver.ResolvedToolRun {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
 			AgentLog.error(
@@ -154,7 +145,7 @@ public struct ToolResolver<Context: PromptContextSource, ToolGroup: TranscriptDe
 		}
 	}
 
-	public func resolvePartially(_ call: ToolCall) throws -> ToolGroup.PartiallyResolvedToolRun {
+	public func resolvePartially(_ call: ToolCall) throws -> Resolver.PartiallyResolvedToolRun {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
 			AgentLog.error(

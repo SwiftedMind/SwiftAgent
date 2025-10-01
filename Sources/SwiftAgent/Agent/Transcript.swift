@@ -3,9 +3,7 @@
 import Foundation
 import FoundationModels
 
-// TODO: Remove generic type
-
-public struct Transcript<Context: PromptContextSource>: Sendable, Equatable {
+public struct Transcript: Sendable, Equatable {
 	public var entries: [Entry]
 
 	public init(entries: [Entry] = []) {
@@ -75,18 +73,18 @@ public extension SwiftAgent.Transcript {
 	struct Prompt: Sendable, Identifiable, Equatable {
 		public var id: String
 		public var input: String
-		public var context: PromptContext<Context>
+		public var sources: Data
 		package var embeddedPrompt: String
 
 		package init(
 			id: String = UUID().uuidString,
 			input: String,
-			context: PromptContext<Context> = .empty,
+			sources: Data,
 			embeddedPrompt: String,
 		) {
 			self.id = id
 			self.input = input
-			self.context = context
+			self.sources = sources
 			self.embeddedPrompt = embeddedPrompt
 		}
 	}
@@ -135,7 +133,7 @@ extension Transcript.ToolCalls: RandomAccessCollection, RangeReplaceableCollecti
 	public var startIndex: Int { calls.startIndex }
 	public var endIndex: Int { calls.endIndex }
 
-	public subscript(position: Int) -> Transcript<Context>.ToolCall {
+	public subscript(position: Int) -> Transcript.ToolCall {
 		calls[position]
 	}
 
@@ -154,7 +152,7 @@ extension Transcript.ToolCalls: RandomAccessCollection, RangeReplaceableCollecti
 
 	public mutating func replaceSubrange(
 		_ subrange: Range<Int>,
-		with newElements: some Collection<Transcript<Context>.ToolCall>,
+		with newElements: some Collection<Transcript.ToolCall>,
 	) {
 		calls.replaceSubrange(subrange, with: newElements)
 	}
@@ -283,7 +281,7 @@ private extension Transcript {
 	func prettyPrintedLines(indentedBy indentationLevel: Int) -> [String] {
 		var lines: [String] = []
 		let currentIndentation = transcriptIndentation(for: indentationLevel)
-		lines.append("\(currentIndentation)Transcript<\(String(reflecting: Context.self))> [")
+		lines.append("\(currentIndentation)Transcript [")
 		if entries.isEmpty {
 			let childIndentation = transcriptIndentation(for: indentationLevel + 1)
 			lines.append("\(childIndentation)<empty>")
@@ -320,53 +318,12 @@ private extension Transcript.Prompt {
 		let currentIndentation = transcriptIndentation(for: indentationLevel)
 		lines.append("\(currentIndentation)\(headline)(id: \(id)) {")
 		lines.append(contentsOf: transcriptPrettyField(name: "input", value: input, indentationLevel: indentationLevel + 1))
-		lines.append(contentsOf: promptContextLines(indentedBy: indentationLevel + 1))
 		lines.append(contentsOf: transcriptPrettyField(
 			name: "embeddedPrompt",
 			value: embeddedPrompt,
 			indentationLevel: indentationLevel + 1,
 		))
 		lines.append("\(currentIndentation)}")
-		return lines
-	}
-
-	func promptContextLines(indentedBy indentationLevel: Int) -> [String] {
-		if context.sources.isEmpty, context.linkPreviews.isEmpty {
-			let indentation = transcriptIndentation(for: indentationLevel)
-			return ["\(indentation)context: .empty"]
-		}
-		var lines: [String] = []
-		let contextIndentation = transcriptIndentation(for: indentationLevel)
-		lines.append("\(contextIndentation)context: {")
-		if !context.sources.isEmpty {
-			lines.append(contentsOf: transcriptPrettyCollection(
-				name: "sources",
-				indentationLevel: indentationLevel + 1,
-				elements: context.sources,
-				renderElement: { source, elementIndentationLevel in
-					transcriptPrettyValue(
-						value: String(reflecting: source),
-						indentationLevel: elementIndentationLevel,
-						bullet: "- ",
-					)
-				},
-			))
-		}
-		if !context.linkPreviews.isEmpty {
-			lines.append(contentsOf: transcriptPrettyCollection(
-				name: "linkPreviews",
-				indentationLevel: indentationLevel + 1,
-				elements: context.linkPreviews,
-				renderElement: { preview, elementIndentationLevel in
-					transcriptPrettyValue(
-						value: String(reflecting: preview),
-						indentationLevel: elementIndentationLevel,
-						bullet: "- ",
-					)
-				},
-			))
-		}
-		lines.append("\(contextIndentation)}")
 		return lines
 	}
 }

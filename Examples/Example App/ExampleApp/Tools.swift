@@ -4,11 +4,36 @@ import Foundation
 import FoundationModels
 import SwiftAgent
 
-@TranscriptDecoder
-struct ToolGroup {
-	static let contextSource = ContextSource.self
-	@ToolDecoder var calculator = CalculatorTool()
-	@ToolDecoder var weather = WeatherTool()
+// TODO: Fix the naming of the resolvableTools synthesis: Current: "DecoderCalculatorTool"
+// TODO: Fix the "pass an array of tools without resolver vs. pass a resolver object" problem
+
+@TranscriptResolver
+struct Resolver {
+	@ResolvableTool var calculator = CalculatorTool()
+	@ResolvableTool var weather = WeatherTool()
+
+	// If no Grounding enum is defined, an empty object is generated "enum Grounding: GroundingDecodable {}"
+
+	///	@GroundingDecoder
+	enum Grounding: GroundingDecodable {
+		case vectorSearch(String)
+		case linkPreview(URL)
+	}
+
+	// Only synthesized when enum Grounding is defined
+
+	static func encodeGrounding(_ grounding: [Grounding]) throws -> Data {
+		try JSONEncoder().encode(grounding)
+	}
+
+	static func decodeGrounding(from data: Data) throws -> [Grounding] {
+		try JSONDecoder().decode([Grounding].self, from: data)
+	}
+}
+
+@Generable
+struct VectorSearch {
+	var results: [String] = []
 }
 
 struct CalculatorTool: Tool, SwiftAgentTool {

@@ -34,7 +34,9 @@ public extension ModelSession {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) async throws -> Response<String> {
-    let prompt = Transcript.Prompt(input: prompt, embeddedPrompt: prompt)
+		let sourcesData = try Resolver.encodeGrounding([Resolver.Grounding]())
+		
+		let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, embeddedPrompt: prompt)
     return try await processResponse(from: prompt, generating: String.self, using: model, options: options)
   }
 
@@ -147,7 +149,8 @@ public extension ModelSession {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) async throws -> Response<Content> where Content: Generable {
-    let prompt = Transcript.Prompt(input: prompt, embeddedPrompt: prompt)
+		let sourcesData = try Resolver.encodeGrounding([Resolver.Grounding]())
+		let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, embeddedPrompt: prompt)
     return try await processResponse(from: prompt, generating: type, using: model, options: options)
   }
 
@@ -278,18 +281,17 @@ public extension ModelSession {
   @discardableResult
   func respond(
     to input: String,
-    supplying contextItems: [Context],
     using model: Adapter.Model = .default,
+		groundingWith sources: [Resolver.Grounding],
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ context: PromptContext<Context>) -> Prompt,
+    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [Resolver.Grounding]) -> Prompt,
   ) async throws -> Response<String> {
-    let linkPreviews = await fetchLinkPreviews(from: input)
-    let context = PromptContext(sources: contextItems, linkPreviews: linkPreviews)
-
+		let sourcesData = try Resolver.encodeGrounding(sources)
+		
     let prompt = Transcript.Prompt(
       input: input,
-      context: context,
-      embeddedPrompt: prompt(input, context).formatted(),
+      sources: sourcesData,
+      embeddedPrompt: prompt(input, sources).formatted(),
     )
     return try await processResponse(from: prompt, generating: String.self, using: model, options: options)
   }
@@ -338,19 +340,18 @@ public extension ModelSession {
   @discardableResult
   func respond<Content>(
     to input: String,
-    supplying contextItems: [Context],
     generating type: Content.Type = Content.self,
-    using model: Adapter.Model = .default,
+		using model: Adapter.Model = .default,
+		groundingWith sources: [Resolver.Grounding],
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ context: PromptContext<Context>) -> Prompt,
+    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [Resolver.Grounding]) -> Prompt,
   ) async throws -> Response<Content> where Content: Generable {
-    let linkPreviews = await fetchLinkPreviews(from: input)
-    let context = PromptContext(sources: contextItems, linkPreviews: linkPreviews)
-
+		let sourcesData = try Resolver.encodeGrounding(sources)
+		
     let prompt = Transcript.Prompt(
       input: input,
-      context: context,
-      embeddedPrompt: prompt(input, context).formatted(),
+			sources: sourcesData,
+      embeddedPrompt: prompt(input, sources).formatted(),
     )
     return try await processResponse(from: prompt, generating: type, using: model, options: options)
   }

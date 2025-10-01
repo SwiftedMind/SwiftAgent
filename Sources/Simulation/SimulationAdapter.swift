@@ -10,7 +10,7 @@ import SwiftAgent
 @MainActor
 public struct SimulationAdapter {
 	public typealias Model = SimulationModel
-	public typealias Transcript<Context: PromptContextSource> = SwiftAgent.Transcript<Context>
+	public typealias Transcript = SwiftAgent.Transcript
 
 	public struct Configuration: Sendable {
 		/// The delay between simulated model generations. Defaults to 2 seconds.
@@ -31,13 +31,13 @@ public struct SimulationAdapter {
 		self.configuration = configuration
 	}
 
-	func respond<Content, Context>(
-		to prompt: Transcript<Context>.Prompt,
+	func respond<Content>(
+		to prompt: Transcript.Prompt,
 		generating type: Content.Type,
 		generations: [SimulatedGeneration<Content>],
-	) -> AsyncThrowingStream<AdapterUpdate<Context>, any Error>
-		where Content: MockableGenerable, Context: PromptContextSource {
-		let setup = AsyncThrowingStream<AdapterUpdate<Context>, any Error>.makeStream()
+	) -> AsyncThrowingStream<AdapterUpdate, any Error>
+		where Content: MockableGenerable {
+		let setup = AsyncThrowingStream<AdapterUpdate, any Error>.makeStream()
 
 		// Log the start of a simulated run for visibility
 		AgentLog.start(
@@ -100,11 +100,11 @@ public struct SimulationAdapter {
 		return setup.stream
 	}
 
-	private func handleReasoning<Context>(
+	private func handleReasoning(
 		summary: String,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) async throws where Context: PromptContextSource {
-		let entryData = Transcript<Context>.Reasoning(
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) async throws {
+		let entryData = Transcript.Reasoning(
 			id: UUID().uuidString,
 			summary: [summary],
 			encryptedReasoning: "",
@@ -113,19 +113,19 @@ public struct SimulationAdapter {
 
 		AgentLog.reasoning(summary: [summary])
 
-		let entry = Transcript<Context>.Entry.reasoning(entryData)
+		let entry = Transcript.Entry.reasoning(entryData)
 		continuation.yield(.transcript(entry))
 	}
 
-	private func handleToolRun<Context>(
+	private func handleToolRun(
 		_ toolMock: some MockableAgentTool,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) async throws where Context: PromptContextSource {
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) async throws {
 		let callId = UUID().uuidString
 		let argumentsJSON = try toolMock.mockArguments().jsonString()
 		let arguments = try GeneratedContent(json: argumentsJSON)
 
-		let toolCall = Transcript<Context>.ToolCall(
+		let toolCall = Transcript.ToolCall(
 			id: UUID().uuidString,
 			callId: callId,
 			toolName: toolMock.tool.name,
@@ -139,20 +139,20 @@ public struct SimulationAdapter {
 			argumentsJSON: argumentsJSON,
 		)
 
-		continuation.yield(.transcript(.toolCalls(Transcript<Context>.ToolCalls(calls: [toolCall]))))
+		continuation.yield(.transcript(.toolCalls(Transcript.ToolCalls(calls: [toolCall]))))
 
 		do {
 			let output = try await toolMock.mockOutput()
 
-			let toolOutputEntry = Transcript<Context>.ToolOutput(
+			let toolOutputEntry = Transcript.ToolOutput(
 				id: UUID().uuidString,
 				callId: callId,
 				toolName: toolMock.tool.name,
-				segment: .structure(Transcript<Context>.StructuredSegment(content: output)),
+				segment: .structure(Transcript.StructuredSegment(content: output)),
 				status: .completed,
 			)
 
-			let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
+			let transcriptEntry = Transcript.Entry.toolOutput(toolOutputEntry)
 
 			// Try to log as JSON if possible
 			AgentLog.toolOutput(
@@ -163,15 +163,15 @@ public struct SimulationAdapter {
 
 			continuation.yield(.transcript(transcriptEntry))
 		} catch let toolRunProblem as ToolRunProblem {
-			let toolOutputEntry = Transcript<Context>.ToolOutput(
+			let toolOutputEntry = Transcript.ToolOutput(
 				id: UUID().uuidString,
 				callId: callId,
 				toolName: toolMock.tool.name,
-				segment: .structure(Transcript<Context>.StructuredSegment(content: toolRunProblem.generatedContent)),
+				segment: .structure(Transcript.StructuredSegment(content: toolRunProblem.generatedContent)),
 				status: .completed,
 			)
 
-			let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
+			let transcriptEntry = Transcript.Entry.toolOutput(toolOutputEntry)
 
 			AgentLog.toolOutput(
 				name: toolMock.tool.name,
@@ -186,13 +186,13 @@ public struct SimulationAdapter {
 		}
 	}
 
-	private func handleStringResponse<Context>(
+	private func handleStringResponse(
 		_ content: String,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) async throws where Context: PromptContextSource {
-		let response = Transcript<Context>.Response(
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) async throws {
+		let response = Transcript.Response(
 			id: UUID().uuidString,
-			segments: [.text(Transcript<Context>.TextSegment(content: content))],
+			segments: [.text(Transcript.TextSegment(content: content))],
 			status: .completed,
 		)
 
@@ -200,15 +200,15 @@ public struct SimulationAdapter {
 		continuation.yield(.transcript(.response(response)))
 	}
 
-	private func handleStructuredResponse<Context>(
+	private func handleStructuredResponse(
 		_ content: some MockableGenerable,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) async throws where Context: PromptContextSource {
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) async throws {
 		let generatedContent = GeneratedContent(content)
 
-		let response = Transcript<Context>.Response(
+		let response = Transcript.Response(
 			id: UUID().uuidString,
-			segments: [.structure(Transcript<Context>.StructuredSegment(content: content))],
+			segments: [.structure(Transcript.StructuredSegment(content: content))],
 			status: .completed,
 		)
 

@@ -10,8 +10,8 @@ import SwiftSyntaxMacros
 struct SwiftAgentMacroPlugin: CompilerPlugin {
 	let providingMacros: [Macro.Type] = [
 		ToolsMacro.self,
-		ToolDecoderMacro.self,
-		TranscriptDecoderMacro.self,
+		ResolvableToolMacro.self,
+		TranscriptResolverMacro.self,
 	]
 }
 
@@ -201,8 +201,8 @@ private func makeToolsEnum(
 	let accessModifier = accessLevel.keyword
 	lines.appendMultilineString(
 		"""
-		\(accessModifier) enum \(enumName): TranscriptDecodable {
-		  static let all: [any ToolDecodable<\(enumName)>] = [
+		\(accessModifier) enum \(enumName): TranscriptResolvable {
+		  static let all: [any ResolvableTool<\(enumName)>] = [
 		""",
 	)
 
@@ -241,7 +241,7 @@ private func makeToolsEnum(
 		lines.appendMultilineString(
 			"""
 
-			  \(accessModifier) struct \(definition.wrapperName): ToolDecodable {
+			  \(accessModifier) struct \(definition.wrapperName): ResolvableTool {
 			    \(accessModifier) typealias BaseTool = \(definition.baseTypeDescription)
 			    \(accessModifier) typealias Arguments = BaseTool.Arguments
 			    \(accessModifier) typealias Output = BaseTool.Output

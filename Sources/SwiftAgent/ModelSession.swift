@@ -69,17 +69,17 @@ import Internal
 ///
 /// - Note: ModelSession is `@MainActor` isolated and `@Observable` for SwiftUI integration.
 @Observable @MainActor
-public final class ModelSession<Adapter: SwiftAgent.Adapter & SendableMetatype, Context: PromptContextSource> {
+public final class ModelSession<Adapter: SwiftAgent.Adapter & SendableMetatype, Resolver: TranscriptResolvable> {
 	/// The transcript type for this session, containing the conversation history.
-	public typealias Transcript = SwiftAgent.Transcript<Context>
+	public typealias Transcript = SwiftAgent.Transcript
 
 	/// The context type for this session, containing additional prompt context.
-	public typealias Context = PromptContext<Context>
+	public typealias Grounding = Resolver.Grounding
 
 	/// The response type for this session, containing generated content and metadata.
-	public typealias Response<Content: Generable> = AgentResponse<Adapter, Context, Content>
+	public typealias Response<Content: Generable> = AgentResponse<Content>
 
-	public typealias Snapshot<Content: Generable> = AgentSnapshot<Adapter, Context, Content>
+	public typealias Snapshot<Content: Generable> = AgentSnapshot< Content>
 
 	/// The adapter instance that handles communication with the AI provider.
 	package let adapter: Adapter
@@ -89,6 +89,8 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter & SendableMetatype, 
 	/// The transcript maintains the complete history of interactions and can be used
 	/// to access previous responses, analyze tool usage, or continue conversations.
 	public var transcript: Transcript
+	
+	public var resolver: Resolver
 
 	/// Cumulative token usage across all responses in this session.
 	///
@@ -106,9 +108,10 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter & SendableMetatype, 
 	///
 	/// - Note: This is a package-internal initializer. Use the public factory methods like
 	///   `ModelSession.openAI(tools:instructions:apiKey:)` to create sessions.
-	package init(adapter: Adapter) {
+	package init(adapter: Adapter, resolver: Resolver) {
 		transcript = Transcript()
 		self.adapter = adapter
+		self.resolver = resolver
 	}
 
 	// MARK: - Private Response Helpers
@@ -155,7 +158,7 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter & SendableMetatype, 
 								// We can return here since a structured response can only happen once
 								// TODO: Handle errors here in some way
 
-								return try AgentResponse<Adapter, Context, Content>(
+								return try AgentResponse<Content>(
 									content: Content(structuredSegment.content),
 									transcript: generatedTranscript,
 									tokenUsage: generatedUsage,
@@ -192,7 +195,7 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter & SendableMetatype, 
 				}
 				.flatMap(\.self)
 
-			return AgentResponse<Adapter, Context, Content>(
+			return AgentResponse<Content>(
 				content: finalResponseSegments.joined(separator: "\n") as! Content,
 				transcript: generatedTranscript,
 				tokenUsage: generatedUsage,
@@ -250,30 +253,6 @@ public final class ModelSession<Adapter: SwiftAgent.Adapter & SendableMetatype, 
 		}
 
 		return setup.stream
-	}
-
-	/// Fetches metadata for URLs found in the input text to create link previews.
-	///
-	/// This method extracts URLs from the input string and fetches their metadata
-	/// (title, description, etc.) to provide rich context in prompts. Link previews
-	/// are automatically included in context-aware responses.
-	///
-	/// - Parameter input: The text to scan for URLs.
-	///
-	/// - Returns: An array of ``PromptContextLinkPreview`` objects containing metadata
-	///   for discovered URLs. Returns empty array if no URLs are found.
-	package func fetchLinkPreviews(from input: String) async -> [PromptContextLinkPreview] {
-		let urls = URLMetadataProvider.extractURLs(from: input)
-		guard !urls.isEmpty else { return [] }
-
-		let metadataList = await metadataProvider.fetchMetadata(for: urls)
-		return metadataList.map { metadata in
-			PromptContextLinkPreview(
-				originalURL: metadata.originalURL,
-				url: metadata.url,
-				title: metadata.title,
-			)
-		}
 	}
 }
 
@@ -373,5 +352,14 @@ public extension ModelSession {
 	///   Individual response token usage is not affected.
 	func resetTokenUsage() {
 		tokenUsage = TokenUsage()
+	}
+	
+	// TODO: Does this need an instance, or is type enough?
+	// TODO: Instance is needed because the tools are initialized!
+	// TODO: So I need a default Decoder that does nothing
+	// TODO: Decoder to Coder?
+	// TODO: "Resolve" to "decode"
+	func toolResolver() -> ToolResolver<Resolver> {
+		ToolResolver(for: resolver, in: transcript)
 	}
 }

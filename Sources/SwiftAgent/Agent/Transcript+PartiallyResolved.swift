@@ -4,20 +4,20 @@ import Foundation
 import FoundationModels
 
 public extension Transcript {
-	func partiallyResolved<ToolGroup: TranscriptDecodable>(
-		using toolGroup: ToolGroup,
-	) throws -> PartiallyResolved<ToolGroup>? {
+	func partiallyResolved<Resolver: TranscriptResolvable>(
+		using toolGroup: Resolver,
+	) throws -> PartiallyResolved<Resolver>? {
 		try PartiallyResolved(transcript: self, toolGroup: toolGroup)
 	}
 
 	/// An immutable **projection** of a transcript with tool runs resolved.
 	///
 	/// You can obtain instances via ``Transcript/resolved(using:)``.
-	struct PartiallyResolved<ToolGroup: TranscriptDecodable>: Equatable {
+	struct PartiallyResolved<Resolver: TranscriptResolvable>: Equatable {
 		/// All transcript entries with resolved tool runs attached where available.
 		public package(set) var entries: [Entry]
 
-		init(transcript: Transcript<Context>, toolGroup: ToolGroup) throws {
+		init(transcript: Transcript, toolGroup: Resolver) throws {
 			let resolver = ToolResolver(for: toolGroup, in: transcript)
 			entries = []
 
@@ -43,10 +43,10 @@ public extension Transcript {
 
 		/// Transcript entry augmented with resolved tool runs.
 		public enum Entry: Identifiable, Equatable {
-			case prompt(Transcript<Context>.Prompt)
-			case reasoning(Transcript<Context>.Reasoning)
+			case prompt(Transcript.Prompt)
+			case reasoning(Transcript.Reasoning)
 			case toolRun(ToolRunKind)
-			case response(Transcript<Context>.Response)
+			case response(Transcript.Response)
 
 			public var id: String {
 				switch self {
@@ -64,18 +64,18 @@ public extension Transcript {
 
 		/// A resolved tool run.
 		public struct ToolRunKind: Identifiable, Equatable {
-			private let call: Transcript<Context>.ToolCall
+			private let call: Transcript.ToolCall
 
 			/// The identifier of this run.
 			public var id: String { call.id }
 
 			/// The tool resolution.
-			public let resolution: ToolGroup.PartiallyResolvedToolRun
+			public let resolution: Resolver.PartiallyResolvedToolRun
 
 			/// The tool name captured within the original call, convenient for switching logic.
 			public var toolName: String { call.toolName }
 
-			init(call: Transcript<Context>.ToolCall, resolution: ToolGroup.PartiallyResolvedToolRun) {
+			init(call: Transcript.ToolCall, resolution: Resolver.PartiallyResolvedToolRun) {
 				self.call = call
 				self.resolution = resolution
 			}

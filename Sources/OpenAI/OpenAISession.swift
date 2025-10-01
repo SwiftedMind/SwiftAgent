@@ -24,7 +24,7 @@ import FoundationModels
 ///   apiKey: "your-api-key"
 /// )
 /// ```
-public typealias OpenAIContextualSession<Context: PromptContextSource> = ModelSession<OpenAIAdapter, Context>
+public typealias OpenAIContextualSession<Resolver: TranscriptResolvable> = ModelSession<OpenAIAdapter, Resolver>
 
 /// A convenience type alias for creating simple OpenAI-powered ModelSession instances without context.
 ///
@@ -39,7 +39,7 @@ public typealias OpenAIContextualSession<Context: PromptContextSource> = ModelSe
 ///   apiKey: "your-api-key"
 /// )
 /// ```
-public typealias OpenAISession = OpenAIContextualSession<NoContext>
+public typealias OpenAISession = OpenAIContextualSession<DefaultTranscriptResolver>
 
 public extension ModelSession {
 	// MARK: - NoContext Initializers
@@ -67,10 +67,10 @@ public extension ModelSession {
 		tools: [any SwiftAgentTool] = [],
 		instructions: String = "",
 		apiKey: String
-	) -> OpenAISession where Adapter == OpenAIAdapter, Context == NoContext {
+	) -> OpenAISession where Adapter == OpenAIAdapter, Resolver == DefaultTranscriptResolver {
 		let configuration = OpenAIConfiguration.direct(apiKey: apiKey)
 		let adapter = OpenAIAdapter(tools: tools, instructions: instructions, configuration: configuration)
-		return OpenAISession(adapter: adapter)
+		return OpenAISession(adapter: adapter, resolver: DefaultTranscriptResolver())
 	}
 
 	/// Creates a simple OpenAI-powered ModelSession without context using a custom configuration.
@@ -98,9 +98,9 @@ public extension ModelSession {
 		tools: [any SwiftAgentTool] = [],
 		instructions: String = "",
 		configuration: OpenAIConfiguration,
-	) -> OpenAISession where Adapter == OpenAIAdapter, Context == NoContext {
+	) -> OpenAISession where Adapter == OpenAIAdapter, Resolver == DefaultTranscriptResolver {
 		let adapter = OpenAIAdapter(tools: tools, instructions: instructions, configuration: configuration)
-		return OpenAISession(adapter: adapter)
+		return OpenAISession(adapter: adapter, resolver: DefaultTranscriptResolver())
 	}
 
 	// MARK: - Context Initializers
@@ -138,11 +138,11 @@ public extension ModelSession {
 	@MainActor static func openAI(
 		tools: [any SwiftAgentTool] = [],
 		instructions: String = "",
-		context: Context.Type,
+		resolver: DefaultTranscriptResolver.Type,
 		configuration: OpenAIConfiguration,
-	) -> OpenAIContextualSession<Context> where Adapter == OpenAIAdapter {
+	) -> OpenAIContextualSession<DefaultTranscriptResolver> where Adapter == OpenAIAdapter {
 		let adapter = OpenAIAdapter(tools: tools, instructions: instructions, configuration: configuration)
-		return OpenAIContextualSession(adapter: adapter)
+		return OpenAIContextualSession(adapter: adapter, resolver: DefaultTranscriptResolver())
 	}
 
 	/// Creates a contextual OpenAI-powered ModelSession using an API key.
@@ -178,11 +178,11 @@ public extension ModelSession {
 	@MainActor static func openAI(
 		tools: [any SwiftAgentTool] = [],
 		instructions: String = "",
-		context: Context.Type,
+		context: DefaultTranscriptResolver.Type,
 		apiKey: String,
-	) -> OpenAIContextualSession<Context> where Adapter == OpenAIAdapter {
+	) -> OpenAIContextualSession<DefaultTranscriptResolver> where Adapter == OpenAIAdapter {
 		let configuration = OpenAIConfiguration.direct(apiKey: apiKey)
 		let adapter = OpenAIAdapter(tools: tools, instructions: instructions, configuration: configuration)
-		return OpenAIContextualSession(adapter: adapter)
+		return OpenAIContextualSession(adapter: adapter, resolver: DefaultTranscriptResolver())
 	}
 }

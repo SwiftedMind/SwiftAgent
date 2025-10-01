@@ -13,7 +13,7 @@ public final class OpenAIAdapter: Adapter {
 	@Dependency(\.uuid) var uuid
 
 	public typealias Model = OpenAIModel
-	public typealias Transcript<Context: PromptContextSource> = SwiftAgent.Transcript<Context>
+	public typealias Transcript = SwiftAgent.Transcript
 	public typealias ConfigurationError = OpenAIGenerationOptionsError
 
 	var tools: [any SwiftAgentTool]
@@ -31,14 +31,14 @@ public final class OpenAIAdapter: Adapter {
 		httpClient = configuration.httpClient
 	}
 
-	public func respond<Context>(
-		to prompt: Transcript<Context>.Prompt,
+	public func respond(
+		to prompt: Transcript.Prompt,
 		generating type: (some Generable).Type,
 		using model: Model = .default,
-		including transcript: Transcript<Context>,
+		including transcript: Transcript,
 		options: OpenAIGenerationOptions,
-	) -> AsyncThrowingStream<AdapterUpdate<Context>, any Error> where Context: PromptContextSource {
-		let setup = AsyncThrowingStream<AdapterUpdate<Context>, any Error>.makeStream()
+	) -> AsyncThrowingStream<AdapterUpdate, any Error> {
+		let setup = AsyncThrowingStream<AdapterUpdate, any Error>.makeStream()
 
 		// Log start of an agent run
 		AgentLog.start(
@@ -81,14 +81,14 @@ public final class OpenAIAdapter: Adapter {
 		return setup.stream
 	}
 
-	private func run<Context>(
-		transcript: Transcript<Context>,
+	private func run(
+		transcript: Transcript,
 		generating type: (some Generable).Type,
 		using model: Model = .default,
 		options: OpenAIGenerationOptions,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) async throws where Context: PromptContextSource {
-		var generatedTranscript = Transcript<Context>()
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) async throws {
+		var generatedTranscript = Transcript()
 		let allowedSteps = 20
 		var currentStep = 0
 
@@ -97,7 +97,7 @@ public final class OpenAIAdapter: Adapter {
 			AgentLog.stepRequest(step: currentStep)
 
 			let request = try responseQuery(
-				including: Transcript<Context>(entries: transcript.entries + generatedTranscript.entries),
+				including: Transcript(entries: transcript.entries + generatedTranscript.entries),
 				generating: type,
 				using: model,
 				options: options,
@@ -157,12 +157,12 @@ public final class OpenAIAdapter: Adapter {
 		}
 	}
 
-	private func handleOutput<Context>(
+	private func handleOutput(
 		_ output: OutputItem,
 		type: (some Generable).Type,
-		generatedTranscript: inout Transcript<Context>,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) async throws where Context: PromptContextSource {
+		generatedTranscript: inout Transcript,
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) async throws {
 		switch output {
 		case let .outputMessage(message):
 			try await handleMessage(
@@ -188,15 +188,15 @@ public final class OpenAIAdapter: Adapter {
 		}
 	}
 
-	private func handleMessage<Context>(
+	private func handleMessage(
 		_ message: Components.Schemas.OutputMessage,
 		type: (some Generable).Type,
-		generatedTranscript: inout Transcript<Context>,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) async throws where Context: PromptContextSource {
+		generatedTranscript: inout Transcript,
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) async throws {
 		let isString = (type == String.self)
 		let expectedTypeName = String(describing: type)
-		let status: Transcript<Context>.Status = transcriptStatusFromOpenAIStatus(message.status)
+		let status: Transcript.Status = transcriptStatusFromOpenAIStatus(message.status)
 
 		var fragments: [String] = []
 		var refusalMessage: String?
@@ -211,10 +211,10 @@ public final class OpenAIAdapter: Adapter {
 		}
 
 		if let refusalMessage {
-			let refusalSegments: [Transcript<Context>.Segment] = [
+			let refusalSegments: [Transcript.Segment] = [
 				.text(.init(content: refusalMessage)),
 			]
-			let refusalResponse = Transcript<Context>.Response(
+			let refusalResponse = Transcript.Response(
 				id: message.id,
 				segments: refusalSegments,
 				status: status,
@@ -231,13 +231,13 @@ public final class OpenAIAdapter: Adapter {
 			throw GenerationError.emptyMessageContent(.init(expectedType: expectedTypeName))
 		}
 
-		let response: Transcript<Context>.Response
+		let response: Transcript.Response
 
 		if isString {
 			let joinedText = fragments.joined(separator: "\n")
 			AgentLog.outputMessage(text: joinedText, status: String(describing: message.status))
 
-			response = Transcript<Context>.Response(
+			response = Transcript.Response(
 				id: message.id,
 				segments: fragments.map { .text(.init(content: $0)) },
 				status: status,
@@ -248,7 +248,7 @@ public final class OpenAIAdapter: Adapter {
 				let generatedContent = try GeneratedContent(json: combinedJSON)
 				AgentLog.outputStructured(json: combinedJSON, status: String(describing: message.status))
 
-				response = Transcript<Context>.Response(
+				response = Transcript.Response(
 					id: message.id,
 					segments: [.structure(.init(content: generatedContent))],
 					status: status,
@@ -265,14 +265,14 @@ public final class OpenAIAdapter: Adapter {
 		continuation.yield(.transcript(.response(response)))
 	}
 
-	private func handleFunctionCall<Context>(
+	private func handleFunctionCall(
 		_ functionCall: Components.Schemas.FunctionToolCall,
-		generatedTranscript: inout Transcript<Context>,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) async throws where Context: PromptContextSource {
+		generatedTranscript: inout Transcript,
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) async throws {
 		let generatedContent = try GeneratedContent(json: functionCall.arguments)
 
-		let toolCall = Transcript<Context>.ToolCall(
+		let toolCall = Transcript.ToolCall(
 			id: functionCall.id ?? uuid().uuidString,
 			callId: functionCall.callId,
 			toolName: functionCall.name,
@@ -286,8 +286,8 @@ public final class OpenAIAdapter: Adapter {
 			argumentsJSON: functionCall.arguments,
 		)
 
-		generatedTranscript.entries.append(.toolCalls(Transcript<Context>.ToolCalls(calls: [toolCall])))
-		continuation.yield(.transcript(.toolCalls(Transcript<Context>.ToolCalls(calls: [toolCall]))))
+		generatedTranscript.entries.append(.toolCalls(Transcript.ToolCalls(calls: [toolCall])))
+		continuation.yield(.transcript(.toolCalls(Transcript.ToolCalls(calls: [toolCall]))))
 
 		guard let tool = tools.first(where: { $0.name == functionCall.name }) else {
 			AgentLog.error(
@@ -301,15 +301,15 @@ public final class OpenAIAdapter: Adapter {
 		do {
 			let output = try await callTool(tool, with: generatedContent)
 
-			let toolOutputEntry = Transcript<Context>.ToolOutput(
+			let toolOutputEntry = Transcript.ToolOutput(
 				id: functionCall.id ?? UUID().uuidString,
 				callId: functionCall.callId,
 				toolName: functionCall.name,
-				segment: .structure(Transcript<Context>.StructuredSegment(content: output)),
+				segment: .structure(Transcript.StructuredSegment(content: output)),
 				status: transcriptStatusFromOpenAIStatus(functionCall.status),
 			)
 
-			let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
+			let transcriptEntry = Transcript.Entry.toolOutput(toolOutputEntry)
 
 			// Try to log as JSON if possible
 			AgentLog.toolOutput(
@@ -321,15 +321,15 @@ public final class OpenAIAdapter: Adapter {
 			generatedTranscript.entries.append(transcriptEntry)
 			continuation.yield(.transcript(transcriptEntry))
 		} catch let toolRunProblem as ToolRunProblem {
-			let toolOutputEntry = Transcript<Context>.ToolOutput(
+			let toolOutputEntry = Transcript.ToolOutput(
 				id: functionCall.id ?? uuid().uuidString,
 				callId: functionCall.callId,
 				toolName: functionCall.name,
-				segment: .structure(Transcript<Context>.StructuredSegment(content: toolRunProblem.generatedContent)),
+				segment: .structure(Transcript.StructuredSegment(content: toolRunProblem.generatedContent)),
 				status: transcriptStatusFromOpenAIStatus(functionCall.status),
 			)
 
-			let transcriptEntry = Transcript<Context>.Entry.toolOutput(toolOutputEntry)
+			let transcriptEntry = Transcript.Entry.toolOutput(toolOutputEntry)
 
 			AgentLog.toolOutput(
 				name: tool.name,
@@ -345,16 +345,16 @@ public final class OpenAIAdapter: Adapter {
 		}
 	}
 
-	private func handleReasoning<Context>(
+	private func handleReasoning(
 		_ reasoning: Components.Schemas.ReasoningItem,
-		generatedTranscript: inout Transcript<Context>,
-		continuation: AsyncThrowingStream<AdapterUpdate<Context>, any Error>.Continuation,
-	) async throws where Context: PromptContextSource {
+		generatedTranscript: inout Transcript,
+		continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
+	) async throws {
 		let summary = reasoning.summary.map { summary in
 			summary.text
 		}
 
-		let entryData = Transcript<Context>.Reasoning(
+		let entryData = Transcript.Reasoning(
 			id: reasoning.id,
 			summary: summary,
 			encryptedReasoning: reasoning.encryptedContent,
@@ -363,7 +363,7 @@ public final class OpenAIAdapter: Adapter {
 
 		AgentLog.reasoning(summary: summary)
 
-		let entry = Transcript<Context>.Entry.reasoning(entryData)
+		let entry = Transcript.Entry.reasoning(entryData)
 		generatedTranscript.entries.append(entry)
 		continuation.yield(.transcript(entry))
 	}
@@ -377,7 +377,7 @@ public final class OpenAIAdapter: Adapter {
 	}
 
 	func responseQuery(
-		including transcript: Transcript<some PromptContextSource>,
+		including transcript: Transcript,
 		generating type: (some Generable).Type,
 		using model: Model,
 		options: OpenAIGenerationOptions,
@@ -434,9 +434,9 @@ public final class OpenAIAdapter: Adapter {
 
 	// MARK: - Helpers
 
-	private func transcriptStatusFromOpenAIStatus<Context>(
+	private func transcriptStatusFromOpenAIStatus(
 		_ status: Components.Schemas.OutputMessage.StatusPayload,
-	) -> Transcript<Context>.Status where Context: PromptContextSource {
+	) -> Transcript.Status {
 		switch status {
 		case .completed: .completed
 		case .incomplete: .incomplete
@@ -444,9 +444,9 @@ public final class OpenAIAdapter: Adapter {
 		}
 	}
 
-	private func transcriptStatusFromOpenAIStatus<Context>(
+	private func transcriptStatusFromOpenAIStatus(
 		_ status: Components.Schemas.FunctionToolCall.StatusPayload?,
-	) -> Transcript<Context>.Status? where Context: PromptContextSource {
+	) -> Transcript.Status? {
 		guard let status else {
 			return nil
 		}
@@ -458,9 +458,9 @@ public final class OpenAIAdapter: Adapter {
 		}
 	}
 
-	private func transcriptStatusFromOpenAIStatus<Context>(
+	private func transcriptStatusFromOpenAIStatus(
 		_ status: Components.Schemas.ReasoningItem.StatusPayload?,
-	) -> Transcript<Context>.Status? where Context: PromptContextSource {
+	) -> Transcript.Status? {
 		guard let status else {
 			return nil
 		}
@@ -473,7 +473,7 @@ public final class OpenAIAdapter: Adapter {
 	}
 
 	private func transcriptStatusToMessageStatus(
-		_ status: Transcript<some PromptContextSource>.Status,
+		_ status: Transcript.Status,
 	) -> Components.Schemas.OutputMessage.StatusPayload {
 		switch status {
 		case .completed: .completed
@@ -483,7 +483,7 @@ public final class OpenAIAdapter: Adapter {
 	}
 
 	private func transcriptStatusToFunctionCallStatus(
-		_ status: Transcript<some PromptContextSource>.Status?,
+		_ status: Transcript.Status?,
 	) -> Components.Schemas.FunctionToolCall.StatusPayload? {
 		guard let status else {
 			return nil
@@ -497,7 +497,7 @@ public final class OpenAIAdapter: Adapter {
 	}
 
 	private func transcriptStatusToFunctionCallOutputStatus(
-		_ status: Transcript<some PromptContextSource>.Status?,
+		_ status: Transcript.Status?,
 	) -> Components.Schemas.FunctionCallOutputItemParam.StatusPayload? {
 		guard let status else {
 			return nil
@@ -511,7 +511,7 @@ public final class OpenAIAdapter: Adapter {
 	}
 
 	private func transcriptStatusToReasoningStatus(
-		_ status: Transcript<some PromptContextSource>.Status?,
+		_ status: Transcript.Status?,
 	) -> Components.Schemas.ReasoningItem.StatusPayload? {
 		guard let status else {
 			return nil
@@ -524,7 +524,7 @@ public final class OpenAIAdapter: Adapter {
 		}
 	}
 
-	func transcriptToListItems(_ transcript: Transcript<some PromptContextSource>) -> [InputItem] {
+	func transcriptToListItems(_ transcript: Transcript) -> [InputItem] {
 		var listItems: [InputItem] = []
 
 		for entry in transcript {

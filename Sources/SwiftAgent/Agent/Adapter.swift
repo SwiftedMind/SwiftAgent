@@ -13,21 +13,21 @@ public protocol Adapter {
 
 	init(tools: [any SwiftAgentTool], instructions: String, configuration: Configuration)
 
-	func respond<Context>(
-		to prompt: Transcript<Context>.Prompt,
+	func respond(
+		to prompt: Transcript.Prompt,
 		generating type: (some Generable).Type,
 		using model: Model,
-		including transcript: Transcript<Context>,
+		including transcript: Transcript,
 		options: GenerationOptions,
-	) -> AsyncThrowingStream<AdapterUpdate<Context>, any Error> where Context: PromptContextSource
+	) -> AsyncThrowingStream<AdapterUpdate, any Error>
 
-	func streamResponse<Context>(
-		to prompt: Transcript<Context>.Prompt,
+	func streamResponse(
+		to prompt: Transcript.Prompt,
 		generating type: (some Generable).Type,
 		using model: Model,
-		including transcript: Transcript<Context>,
+		including transcript: Transcript,
 		options: GenerationOptions,
-	) -> AsyncThrowingStream<AdapterUpdate<Context>, any Error> where Context: PromptContextSource
+	) -> AsyncThrowingStream<AdapterUpdate, any Error>
 }
 
 // MARK: - GenerationOptions
