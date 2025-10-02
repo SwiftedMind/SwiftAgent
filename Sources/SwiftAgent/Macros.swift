@@ -1,62 +1,36 @@
 // By Dennis Müller
 
-/// Marks a property as a resolvable tool within a `@SwiftAgentSession`.
+/// Synthesizes a complete `LanguageModelProvider` implementation, including tool wrappers and
+/// support infrastructure for interacting with Foundation Models.
 ///
-/// This attribute is used in conjunction with `@SwiftAgentSession` to identify which properties
-/// should be wrapped as resolvable tools. Generates a wrapper type prefixed with "Resolvable".
-///
-/// Properties marked with `@ResolvableTool` must:
-/// - Be declared with `let` (not `var`)
-/// - Have an explicit type annotation
-/// - Conform to the `Tool` protocol
-///
-/// Example:
-/// ```swift
-/// @SwiftAgentSession(provider: .openAI)
-/// final class MySession {
-///   @ResolvableTool let calculator: CalculatorTool
-///   @ResolvableTool let weather: WeatherTool = WeatherTool()
-/// }
-/// ```
-@attached(peer, names: arbitrary)
-public macro ResolvableTool() = #externalMacro(
-	module: "SwiftAgentMacros",
-	type: "ResolvableToolMacro",
-)
-
-/// Synthesizes a complete LanguageModelProvider implementation with automatic wrapper generation.
-///
-/// This macro transforms a class with `@ResolvableTool` properties into a complete
-/// `LanguageModelProvider` implementation, including:
-/// - Protocol conformance to `LanguageModelProvider`
-/// - Type aliases for `Adapter` and `SessionType`
-/// - Required properties (`adapter`, `transcript`, `tokenUsage`, `tools`)
-/// - Initializers for both direct API key and configuration-based setup
-/// - `ResolvedToolRun` and `PartiallyResolvedToolRun` enums
-/// - Nested wrapper types for each tool
+/// Applying this macro to a class performs the following:
+/// - Generates the nested `@Tool` property wrapper used to mark stored tool properties.
+/// - Adds type aliases, storage, and initializers required by `LanguageModelProvider`.
+/// - Synthesizes `ResolvedToolRun` and `PartiallyResolvedToolRun` enums.
+/// - Emits resolver wrapper types (`Resolvable<Name>Tool`) for each `@Tool` property.
 ///
 /// Example:
 /// ```swift
-/// @SwiftAgentSession(provider: .openAI) @Observable
+/// @LanguageModelProvider(for: .openAI)
 /// final class MySession {
-///   @ResolvableTool let calculator: CalculatorTool
-///   @ResolvableTool let weather: WeatherTool
+///   @Tool var calculator: CalculatorTool
+///   @Tool var weather = WeatherTool()
 /// }
 /// ```
 ///
-/// The macro generates two initializers:
-/// 1. `init(calculator:weather:instructions:apiKey:)` - Direct API key setup
-/// 2. `init(calculator:weather:instructions:configuration:)` - Configuration-based setup
+/// Two convenience initializers are generated:
+/// 1. `init(calculator:weather:instructions:apiKey:)`
+/// 2. `init(calculator:weather:instructions:configuration:)`
 ///
-/// Tools with default values (e.g., `= WeatherTool()`) don't require initialization parameters.
+/// Tool parameters are omitted automatically when the corresponding properties have default values.
 @attached(member, names: arbitrary)
 @attached(extension, conformances: LanguageModelProvider)
-public macro SwiftAgentSession(provider: Provider) = #externalMacro(
+public macro LanguageModelProvider(for provider: Provider) = #externalMacro(
 	module: "SwiftAgentMacros",
-	type: "SwiftAgentSessionMacro",
+	type: "LanguageModelProviderMacro",
 )
 
-/// Provider types supported by `@SwiftAgentSession`
+/// Provider types supported by `@LanguageModelProvider`.
 public enum Provider {
 	case openAI
 }

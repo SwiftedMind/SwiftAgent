@@ -6,7 +6,7 @@ import Foundation
 
 enum MacroError: Error, CustomStringConvertible {
 	case notAProperty
-	case mustBeLet
+	case mustBeVar
 	case noBinding
 	case invalidPattern
 	case missingTypeAnnotation
@@ -14,27 +14,33 @@ enum MacroError: Error, CustomStringConvertible {
 	case onlyApplicableToClass
 	case missingProvider
 	case invalidProvider
+	case missingGroundingType
+	case invalidGroundingAttribute
 
 	var description: String {
 		switch self {
 		case .notAProperty:
-			"@ResolvableTool can only be applied to properties"
-		case .mustBeLet:
-			"@ResolvableTool properties must be declared with 'let'"
+			"@Tool can only be applied to stored properties"
+		case .mustBeVar:
+			"Macro-managed properties must be declared with 'var'"
 		case .noBinding:
 			"Property has no binding"
 		case .invalidPattern:
-			"Property pattern must be a simple identifier"
+			"Macro-managed properties must use a simple identifier pattern"
 		case .missingTypeAnnotation:
-			"@ResolvableTool properties must have explicit type annotations"
+			"@Tool properties must have explicit type annotations"
 		case .cannotInferType:
-			"@ResolvableTool cannot infer type from initializer. Provide an explicit type annotation or use a simple initializer like 'Type()'"
+			"@Tool cannot infer type from this initializer. Provide an explicit type annotation or use a simple initializer like 'Type()'"
 		case .onlyApplicableToClass:
-			"@SwiftAgentSession can only be applied to a class"
+			"@LanguageModelProvider can only be applied to a class"
 		case .missingProvider:
-			"@SwiftAgentSession requires a 'provider' argument"
+			"@LanguageModelProvider requires a 'for' argument"
 		case .invalidProvider:
 			"Invalid provider. Valid providers: .openAI"
+		case .missingGroundingType:
+			"@Grounding requires a type argument like 'Type.self'"
+		case .invalidGroundingAttribute:
+			"Invalid @Grounding attribute configuration"
 		}
 	}
 }

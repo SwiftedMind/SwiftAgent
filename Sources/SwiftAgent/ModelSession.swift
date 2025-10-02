@@ -4,9 +4,11 @@ import Foundation
 import FoundationModels
 import Internal
 
-/// The core LanguageModelProvider class that provides AI agent functionality with Apple's FoundationModels design philosophy.
+/// The core LanguageModelProvider class that provides AI agent functionality with Apple's FoundationModels design
+/// philosophy.
 ///
-/// ``LanguageModelProvider`` is the main entry point for building autonomous AI agents. It handles agent loops, tool execution,
+/// ``LanguageModelProvider`` is the main entry point for building autonomous AI agents. It handles agent loops, tool
+/// execution,
 /// and adapter communication while maintaining a conversation transcript. The class is designed to be used with
 /// different AI providers through the adapter pattern.
 ///
@@ -73,37 +75,37 @@ public protocol LanguageModelProvider<Adapter>: AnyObject {
 	typealias Transcript = SwiftAgent.Transcript
 	typealias ResolvedTranscript = Transcript.Resolved<Self>
 	typealias PartiallyResolvedTranscript = Transcript.PartiallyResolved<Self>
-	
+
 	associatedtype Adapter: SwiftAgent.Adapter & SendableMetatype
 	associatedtype ResolvedToolRun: Equatable
 	associatedtype PartiallyResolvedToolRun: Equatable
-	associatedtype Grounding: GroundingRepresentable
+	associatedtype GroundingSource: GroundingRepresentable
 	nonisolated var tools: [any ResolvableTool<Self>] { get }
-	
+
 	var adapter: Adapter { get }
 	var transcript: Transcript { get set }
 	var tokenUsage: TokenUsage { get set }
-	
-	func encodeGrounding(_ grounding: [Grounding]) throws -> Data
-	func decodeGrounding(from data: Data) throws -> [Grounding]
+
+	func encodeGrounding(_ grounding: [GroundingSource]) throws -> Data
+	func decodeGrounding(from data: Data) throws -> [GroundingSource]
 	func resetTokenUsage()
 	func toolResolver() -> ToolResolver<Self>
-	
+
 	@discardableResult
 	func withAuthorization<T>(
 		token: String,
 		refresh: (@Sendable () async throws -> String)?,
-		perform: () async throws -> T
+		perform: () async throws -> T,
 	) async rethrows -> T
 }
 
 public extension LanguageModelProvider {
-	func encodeGrounding(_ grounding: [Grounding]) throws -> Data {
+	func encodeGrounding(_ grounding: [GroundingSource]) throws -> Data {
 		try JSONEncoder().encode(grounding)
 	}
 
-	func decodeGrounding(from data: Data) throws -> [Grounding] {
-		try JSONDecoder().decode([Grounding].self, from: data)
+	func decodeGrounding(from data: Data) throws -> [GroundingSource] {
+		try JSONDecoder().decode([GroundingSource].self, from: data)
 	}
 }
 
@@ -114,7 +116,7 @@ package extension LanguageModelProvider {
 		from prompt: Transcript.Prompt,
 		generating type: Content.Type,
 		using model: Adapter.Model,
-		options: Adapter.GenerationOptions?
+		options: Adapter.GenerationOptions?,
 	) async throws -> AgentResponse<Content> where Content: Generable {
 		let promptEntry = Transcript.Entry.prompt(prompt)
 		transcript.append(promptEntry)
@@ -124,7 +126,7 @@ package extension LanguageModelProvider {
 			generating: type,
 			using: model,
 			including: transcript,
-			options: options ?? .automatic(for: model)
+			options: options ?? .automatic(for: model),
 		)
 
 		var generatedTranscript = Transcript()
@@ -155,7 +157,7 @@ package extension LanguageModelProvider {
 								return try AgentResponse<Content>(
 									content: Content(structuredSegment.content),
 									transcript: generatedTranscript,
-									tokenUsage: generatedUsage
+									tokenUsage: generatedUsage,
 								)
 							}
 						}
@@ -192,7 +194,7 @@ package extension LanguageModelProvider {
 			return AgentResponse<Content>(
 				content: finalResponseSegments.joined(separator: "\n") as! Content,
 				transcript: generatedTranscript,
-				tokenUsage: generatedUsage
+				tokenUsage: generatedUsage,
 			)
 		} else {
 			// For structured content, if we reach here, no structured segment was found
@@ -205,7 +207,7 @@ package extension LanguageModelProvider {
 		from prompt: Transcript.Prompt,
 		generating type: Content.Type,
 		using model: Adapter.Model,
-		options: Adapter.GenerationOptions?
+		options: Adapter.GenerationOptions?,
 	) -> AsyncThrowingStream<AgentSnapshot<Content>, any Error> {
 		let setup = AsyncThrowingStream<AgentSnapshot<Content>, any Error>.makeStream()
 
@@ -219,7 +221,7 @@ package extension LanguageModelProvider {
 					generating: type,
 					using: model,
 					including: transcript,
-					options: options ?? .automatic(for: model)
+					options: options ?? .automatic(for: model),
 				)
 
 				var generatedTranscript = Transcript()
@@ -310,7 +312,7 @@ public extension LanguageModelProvider {
 	func withAuthorization<T>(
 		token: String,
 		refresh: (@Sendable () async throws -> String)? = nil,
-		perform: () async throws -> T
+		perform: () async throws -> T,
 	) async rethrows -> T {
 		precondition(!token.isEmpty, "Authorization token must not be empty.")
 		let context = AuthorizationContext(bearerToken: token, refreshToken: refresh)

@@ -6,13 +6,188 @@ import OpenAISession
 
 // TODO: Fix Grounding enum ergonomics
 // TODO: Implement Grounding decoding in Transcript resolution
-// TODO: Should @ResolvableTool also add conformance to SwiftAgentTool? To not have two places to modify? It can emit when Equatable is missing
 
-@SwiftAgentSession(provider: .openAI) @Observable
 final class OpenAISession {
-	@ResolvableTool let calculator = CalculatorTool()
-//	@ResolvableTool let weather: WeatherTool
+	@Tool var calculator = CalculatorTool()
+	@Tool var weather: WeatherTool
+	// @Grounding(String.self) var vectorSearchResult
+
+	@propertyWrapper
+	struct Tool<ToolType: SwiftAgentTool> {
+		var wrappedValue: ToolType
+		init(wrappedValue: ToolType) {
+			self.wrappedValue = wrappedValue
+		}
+	}
+
+	typealias Adapter = OpenAIAdapter
+
+	typealias SessionType = OpenAISession
+
+	var adapter: OpenAIAdapter
+
+	var transcript: SwiftAgent.Transcript
+
+	var tokenUsage: TokenUsage
+
+	nonisolated let tools: [any ResolvableTool<SessionType>]
+
+	init(
+		weather: WeatherTool,
+		instructions: String,
+		apiKey: String,
+	) {
+		_weather = Tool(wrappedValue: weather)
+
+		let tools: [any ResolvableTool<SessionType>] = [
+			ResolvableCalculatorTool(baseTool: _calculator.wrappedValue),
+			ResolvableWeatherTool(baseTool: weather),
+		]
+		self.tools = tools
+
+		adapter = OpenAIAdapter(
+			tools: tools,
+			instructions: instructions,
+			configuration: .direct(apiKey: apiKey),
+		)
+		transcript = Transcript()
+		tokenUsage = TokenUsage()
+	}
+
+	init(
+		weather: WeatherTool,
+		instructions: String,
+		configuration: OpenAIConfiguration,
+	) {
+		_weather = Tool(wrappedValue: weather)
+
+		let tools: [any ResolvableTool<SessionType>] = [
+			ResolvableCalculatorTool(baseTool: _calculator.wrappedValue),
+			ResolvableWeatherTool(baseTool: weather),
+		]
+		self.tools = tools
+
+		adapter = OpenAIAdapter(
+			tools: tools,
+			instructions: instructions,
+			configuration: configuration,
+		)
+		transcript = Transcript()
+		tokenUsage = TokenUsage()
+	}
+
+	enum GroundingSource: GroundingRepresentable {
+		init(from decoder: Decoder) throws {
+			let context = DecodingError.Context(
+				codingPath: decoder.codingPath,
+				debugDescription: "No @Grounding properties are defined, so no GroundingSource can be decoded.",
+			)
+			throw DecodingError.dataCorrupted(context)
+		}
+
+		func encode(to encoder: Encoder) throws {
+			let context = EncodingError.Context(
+				codingPath: encoder.codingPath,
+				debugDescription: "No @Grounding properties are defined, so no GroundingSource can be encoded.",
+			)
+			throw EncodingError.invalidValue(self, context)
+		}
+	}
+
+	enum ResolvedToolRun: Equatable {
+		case calculator(ToolRun<ResolvableCalculatorTool>)
+		case weather(ToolRun<ResolvableWeatherTool>)
+	}
+
+	enum PartiallyResolvedToolRun: Equatable {
+		case calculator(PartialToolRun<ResolvableCalculatorTool>)
+		case weather(PartialToolRun<ResolvableWeatherTool>)
+	}
+
+	struct ResolvableCalculatorTool: ResolvableTool {
+		typealias Session = SessionType
+		typealias BaseTool = CalculatorTool
+		typealias Arguments = BaseTool.Arguments
+		typealias Output = BaseTool.Output
+
+		private let baseTool: BaseTool
+
+		init(baseTool: CalculatorTool) {
+			self.baseTool = baseTool
+		}
+
+		var name: String {
+			baseTool.name
+		}
+
+		var description: String {
+			baseTool.description
+		}
+
+		var parameters: GenerationSchema {
+			baseTool.parameters
+		}
+
+		func call(arguments: Arguments) async throws -> Output {
+			try await baseTool.call(arguments: arguments)
+		}
+
+		func resolve(
+			_ run: ToolRun<ResolvableCalculatorTool>,
+		) -> Session.ResolvedToolRun {
+			.calculator(run)
+		}
+
+		func resolvePartially(
+			_ run: PartialToolRun<ResolvableCalculatorTool>,
+		) -> Session.PartiallyResolvedToolRun {
+			.calculator(run)
+		}
+	}
+
+	struct ResolvableWeatherTool: ResolvableTool {
+		typealias Session = SessionType
+		typealias BaseTool = WeatherTool
+		typealias Arguments = BaseTool.Arguments
+		typealias Output = BaseTool.Output
+
+		private let baseTool: BaseTool
+
+		init(baseTool: WeatherTool) {
+			self.baseTool = baseTool
+		}
+
+		var name: String {
+			baseTool.name
+		}
+
+		var description: String {
+			baseTool.description
+		}
+
+		var parameters: GenerationSchema {
+			baseTool.parameters
+		}
+
+		func call(arguments: Arguments) async throws -> Output {
+			try await baseTool.call(arguments: arguments)
+		}
+
+		func resolve(
+			_ run: ToolRun<ResolvableWeatherTool>,
+		) -> Session.ResolvedToolRun {
+			.weather(run)
+		}
+
+		func resolvePartially(
+			_ run: PartialToolRun<ResolvableWeatherTool>,
+		) -> Session.PartiallyResolvedToolRun {
+			.weather(run)
+		}
+	}
 }
+
+extension OpenAISession: LanguageModelProvider {}
 
 // @Observable
 // final class OpenAISession: LanguageModelProvider {
