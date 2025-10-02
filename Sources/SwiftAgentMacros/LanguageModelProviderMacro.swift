@@ -40,29 +40,25 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
 		var members: [DeclSyntax] = []
 
-		if !toolProperties.isEmpty, shouldGenerateToolPropertyWrapper(for: classDeclaration) {
-			members.append(
-				"""
-				@propertyWrapper
-				struct Tool<ToolType: SwiftAgentTool> {
-				  var wrappedValue: ToolType
-				  init(wrappedValue: ToolType) { self.wrappedValue = wrappedValue }
-				}
-				""",
-			)
-		}
+		members.append(
+			"""
+			@propertyWrapper
+			struct Tool<ToolType: SwiftAgentTool> {
+			  var wrappedValue: ToolType
+			  init(wrappedValue: ToolType) { self.wrappedValue = wrappedValue }
+			}
+			""",
+		)
 
-		if !groundingProperties.isEmpty, shouldGenerateGroundingPropertyWrapper(for: classDeclaration) {
-			members.append(
-				"""
-				@propertyWrapper
-				struct Grounding<Source: Codable & Sendable & Equatable> {
-				  var wrappedValue: Source.Type
-				  init(_ wrappedValue: Source.Type) { self.wrappedValue = wrappedValue }
-				}
-				""",
-			)
-		}
+		members.append(
+			"""
+			@propertyWrapper
+			struct Grounding<Source: Codable & Sendable & Equatable> {
+			  var wrappedValue: Source.Type
+			  init(_ wrappedValue: Source.Type) { self.wrappedValue = wrappedValue }
+			}
+			""",
+		)
 
 		members.append(
 			"""
@@ -151,26 +147,6 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
 		return attributes.contains { attribute in
 			attribute.as(AttributeSyntax.self)?.attributeName.trimmedDescription == name
-		}
-	}
-
-	private static func shouldGenerateToolPropertyWrapper(for classDeclaration: ClassDeclSyntax) -> Bool {
-		!classDeclaration.memberBlock.members.contains { member in
-			guard let structDecl = member.decl.as(StructDeclSyntax.self) else {
-				return false
-			}
-
-			return structDecl.name.text == "Tool"
-		}
-	}
-
-	private static func shouldGenerateGroundingPropertyWrapper(for classDeclaration: ClassDeclSyntax) -> Bool {
-		!classDeclaration.memberBlock.members.contains { member in
-			guard let structDecl = member.decl.as(StructDeclSyntax.self) else {
-				return false
-			}
-
-			return structDecl.name.text == "Grounding"
 		}
 	}
 
@@ -278,26 +254,29 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		guard let arguments = attribute.arguments else {
 			throw MacroError.missingGroundingType
 		}
-
-		let rawArgument = arguments.description.trimmingCharacters(in: .whitespacesAndNewlines)
-
-		guard rawArgument.hasPrefix("("), rawArgument.hasSuffix(")") else {
+		guard case let .argumentList(argumentList) = arguments else {
+			throw MacroError.invalidGroundingAttribute
+		}
+		guard argumentList.count == 1, let argument = argumentList.first else {
+			throw MacroError.missingGroundingType
+		}
+		guard argument.label == nil else {
 			throw MacroError.invalidGroundingAttribute
 		}
 
-		let content = rawArgument
-			.dropFirst()
-			.dropLast()
-			.trimmingCharacters(in: .whitespacesAndNewlines)
+		let content = argument.expression.trimmedDescription
 
-		guard !content.isEmpty else {
-			throw MacroError.missingGroundingType
-		}
 		guard content.hasSuffix(".self") else {
 			throw MacroError.missingGroundingType
 		}
 
-		return String(content.dropLast(".self".count))
+		let typeName = content.dropLast(".self".count)
+
+		guard !typeName.isEmpty else {
+			throw MacroError.missingGroundingType
+		}
+
+		return String(typeName)
 	}
 
 	private static func generateInitializers(

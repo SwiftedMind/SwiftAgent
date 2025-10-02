@@ -47,10 +47,12 @@ public struct AgentResponse<Content: Generable> {
 	package init(
 		content: Content,
 		transcript: Transcript,
-		tokenUsage: TokenUsage?
+		tokenUsage: TokenUsage?,
 	) {
 		self.content = content
 		self.transcript = transcript
 		self.tokenUsage = tokenUsage
 	}
 }
+
+extension AgentResponse: Sendable where Content: Sendable {}

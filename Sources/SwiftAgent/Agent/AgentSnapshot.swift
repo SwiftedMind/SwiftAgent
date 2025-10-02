@@ -21,7 +21,7 @@ import Internal
 ///   }
 /// }
 /// ```
-public struct AgentSnapshot<Content: Generable & Sendable>: Sendable {
+public struct AgentSnapshot<Content: Generable> {
 	/// The generated content from the AI model.
 	///
 	/// This will be `nil` if the content is not available yet.
@@ -50,10 +50,12 @@ public struct AgentSnapshot<Content: Generable & Sendable>: Sendable {
 	public init(
 		content: Content? = nil,
 		transcript: Transcript,
-		tokenUsage: TokenUsage? = nil
+		tokenUsage: TokenUsage? = nil,
 	) {
 		self.content = content
 		self.transcript = transcript
 		self.tokenUsage = tokenUsage
 	}
 }
+
+extension AgentSnapshot: Sendable where Content: Sendable {}

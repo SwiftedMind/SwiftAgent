@@ -7,7 +7,7 @@ import SwiftUI
 struct ConversationalAgentExampleView: View {
 	@State private var userInput = ""
 	///	@State private var transcript: Transcript<ContextSource>.PartiallyResolved<Resolver> = .init([])
-//	@State private var session: OpenAISession?
+	@State private var session: OpenAISession?
 
 	// MARK: - Body
 
@@ -21,14 +21,30 @@ struct ConversationalAgentExampleView: View {
 	// MARK: - Setup
 
 	private func setupAgent() {
-//		session = OpenAISession(
-//			instructions: """
-//			You are a helpful assistant with access to several tools.
-//			Use the available tools when appropriate to help answer questions.
-//			Be concise but informative in your responses.
-//			""",
-//			configuration: .direct(apiKey: Secret.OpenAI.apiKey),
-//		)
+		session = OpenAISession(
+			instructions: """
+			You are a helpful assistant with access to several tools.
+			Use the available tools when appropriate to help answer questions.
+			Be concise but informative in your responses.
+			""",
+			configuration: .direct(apiKey: Secret.OpenAI.apiKey),
+		)
+
+		Task {
+			try await session!.respond(to: "String", using: .gpt5, groundingWith: [.test(
+				ABC(),
+			)], options: nil) { input, sources in
+				for source in sources {
+					input
+					switch source {
+					case let .test(abc):
+						"Test \(abc)"
+					case let .vectorSearchResult(string):
+						string
+					}
+				}
+			}
+		}
 
 //		let transcript = try! session!.transcript.resolved(in: session!)
 	}
