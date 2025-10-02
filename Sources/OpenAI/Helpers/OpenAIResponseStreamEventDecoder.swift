@@ -136,7 +136,7 @@ public struct OpenAIResponseStreamEventDecoder: Sendable {
 		case .responseCodeInterpreterCallCompleted:
 			try decode(payloadData) { ResponseStreamEvent.codeInterpreterCall(.completed($0)) }
 		case .error:
-			try decode(payloadData, as: ResponseStreamEvent.error)
+			try decodeErrorEvent(from: payloadData)
 		}
 
 		return decodedEvent
@@ -150,12 +150,57 @@ public struct OpenAIResponseStreamEventDecoder: Sendable {
 		return transform(payload)
 	}
 
+	private func decodeErrorEvent(from payloadData: Data) throws -> ResponseStreamEvent {
+		do {
+			return try decode(payloadData) { ResponseStreamEvent.error($0) }
+		} catch SSEError.decodingFailed {
+			// The live Responses API sometimes nests the error details inside an `error` object
+			// instead of the documented flat payload. Keep decoding resilient by handling that
+			// variant locally without changing the upstream OpenAI SDK types.
+			return try decodeFallbackErrorEvent(from: payloadData)
+		}
+	}
+
+	private func decodeFallbackErrorEvent(from payloadData: Data) throws -> ResponseStreamEvent {
+		let payload: FallbackResponseErrorEventPayload = try decodePayload(from: payloadData)
+		let eventType = Components.Schemas.ResponseErrorEvent._TypePayload(rawValue: payload.type) ?? .error
+		let errorEvent = Components.Schemas.ResponseErrorEvent(
+			_type: eventType,
+			code: payload.error.code,
+			message: payload.error.message,
+			param: payload.error.param,
+			sequenceNumber: payload.sequenceNumber,
+		)
+		return ResponseStreamEvent.error(errorEvent)
+	}
+
 	private func decodePayload<Payload: Decodable>(from payloadData: Data) throws -> Payload {
 		do {
 			return try jsonDecoder.decode(Payload.self, from: payloadData)
 		} catch {
 			throw SSEError.decodingFailed(underlying: error, data: payloadData)
 		}
+	}
+}
+
+private struct FallbackResponseErrorEventPayload: Decodable {
+	struct ErrorPayload: Decodable {
+		let type: String
+		let code: String?
+		let message: String
+		let param: String?
+	}
+
+	let type: String
+	let sequenceNumber: Int
+	let error: ErrorPayload
+
+	// Mirrors the schema used by the production Responses API where error fields are nested.
+
+	private enum CodingKeys: String, CodingKey {
+		case type
+		case sequenceNumber = "sequence_number"
+		case error
 	}
 }
 

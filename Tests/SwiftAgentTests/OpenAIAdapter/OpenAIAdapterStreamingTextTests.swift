@@ -36,7 +36,7 @@ struct OpenAIAdapterStreamingTextTests {
 	// MARK: - Private Test Helper Methods
 
 	private func processStreamResponse() async throws -> Transcript<NoContext> {
-		let inputPrompt = Transcript<NoContext>.Prompt(input: "input", embeddedPrompt: "embeddedPrompt")
+		let inputPrompt = Transcript<NoContext>.Prompt(input: "input", prompt: "prompt")
 		let initialTranscript = Transcript<NoContext>(entries: [.prompt(inputPrompt)])
 
 		let stream = await adapter.streamResponse(
@@ -80,7 +80,7 @@ struct OpenAIAdapterStreamingTextTests {
 			return
 		}
 
-		#expect(text == "embeddedPrompt")
+		#expect(text == "prompt")
 	}
 
 	private func validateTranscript(generatedTranscript: Transcript<NoContext>) throws {

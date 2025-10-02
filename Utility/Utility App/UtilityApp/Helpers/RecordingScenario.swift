@@ -45,7 +45,7 @@ extension RecordingScenario {
 			execute: { adapter in
 				typealias WeatherTranscript = SwiftAgent.Transcript<NoContext>
 				let userPrompt = "What is the weather in New York City, USA?"
-				let prompt = WeatherTranscript.Prompt(input: userPrompt, embeddedPrompt: userPrompt)
+				let prompt = WeatherTranscript.Prompt(input: userPrompt, prompt: userPrompt)
 				let initialTranscript = WeatherTranscript(entries: [.prompt(prompt)])
 
 				let stream = adapter.streamResponse(

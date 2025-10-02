@@ -5,17 +5,41 @@ import SimulatedSession
 import SwiftUI
 
 struct ConversationalAgentExampleView: View {
-	@State private var userInput = ""
-	///	@State private var transcript: Transcript<ContextSource>.PartiallyResolved<Resolver> = .init([])
+	@State private var userInput = "Compute 234 + 6 using the tool!"
+	@State private var transcript: Transcript.PartiallyResolved<OpenAISession> = .init([])
 	@State private var session: OpenAISession?
 
 	// MARK: - Body
 
 	var body: some View {
-		Form {}
+		Form {
+			Button("Send") {
+				Task {
+					try await sendMessage()
+				}
+			}
+			ForEach(transcript) { entry in
+				switch entry {
+				case let .prompt(prompt):
+					Text("Prompt: \(prompt.input)")
+				case let .reasoning(reasoning):
+					Text("Reasoning: \(reasoning.summary.joined(separator: ", "))")
+				case let .toolRun(toolRun):
+					switch toolRun.resolution {
+					case let .weather(weatherRun):
+						Text("Weather Run: \(weatherRun.arguments)")
+					default:
+						Text("Calculator")
+					}
+					Text("Tool Run: \(toolRun.toolName)")
+				case let .response(response):
+					Text("Response: \(response)")
+				}
+			}
+		}
 //			.animation(.default, value: transcript)
-			.formStyle(.grouped)
-			.onAppear(perform: setupAgent)
+		.formStyle(.grouped)
+		.onAppear(perform: setupAgent)
 	}
 
 	// MARK: - Setup
@@ -27,63 +51,39 @@ struct ConversationalAgentExampleView: View {
 			Use the available tools when appropriate to help answer questions.
 			Be concise but informative in your responses.
 			""",
-			configuration: .direct(apiKey: Secret.OpenAI.apiKey),
+			configuration: .direct(apiKey: Secret.OpenAI.apiKey)
 		)
-
-		Task {
-			try await session!.respond(to: "String", using: .gpt5, groundingWith: [.test(
-				ABC(),
-			)], options: nil) { input, sources in
-				for source in sources {
-					input
-					switch source {
-					case let .test(abc):
-						"Test \(abc)"
-					case let .vectorSearchResult(string):
-						string
-					}
-				}
-			}
-		}
-
-//		let transcript = try! session!.transcript.resolved(in: session!)
 	}
 
 	// MARK: - Actions
 
 	private func sendMessage() async {
-//		guard let session, userInput.isEmpty == false else { return }
+		guard let session, userInput.isEmpty == false else { return }
 
-//		do {
-//			let stream = await session.streamResponse(to: userInput, supplying: [.currentDate(Date())]) { input, context in
-//				PromptTag("context") {
-//					for source in context.sources {
-//						switch source {
-//						case let .currentDate(date):
-//							PromptTag("current-date") { date }
-//						}
-//					}
-//					for linkPreview in context.linkPreviews {
-//						PromptTag("url-info", attributes: ["title": linkPreview.title ?? ""])
-//					}
-//				}
-//
-//				PromptTag("input") {
-//					input
-//				}
-//			}
+		do {
+			let stream = try session.streamResponse(to: userInput, groundingWith: [.currentDate(Date())]) { input, sources in
+				PromptTag("context") {
+					for source in sources {
+						switch source {
+						case let .currentDate(date):
+							PromptTag("current-date") { date }
+						}
+					}
+				}
 
-//			userInput = ""
+				PromptTag("input") {
+					input
+				}
+			}
 
-//			for try await snapshot in stream {
-//				if let partiallyResolvedTranscript = snapshot.transcript.partiallyResolved(using: Tools.all) {
-//					transcript = partiallyResolvedTranscript
-//				}
-//			}
-
-//		} catch {
-//			print("Error", error.localizedDescription)
-//		}
+			for try await snapshot in stream {
+				let partiallyResolvedTranscript = try snapshot.transcript.partiallyResolved(in: session)
+				print(partiallyResolvedTranscript)
+				transcript = partiallyResolvedTranscript
+			}
+		} catch {
+			print("Error", error.localizedDescription)
+		}
 	}
 }
 

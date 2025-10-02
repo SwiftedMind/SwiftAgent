@@ -4,40 +4,40 @@ import Foundation
 import FoundationModels
 
 public extension Transcript {
-	/// Builds a *resolved transcript* — an immutable, read‑only **projection** of this transcript in which
-	/// tool‑related events are materialized as strongly-typed runs.
-	///
-	/// ### What it does
-	/// - Walks the original entries in order.
-	/// - Converts `.toolCalls` into one or more `.toolRun` entries by resolving each call with one
-	///   of the supplied tools.
-	/// - Coalesces related `.toolOutput` items into the resulting `.toolRun` and does **not** surface
-	///   separate `.toolOutput` entries in the projection.
-	///
-	/// ### When to use it
-	/// Use this when you want to *render* or *inspect* tool results in a type‑safe way without
-	/// mutating or duplicating transcript state.
-	///
-	/// ### Failure
-	/// Returns `nil` if any tool call cannot be resolved with the provided tools (for example,
-	/// no matching tool by name, or decoding arguments failed).
-	///
-	/// ### Example
-	/// ```swift
-	/// if let resolved = transcript.resolved(using: tools) {
-	///   for entry in resolved {
-	///     switch entry {
-	///     case let .toolRun(run):
-	///       render(run.resolution)
-	///     default:
-	///       break
-	///     }
-	///   }
-	/// }
-	/// ```
-	///
-	/// - Parameter tools: The tools available during resolution. All must share the same resolution type.
-	/// - Returns: A read‑only projection that layers resolved tool runs over the original entries, or `nil` on failure.
+	// Builds a *resolved transcript* — an immutable, read‑only **projection** of this transcript in which
+	// tool‑related events are materialized as strongly-typed runs.
+	//
+	// ### What it does
+	// - Walks the original entries in order.
+	// - Converts `.toolCalls` into one or more `.toolRun` entries by resolving each call with one
+	//   of the supplied tools.
+	// - Coalesces related `.toolOutput` items into the resulting `.toolRun` and does **not** surface
+	//   separate `.toolOutput` entries in the projection.
+	//
+	// ### When to use it
+	// Use this when you want to *render* or *inspect* tool results in a type‑safe way without
+	// mutating or duplicating transcript state.
+	//
+	// ### Failure
+	// Returns `nil` if any tool call cannot be resolved with the provided tools (for example,
+	// no matching tool by name, or decoding arguments failed).
+	//
+	// ### Example
+	// ```swift
+	// if let resolved = transcript.resolved(using: tools) {
+	//   for entry in resolved {
+	//     switch entry {
+	//     case let .toolRun(run):
+	//       render(run.resolution)
+	//     default:
+	//       break
+	//     }
+	//   }
+	// }
+	// ```
+	//
+	// - Parameter tools: The tools available during resolution. All must share the same resolution type.
+	// - Returns: A read‑only projection that layers resolved tool runs over the original entries, or `nil` on failure.
 //	func resolved<Resolver>(using toolGroup: Resolver) throws -> Resolved<Resolver>? {
 //		try Resolved(transcript: self, toolGroup: toolGroup)
 //	}
@@ -56,7 +56,12 @@ public extension Transcript {
 			for entry in transcript.entries {
 				switch entry {
 				case let .prompt(prompt):
-					entries.append(.prompt(prompt))
+					try entries.append(.prompt(Resolved.Prompt(
+						id: prompt.id,
+						input: prompt.input,
+						sources: session.decodeGrounding(from: prompt.sources),
+						prompt: prompt.prompt,
+					)))
 				case let .reasoning(reasoning):
 					entries.append(.reasoning(reasoning))
 				case let .response(response):
@@ -75,7 +80,7 @@ public extension Transcript {
 
 		/// Transcript entry augmented with resolved tool runs.
 		public enum Entry: Identifiable, Equatable {
-			case prompt(Transcript.Prompt)
+			case prompt(Prompt)
 			case reasoning(Transcript.Reasoning)
 			case toolRun(ToolRunKind)
 			case response(Transcript.Response)
@@ -91,6 +96,25 @@ public extension Transcript {
 				case let .response(response):
 					response.id
 				}
+			}
+		}
+
+		public struct Prompt: Sendable, Identifiable, Equatable {
+			public var id: String
+			public var input: String
+			public var sources: [Session.GroundingSource]
+			package var prompt: String
+
+			package init(
+				id: String = UUID().uuidString,
+				input: String,
+				sources: [Session.GroundingSource],
+				prompt: String,
+			) {
+				self.id = id
+				self.input = input
+				self.sources = sources
+				self.prompt = prompt
 			}
 		}
 

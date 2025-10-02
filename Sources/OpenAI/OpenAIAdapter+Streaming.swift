@@ -103,11 +103,14 @@ extension OpenAIAdapter {
 			var responseCompleted = false
 			var responseFailedError: Error?
 			var shouldContinueLoop = false
-
+			
+			// So the stream here fails because of missing credits, but this is not at all nicely communicated.
+			// Fix that before adding more credits!
+			
 			streamLoop: for try await event in eventStream {
 				try Task.checkCancellation()
 				guard let decodedEvent = try decoder.decodeEvent(from: event) else { continue }
-
+				
 				switch decodedEvent {
 				case .created:
 					continue

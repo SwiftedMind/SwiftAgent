@@ -36,7 +36,7 @@ public extension LanguageModelProvider {
 	) async throws -> AgentResponse<String> {
 		let sourcesData = try encodeGrounding([GroundingSource]())
 
-		let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, embeddedPrompt: prompt)
+		let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
 		return try await processResponse(from: prompt, generating: String.self, using: model, options: options)
 	}
 
@@ -150,7 +150,7 @@ public extension LanguageModelProvider {
 		options: Adapter.GenerationOptions? = nil,
 	) async throws -> AgentResponse<Content> where Content: Generable {
 		let sourcesData = try encodeGrounding([GroundingSource]())
-		let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, embeddedPrompt: prompt)
+		let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
 		return try await processResponse(from: prompt, generating: type, using: model, options: options)
 	}
 
@@ -291,7 +291,7 @@ public extension LanguageModelProvider {
 		let prompt = Transcript.Prompt(
 			input: input,
 			sources: sourcesData,
-			embeddedPrompt: prompt(input, sources).formatted(),
+			prompt: prompt(input, sources).formatted(),
 		)
 		return try await processResponse(from: prompt, generating: String.self, using: model, options: options)
 	}
@@ -351,7 +351,7 @@ public extension LanguageModelProvider {
 		let prompt = Transcript.Prompt(
 			input: input,
 			sources: sourcesData,
-			embeddedPrompt: prompt(input, sources).formatted(),
+			prompt: prompt(input, sources).formatted(),
 		)
 		return try await processResponse(from: prompt, generating: type, using: model, options: options)
 	}

@@ -528,7 +528,7 @@ public actor OpenAIAdapter: Adapter {
 			case let .prompt(prompt):
 				listItems.append(InputItem.inputMessage(EasyInputMessage(
 					role: .user,
-					content: .textInput(prompt.embeddedPrompt),
+					content: .textInput(prompt.prompt),
 				)))
 			case let .reasoning(reasoning):
 				let item = Components.Schemas.ReasoningItem(

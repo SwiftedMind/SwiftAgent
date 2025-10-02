@@ -4,71 +4,6 @@ import Foundation
 import FoundationModels
 import Internal
 
-/// The core LanguageModelProvider class that provides AI agent functionality with Apple's FoundationModels design
-/// philosophy.
-///
-/// ``LanguageModelProvider`` is the main entry point for building autonomous AI agents. It handles agent loops, tool
-/// execution,
-/// and adapter communication while maintaining a conversation transcript. The class is designed to be used with
-/// different AI providers through the adapter pattern.
-///
-/// ## Basic Usage
-///
-/// ```swift
-/// // Create a session with OpenAI
-/// let session = LanguageModelProvider.openAI(
-///   tools: [WeatherTool(), CalculatorTool()],
-///   instructions: "You are a helpful assistant.",
-///   apiKey: "sk-..."
-/// )
-///
-/// // Get a response
-/// let response = try await session.respond(to: "What's the weather like in San Francisco?")
-/// print(response.content)
-/// ```
-///
-/// ## Structured Generation
-///
-/// Generate strongly-typed responses using `@Generable` types:
-///
-/// ```swift
-/// @Generable
-/// struct TaskList {
-///   let tasks: [Task]
-///   let priority: String
-/// }
-///
-/// let response = try await session.respond(
-///   to: "Create a todo list for planning a vacation",
-///   generating: TaskList.self
-/// )
-/// ```
-///
-/// ## Context Support
-///
-/// Provide additional context while keeping user input separate:
-///
-/// ```swift
-/// let response = try await session.respond(
-///   to: "What are the key features?",
-///   supplying: [.documentContext("SwiftUI documentation...")]
-/// ) { input, context in
-///   PromptTag("context", items: context.sources)
-///   input
-/// }
-/// ```
-///
-/// ## Token Usage Tracking
-///
-/// Monitor cumulative token usage across all responses in the session:
-///
-/// ```swift
-/// // After multiple responses
-/// print("Total tokens used: \(session.sessionTokenUsage.totalTokens ?? 0)")
-/// print("Total input tokens: \(session.sessionTokenUsage.inputTokens ?? 0)")
-/// print("Total output tokens: \(session.sessionTokenUsage.outputTokens ?? 0)")
-/// ```
-///
 @MainActor
 public protocol LanguageModelProvider<Adapter>: AnyObject {
 	/// The transcript type for this session, containing the conversation history.
@@ -86,8 +21,9 @@ public protocol LanguageModelProvider<Adapter>: AnyObject {
 	var transcript: Transcript { get set }
 	var tokenUsage: TokenUsage { get set }
 
-	func encodeGrounding(_ grounding: [GroundingSource]) throws -> Data
-	func decodeGrounding(from data: Data) throws -> [GroundingSource]
+	nonisolated func encodeGrounding(_ grounding: [GroundingSource]) throws -> Data
+	nonisolated func decodeGrounding(from data: Data) throws -> [GroundingSource]
+
 	func resetTokenUsage()
 	func toolResolver() -> ToolResolver<Self>
 
@@ -100,11 +36,11 @@ public protocol LanguageModelProvider<Adapter>: AnyObject {
 }
 
 public extension LanguageModelProvider {
-	func encodeGrounding(_ grounding: [GroundingSource]) throws -> Data {
+	nonisolated func encodeGrounding(_ grounding: [GroundingSource]) throws -> Data {
 		try JSONEncoder().encode(grounding)
 	}
 
-	func decodeGrounding(from data: Data) throws -> [GroundingSource] {
+	nonisolated func decodeGrounding(from data: Data) throws -> [GroundingSource] {
 		try JSONDecoder().decode([GroundingSource].self, from: data)
 	}
 }

@@ -4,21 +4,11 @@ import Foundation
 import FoundationModels
 import OpenAISession
 
-// TODO: Fix Grounding enum ergonomics
-// TODO: Implement Grounding decoding in Transcript resolution
 @LanguageModelProvider(for: .openAI)
 final class OpenAISession {
 	@Tool var calculator = CalculatorTool()
 	@Tool var weather = WeatherTool()
-	@Grounding(String.self) var vectorSearchResult
-	@Grounding(ABC.self) var test
-}
-
-struct ABC: Codable, Equatable {}
-
-@Generable
-struct VectorSearch {
-	var results: [String] = []
+	@Grounding(Date.self) var currentDate
 }
 
 struct CalculatorTool: Tool, SwiftAgentTool {

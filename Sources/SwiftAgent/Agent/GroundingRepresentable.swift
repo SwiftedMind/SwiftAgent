@@ -2,5 +2,4 @@
 
 import Foundation
 
-public protocol GroundingRepresentable: Sendable, Codable {}
-
+public protocol GroundingRepresentable: Sendable, Codable, Equatable {}

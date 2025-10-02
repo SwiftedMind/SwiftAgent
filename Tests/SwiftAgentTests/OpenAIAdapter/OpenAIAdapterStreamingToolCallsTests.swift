@@ -37,7 +37,7 @@ struct OpenAIAdapterStreamingToolCallsTests {
 
 	private func processStreamResponse() async throws -> Transcript<NoContext> {
 		let userPrompt = "What is the weather in New York City, USA?"
-		let prompt = Transcript<NoContext>.Prompt(input: userPrompt, embeddedPrompt: userPrompt)
+		let prompt = Transcript<NoContext>.Prompt(input: userPrompt, prompt: userPrompt)
 		let transcript = Transcript<NoContext>(entries: [.prompt(prompt)])
 
 		let stream = await adapter.streamResponse(

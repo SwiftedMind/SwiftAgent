@@ -24,7 +24,12 @@ public extension Transcript {
 			for entry in transcript.entries {
 				switch entry {
 				case let .prompt(prompt):
-					entries.append(.prompt(prompt))
+					try entries.append(.prompt(PartiallyResolved.Prompt(
+						id: prompt.id,
+						input: prompt.input,
+						sources: session.decodeGrounding(from: prompt.sources),
+						prompt: prompt.prompt,
+					)))
 				case let .reasoning(reasoning):
 					entries.append(.reasoning(reasoning))
 				case let .response(response):
@@ -43,7 +48,7 @@ public extension Transcript {
 
 		/// Transcript entry augmented with resolved tool runs.
 		public enum Entry: Identifiable, Equatable {
-			case prompt(Transcript.Prompt)
+			case prompt(Prompt)
 			case reasoning(Transcript.Reasoning)
 			case toolRun(ToolRunKind)
 			case response(Transcript.Response)
@@ -59,6 +64,25 @@ public extension Transcript {
 				case let .response(response):
 					response.id
 				}
+			}
+		}
+
+		public struct Prompt: Sendable, Identifiable, Equatable {
+			public var id: String
+			public var input: String
+			public var sources: [Session.GroundingSource]
+			package var prompt: String
+
+			package init(
+				id: String = UUID().uuidString,
+				input: String,
+				sources: [Session.GroundingSource],
+				prompt: String,
+			) {
+				self.id = id
+				self.input = input
+				self.sources = sources
+				self.prompt = prompt
 			}
 		}
 
