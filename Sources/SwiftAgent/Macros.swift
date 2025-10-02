@@ -24,11 +24,11 @@ public macro ResolvableTool() = #externalMacro(
 	type: "ResolvableToolMacro",
 )
 
-/// Synthesizes a complete ModelSession implementation with automatic wrapper generation.
+/// Synthesizes a complete LanguageModelProvider implementation with automatic wrapper generation.
 ///
 /// This macro transforms a class with `@ResolvableTool` properties into a complete
-/// `ModelSession` implementation, including:
-/// - Protocol conformance to `ModelSession`
+/// `LanguageModelProvider` implementation, including:
+/// - Protocol conformance to `LanguageModelProvider`
 /// - Type aliases for `Adapter` and `SessionType`
 /// - Required properties (`adapter`, `transcript`, `tokenUsage`, `tools`)
 /// - Initializers for both direct API key and configuration-based setup
@@ -50,7 +50,7 @@ public macro ResolvableTool() = #externalMacro(
 ///
 /// Tools with default values (e.g., `= WeatherTool()`) don't require initialization parameters.
 @attached(member, names: arbitrary)
-@attached(extension, conformances: ModelSession)
+@attached(extension, conformances: LanguageModelProvider)
 public macro SwiftAgentSession(provider: Provider) = #externalMacro(
 	module: "SwiftAgentMacros",
 	type: "SwiftAgentSessionMacro",

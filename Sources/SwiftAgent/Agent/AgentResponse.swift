@@ -4,7 +4,7 @@ import Foundation
 import FoundationModels
 import Internal
 
-/// The response returned by ModelSession methods, containing generated content and metadata.
+/// The response returned by LanguageModelProvider methods, containing generated content and metadata.
 ///
 /// ``AgentResponse`` encapsulates the result of an AI generation request, providing access to
 /// the generated content, transcript entries that were added during generation, and token usage statistics.

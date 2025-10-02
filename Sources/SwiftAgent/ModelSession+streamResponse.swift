@@ -5,7 +5,7 @@ import FoundationModels
 
 // MARK: - String Response Methods
 
-public extension ModelSession {
+public extension LanguageModelProvider {
   /// Generates a streaming text response to a string prompt.
   ///
   /// This method provides real-time streaming of text generation, allowing you to
@@ -86,7 +86,7 @@ public extension ModelSession {
 
 // MARK: - Structured Response Methods
 
-public extension ModelSession {
+public extension LanguageModelProvider {
   /// Generates a streaming structured response of the specified type from a string prompt.
   ///
   /// This method provides real-time streaming of structured output generation where the AI
@@ -215,7 +215,7 @@ public extension ModelSession {
 
 // MARK: - Context-Aware Response Methods
 
-public extension ModelSession {
+public extension LanguageModelProvider {
   func streamResponse(
     to input: String,
     using model: Adapter.Model = .default,

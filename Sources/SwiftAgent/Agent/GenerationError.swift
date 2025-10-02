@@ -4,7 +4,7 @@ import Foundation
 
 /// Errors that can occur during AI model generation in SwiftAgent.
 ///
-/// These errors represent various failure scenarios when a `ModelSession` attempts to generate content,
+/// These errors represent various failure scenarios when a `LanguageModelProvider` attempts to generate content,
 /// including tool calling failures, content parsing issues, and model refusals.
 public enum GenerationError: Error, LocalizedError {
 	/// The model returned structured content when none was expected.

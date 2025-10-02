@@ -22,7 +22,7 @@ enum Provider: String {
 	}
 }
 
-/// Member macro that synthesizes ModelSession implementation
+/// Member macro that synthesizes LanguageModelProvider implementation
 public struct SwiftAgentSessionMacro: MemberMacro, ExtensionMacro {
 	public static func expansion(
 		of node: AttributeSyntax,
@@ -308,10 +308,10 @@ public struct SwiftAgentSessionMacro: MemberMacro, ExtensionMacro {
 		conformingTo protocols: [TypeSyntax],
 		in context: some MacroExpansionContext
 	) throws -> [ExtensionDeclSyntax] {
-		// Generate extension for ModelSession conformance
+		// Generate extension for LanguageModelProvider conformance
 		let extensionDecl: DeclSyntax =
 			"""
-			extension \(type.trimmed): ModelSession {}
+			extension \(type.trimmed): LanguageModelProvider {}
 			"""
 
 		guard let extensionDeclSyntax = extensionDecl.as(ExtensionDeclSyntax.self) else {

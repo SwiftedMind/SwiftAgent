@@ -10,7 +10,7 @@ public protocol ResolvableTool<Session>: Equatable where Self: SwiftAgentTool, S
 	///
 	/// Defaults to `Void` for tools that don't need custom resolution logic.
 	/// Override to return domain-specific types that represent the resolved tool execution.
-	associatedtype Session: ModelSession
+	associatedtype Session: LanguageModelProvider
 
 	/// Resolves a tool run into a domain-specific result.
 	///

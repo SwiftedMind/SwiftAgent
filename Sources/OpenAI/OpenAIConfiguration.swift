@@ -55,7 +55,7 @@ public struct OpenAIConfiguration: AdapterConfiguration {
 	/// to requests. This way, api keys never ship in the app bundle and communication with the backend stays secure.
 	///
 	/// This configuration reads the token from the internal task‑local authorization context that
-	/// you set via ``ModelSession/withAuthorization(token:refresh:perform:)``. If the proxy responds
+	/// you set via ``LanguageModelProvider/withAuthorization(token:refresh:perform:)``. If the proxy responds
 	/// with `401 Unauthorized` and a refresh closure was provided to `withAuthorization`, the SDK will
 	/// obtain a new token from that closure and retry the request once.
 	///
@@ -66,7 +66,7 @@ public struct OpenAIConfiguration: AdapterConfiguration {
 	///
 	/// ```swift
 	/// let configuration = OpenAIConfiguration.proxy(through: URL(string: "https://api.your‑backend.com")!)
-	/// let session = ModelSession.openAI(
+	/// let session = LanguageModelProvider.openAI(
 	///   tools: [WeatherTool(), CalculatorTool()],
 	///   instructions: "You are a helpful assistant.",
 	///   configuration: configuration

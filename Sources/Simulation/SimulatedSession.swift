@@ -4,7 +4,7 @@ import Foundation
 import FoundationModels
 @_exported import SwiftAgent
 
-public extension ModelSession {
+public extension LanguageModelProvider {
 	private var simulationAdapter: SimulationAdapter {
 		SimulationAdapter()
 	}

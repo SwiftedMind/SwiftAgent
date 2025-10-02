@@ -4,9 +4,9 @@ import Foundation
 import FoundationModels
 import Internal
 
-/// The core ModelSession class that provides AI agent functionality with Apple's FoundationModels design philosophy.
+/// The core LanguageModelProvider class that provides AI agent functionality with Apple's FoundationModels design philosophy.
 ///
-/// ``ModelSession`` is the main entry point for building autonomous AI agents. It handles agent loops, tool execution,
+/// ``LanguageModelProvider`` is the main entry point for building autonomous AI agents. It handles agent loops, tool execution,
 /// and adapter communication while maintaining a conversation transcript. The class is designed to be used with
 /// different AI providers through the adapter pattern.
 ///
@@ -14,7 +14,7 @@ import Internal
 ///
 /// ```swift
 /// // Create a session with OpenAI
-/// let session = ModelSession.openAI(
+/// let session = LanguageModelProvider.openAI(
 ///   tools: [WeatherTool(), CalculatorTool()],
 ///   instructions: "You are a helpful assistant.",
 ///   apiKey: "sk-..."
@@ -68,7 +68,7 @@ import Internal
 /// ```
 ///
 @MainActor
-public protocol ModelSession<Adapter>: AnyObject {
+public protocol LanguageModelProvider<Adapter>: AnyObject {
 	/// The transcript type for this session, containing the conversation history.
 	typealias Transcript = SwiftAgent.Transcript
 	typealias ResolvedTranscript = Transcript.Resolved<Self>
@@ -97,7 +97,7 @@ public protocol ModelSession<Adapter>: AnyObject {
 	) async rethrows -> T
 }
 
-public extension ModelSession {
+public extension LanguageModelProvider {
 	func encodeGrounding(_ grounding: [Grounding]) throws -> Data {
 		try JSONEncoder().encode(grounding)
 	}
@@ -107,7 +107,7 @@ public extension ModelSession {
 	}
 }
 
-package extension ModelSession {
+package extension LanguageModelProvider {
 	// MARK: - Private Response Helpers
 
 	func processResponse<Content>(
@@ -252,7 +252,7 @@ package extension ModelSession {
 
 // MARK: - Authorization
 
-public extension ModelSession {
+public extension LanguageModelProvider {
 	/// Executes the provided work with a temporary authorization context for this session.
 	///
 	/// Use this helper to attach an access token to all network requests that happen during a single
@@ -278,7 +278,7 @@ public extension ModelSession {
 	/// ```swift
 	/// // 1) Configure the session to use your proxy backend
 	/// let configuration = OpenAIConfiguration.proxy(through: URL(string: "https://api.your‑backend.com")!)
-	/// let session = ModelSession.openAI(
+	/// let session = LanguageModelProvider.openAI(
 	///   tools: [WeatherTool(), CalculatorTool()],
 	///   instructions: "You are a helpful assistant.",
 	///   configuration: configuration
@@ -322,12 +322,12 @@ public extension ModelSession {
 
 // MARK: - Session Management Methods
 
-public extension ModelSession {
+public extension LanguageModelProvider {
 	/// Clears the entire conversation transcript.
 	///
 	/// This method removes all entries from the transcript, including prompts, responses,
 	/// tool calls, and tool outputs. This is useful for starting a fresh conversation
-	/// while retaining the same ModelSession instance with its configuration and tools.
+	/// while retaining the same LanguageModelProvider instance with its configuration and tools.
 	///
 	/// - Note: This method does not affect token usage tracking. Use `resetTokenUsage()`
 	///   if you also want to reset the cumulative token counter.

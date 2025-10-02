@@ -4,7 +4,7 @@ import Foundation
 import FoundationModels
 
 public extension Transcript {
-//	func partiallyResolved<Session: ModelSession>(
+//	func partiallyResolved<Session: LanguageModelProvider>(
 //		using toolGroup: Resolver,
 //	) throws -> PartiallyResolved<Resolver>? {
 //		try PartiallyResolved(transcript: self, toolGroup: toolGroup)
@@ -13,7 +13,7 @@ public extension Transcript {
 	/// An immutable **projection** of a transcript with tool runs resolved.
 	///
 	/// You can obtain instances via ``Transcript/resolved(using:)``.
-	struct PartiallyResolved<Session: ModelSession>: Equatable {
+	struct PartiallyResolved<Session: LanguageModelProvider>: Equatable {
 		/// All transcript entries with resolved tool runs attached where available.
 		public package(set) var entries: [Entry]
 

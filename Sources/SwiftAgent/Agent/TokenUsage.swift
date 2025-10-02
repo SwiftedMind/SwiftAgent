@@ -4,7 +4,7 @@ import Foundation
 
 /// Public token usage metrics for a generation.
 ///
-/// ModelSession aggregates these across internal steps and exposes them on `AgentResponse`.
+/// LanguageModelProvider aggregates these across internal steps and exposes them on `AgentResponse`.
 public struct TokenUsage: Sendable, Equatable {
 	/// The number of input tokens.
 	public var inputTokens: Int?

@@ -4,7 +4,7 @@
 ///
 /// ``AuthorizationContext`` is an internal actor that carries the current access token for
 /// a single logical unit of work, typically one agent turn. It is not meant to be used
-/// directly by applications. Instead, call ``ModelSession/withAuthorization(token:refresh:perform:)``
+/// directly by applications. Instead, call ``LanguageModelProvider/withAuthorization(token:refresh:perform:)``
 /// which sets this context using a `@TaskLocal` value so that adapter configurations can
 /// read it and attach the token to outbound requests.
 ///

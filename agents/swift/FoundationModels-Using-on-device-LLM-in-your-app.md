@@ -45,18 +45,18 @@ struct GenerativeView: View {
 
 ### Create a Session
 
-After confirming model availability, create a `LanguageModelSession` to interact with the model:
+After confirming model availability, create a `LanguageLanguageModelProvider` to interact with the model:
 
 ```swift
 // Create a basic session with the system model
-let session = LanguageModelSession()
+let session = LanguageLanguageModelProvider()
 
 // Create a session with instructions
 let instructions = """
     You are a helpful assistant that provides concise answers.
     Keep responses under 100 words and focus on clarity.
     """
-let sessionWithInstructions = LanguageModelSession(instructions: instructions)
+let sessionWithInstructions = LanguageLanguageModelProvider(instructions: instructions)
 ```
 
 - For single-turn interactions, create a new session each time
@@ -82,7 +82,7 @@ let instructions = """
     Include approximate cooking time.
     """
 
-let session = LanguageModelSession(instructions: instructions)
+let session = LanguageLanguageModelProvider(instructions: instructions)
 ```
 
 ### Provide a Prompt to the Model
@@ -155,7 +155,7 @@ print("Profile: \(catResponse.content.profile)")
 
 #### 3. Printing a Response from your Custom Type
 
-When printing values from a LanguageModelSession.Response always use the instance property content. Not output.
+When printing values from a LanguageLanguageModelProvider.Response always use the instance property content. Not output.
 
 For example:
 
@@ -170,7 +170,7 @@ struct CookbookSuggestions {
 }
 
 #Playground {
-    let session = LanguageModelSession()
+    let session = LanguageLanguageModelProvider()
 
     let prompt = "What's a good name for a cooking app?"
 
@@ -221,7 +221,7 @@ struct RecipeSearchTool: Tool {
 let recipeSearchTool = RecipeSearchTool()
 
 // Create a session with the tool
-let session = LanguageModelSession(tools: [recipeSearchTool])
+let session = LanguageLanguageModelProvider(tools: [recipeSearchTool])
 
 // The model will automatically use the tool when appropriate
 let response = try await session.respond(to: "Find me some pasta recipes")
@@ -232,7 +232,7 @@ let response = try await session.respond(to: "Find me some pasta recipes")
 ```swift
 do {
     let answer = try await session.respond("Find a recipe for tomato soup.")
-} catch let error as LanguageModelSession.ToolCallError {
+} catch let error as LanguageLanguageModelProvider.ToolCallError {
     // Access the name of the tool
     print(error.tool.name) 
     
@@ -282,7 +282,7 @@ struct TripIdeas {
 }
 
 #Playground {
-    let session = LanguageModelSession()
+    let session = LanguageLanguageModelProvider()
 
     let prompt = "What are some exciting trip ideas for the upcoming year?"
 
@@ -310,7 +310,7 @@ struct TripIdeas {
 - The system model supports up to 4,096 tokens per session
 - A token is roughly 3-4 characters in languages like English
 - All instructions, prompts, and outputs count toward this limit
-- If you exceed the limit, you'll get a `LanguageModelSession.GenerationError.exceededContextWindowSize` error
+- If you exceed the limit, you'll get a `LanguageLanguageModelProvider.GenerationError.exceededContextWindowSize` error
 - For large data processing, break it into smaller chunks across multiple sessions
 
 ### Optimizing Performance

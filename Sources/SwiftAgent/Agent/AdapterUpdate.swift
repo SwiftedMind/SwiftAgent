@@ -5,7 +5,7 @@ import Internal
 
 /// Internal stream updates emitted by adapters while generating.
 ///
-/// These updates are translated by `ModelSession` into public-facing state
+/// These updates are translated by `LanguageModelProvider` into public-facing state
 /// (e.g., transcript updates and responses). While public for type exposure,
 /// they are considered an SDK-internal mechanism.
 public enum AdapterUpdate: Sendable, Equatable {

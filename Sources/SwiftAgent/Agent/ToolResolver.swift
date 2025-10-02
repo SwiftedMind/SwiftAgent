@@ -65,7 +65,7 @@ import OSLog
 ///
 /// By using a shared `ToolRunKind` type across all your tools, the resolver ensures
 /// compile-time safety when handling different tool types in a unified way.
-public struct ToolResolver<Session: ModelSession> {
+public struct ToolResolver<Session: LanguageModelProvider> {
 	/// The tool call type from the associated transcript.
 	public typealias ToolCall = Transcript.ToolCall
 

@@ -5,7 +5,7 @@ import FoundationModels
 
 // MARK: - String Response Methods
 
-public extension ModelSession {
+public extension LanguageModelProvider {
   /// Generates a text response to a string prompt.
   ///
   /// This is the most basic response method, taking a plain string prompt and returning
@@ -109,7 +109,7 @@ public extension ModelSession {
 
 // MARK: - Structured Response Methods
 
-public extension ModelSession {
+public extension LanguageModelProvider {
   /// Generates a structured response of the specified type from a string prompt.
   ///
   /// This method enables structured output generation where the AI returns data conforming
@@ -240,7 +240,7 @@ public extension ModelSession {
 
 // MARK: - Context-Aware Response Methods
 
-public extension ModelSession {
+public extension LanguageModelProvider {
   /// Generates a text response with additional context while keeping user input separate.
   ///
   /// The method automatically extracts URLs from the input and fetches link previews,

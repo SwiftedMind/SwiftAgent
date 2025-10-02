@@ -72,7 +72,7 @@ import OpenAISession
 import OpenAISession
 
 // Create an OpenAI session
-let session = ModelSession.openAI(
+let session = LanguageModelProvider.openAI(
   tools: [WeatherTool(), CalculatorTool()],
   instructions: "You are a helpful assistant.",
   apiKey: "sk-...",
@@ -92,7 +92,7 @@ print(response.content)
 ```swift
 // Using custom configuration
 let configuration = OpenAIConfiguration.direct(apiKey: "your-api-key")
-let session = ModelSession.openAI(tools: tools, instructions: "...", configuration: configuration)
+let session = LanguageModelProvider.openAI(tools: tools, instructions: "...", configuration: configuration)
 ```
 
 ## 🛠️ Building Tools
@@ -210,7 +210,7 @@ enum ContextSource: PromptContextSource, PromptRepresentable {
 }
 
 // Create a session with context support and pass a context source
-let session = ModelSession.openAI(tools: tools, context: ContextSource.self, apiKey: "sk-...")
+let session = LanguageModelProvider.openAI(tools: tools, context: ContextSource.self, apiKey: "sk-...")
 
 // Respond with context - user input and context are kept separated in the transcript
 let response = try await session.respond(
@@ -255,7 +255,7 @@ extension WeatherTool {
 
 let tools: [any SwiftAgentTool<ToolRunKind>] = [WeatherTool(), CalculatorTool()]
 let configuration = OpenAIConfiguration.direct(apiKey: "sk-...")
-let session = ModelSession.openAI(tools: tools, instructions: "...", configuration: configuration)
+let session = LanguageModelProvider.openAI(tools: tools, instructions: "...", configuration: configuration)
 
 if let resolvedTranscript = session.transcript.resolved(using: tools) {
   for entry in resolvedTranscript {
@@ -296,7 +296,7 @@ extension WeatherTool {
 
 let tools: [any SwiftAgentTool<ToolRunKind>] = [WeatherTool(), CalculatorTool()]
 let configuration = OpenAIConfiguration.direct(apiKey: "sk-...")
-let session = ModelSession.openAI(tools: tools, instructions: "...", configuration: configuration)
+let session = LanguageModelProvider.openAI(tools: tools, instructions: "...", configuration: configuration)
 
 let toolResolver = session.transcript.toolResolver(using: tools)
 
@@ -438,13 +438,13 @@ The simulation system provides:
 
 ### OpenAI Configuration
 
-- Recommended: `OpenAIConfiguration.proxy(through:)` — route all requests through your own backend. Your backend issues short‑lived, per‑turn tokens. Use `ModelSession.withAuthorization` to set the token for the current agent turn so every internal request (thinking steps, tool calls, final message) is authorized consistently.
+- Recommended: `OpenAIConfiguration.proxy(through:)` — route all requests through your own backend. Your backend issues short‑lived, per‑turn tokens. Use `LanguageModelProvider.withAuthorization` to set the token for the current agent turn so every internal request (thinking steps, tool calls, final message) is authorized consistently.
 - Prototyping only: `OpenAIConfiguration.direct(apiKey:)` — calls OpenAI directly and embeds an API key in the app bundle. Avoid this in production.
 
 ```swift
 // Proxy configuration (recommended)
 let configuration = OpenAIConfiguration.proxy(through: URL(string: "https://api.your-backend.com")!)
-let session = ModelSession.openAI(tools: tools, instructions: "...", configuration: configuration)
+let session = LanguageModelProvider.openAI(tools: tools, instructions: "...", configuration: configuration)
 
 // Per‑turn authorization
 let token = try await backend.issueTurnToken(for: userId)

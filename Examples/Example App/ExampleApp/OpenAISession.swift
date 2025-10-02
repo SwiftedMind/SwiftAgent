@@ -6,20 +6,16 @@ import OpenAISession
 
 // TODO: Fix Grounding enum ergonomics
 // TODO: Implement Grounding decoding in Transcript resolution
-// TODO: Maybe a @SwiftAgentTool macro that adds Equatable conformance to Generable types?
+// TODO: Should @ResolvableTool also add conformance to SwiftAgentTool? To not have two places to modify? It can emit when Equatable is missing
 
 @SwiftAgentSession(provider: .openAI) @Observable
 final class OpenAISession {
 	@ResolvableTool let calculator = CalculatorTool()
-	@ResolvableTool let weather = WeatherTool()
-}
-
-func test() {
-	// let session = OpenAISession(instructions: "", apiKey: "")
+//	@ResolvableTool let weather: WeatherTool
 }
 
 // @Observable
-// final class OpenAISession: ModelSession {
+// final class OpenAISession: LanguageModelProvider {
 //	let calculator: CalculatorTool
 //
 //	enum Grounding: GroundingRepresentable {
