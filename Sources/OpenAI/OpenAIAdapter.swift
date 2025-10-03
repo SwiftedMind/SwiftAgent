@@ -343,7 +343,7 @@ public actor OpenAIAdapter: Adapter {
 			continuation.yield(.transcript(transcriptEntry))
 		} catch {
 			AgentLog.error(error, context: "tool_call_failed_\(tool.name)")
-			throw ToolRunError(tool: tool, underlyingError: error)
+			throw GenerationError.toolExecutionFailed(toolName: tool.name, underlyingError: error)
 		}
 	}
 

@@ -23,6 +23,8 @@ public enum GenerationError: Error, LocalizedError {
 	case providerError(ProviderErrorContext)
 	/// The streaming pipeline failed while consuming incremental updates from the provider.
 	case streamingFailure(StreamingFailureContext)
+	/// A tool execution failed during the agent run.
+	case toolExecutionFailed(ToolExecutionFailedContext)
 	/// An unknown or unspecified generation error occurred.
 	case unknown
 
@@ -86,6 +88,8 @@ public enum GenerationError: Error, LocalizedError {
 			case .cancelled:
 				return "Streaming cancelled"
 			}
+		case let .toolExecutionFailed(context):
+			return "Tool '\(context.toolName)' failed: \(context.underlyingError.localizedDescription)"
 		case .unknown:
 			return "Unknown generation error"
 		}
@@ -144,6 +148,19 @@ public extension GenerationError {
 				detail: detail,
 				code: code,
 				providerError: providerError
+			)
+		)
+	}
+
+	/// Convenience helper to build a tool execution failure error with minimal boilerplate.
+	static func toolExecutionFailed(
+		toolName: String,
+		underlyingError: any Error
+	) -> GenerationError {
+		.toolExecutionFailed(
+			ToolExecutionFailedContext(
+				toolName: toolName,
+				underlyingError: underlyingError
 			)
 		)
 	}
@@ -314,6 +331,21 @@ public extension GenerationError {
 			self.detail = detail
 			self.code = code
 			self.providerError = providerError
+		}
+	}
+}
+
+public extension GenerationError {
+	/// Context information for tool execution failures.
+	struct ToolExecutionFailedContext: Sendable {
+		/// The name of the tool that failed.
+		public var toolName: String
+		/// The underlying error thrown by the tool.
+		public var underlyingError: any Error
+
+		public init(toolName: String, underlyingError: any Error) {
+			self.toolName = toolName
+			self.underlyingError = underlyingError
 		}
 	}
 }

@@ -181,7 +181,7 @@ public actor SimulationAdapter {
 			continuation.yield(.transcript(transcriptEntry))
 		} catch {
 			AgentLog.error(error, context: "tool_call_failed_\(toolMock.tool.name)")
-			throw ToolRunError(tool: toolMock.tool, underlyingError: error)
+			throw GenerationError.toolExecutionFailed(toolName: toolMock.tool.name, underlyingError: error)
 		}
 	}
 

@@ -118,21 +118,17 @@ extension OpenAIAdapter {
 					case let .failed(responseEvent):
 						let responseError = responseEvent.response.error
 						throw GenerationError.streamingFailure(
-							GenerationError.StreamingFailureContext(
-								reason: .responseFailed,
-								detail: responseError?.message,
-								code: responseError?.code.rawValue,
-								providerError: nil
-							)
+							reason: .responseFailed,
+							detail: responseError?.message,
+							code: responseError?.code.rawValue,
+							providerError: nil
 						)
 					case .incomplete:
 						throw GenerationError.streamingFailure(
-							GenerationError.StreamingFailureContext(
-								reason: .responseIncomplete,
-								detail: "Response incomplete",
-								code: nil,
-								providerError: nil
-							)
+							reason: .responseIncomplete,
+							detail: "Response incomplete",
+							code: nil,
+							providerError: nil
 						)
 					case .queued:
 						continue
@@ -606,7 +602,7 @@ extension OpenAIAdapter {
 				executedAny = true
 			} catch {
 				AgentLog.error(error, context: "tool_call_failed_\(state.toolName)")
-				throw ToolRunError(tool: tool, underlyingError: error)
+				throw GenerationError.toolExecutionFailed(toolName: tool.name, underlyingError: error)
 			}
 		}
 
