@@ -93,7 +93,7 @@ public enum HTTPError: Error, Sendable, LocalizedError {
 	case requestFailed(underlying: Error)
 	case invalidResponse
 	case unacceptableStatus(code: Int, data: Data?)
-	case decodingFailed(underlying: Error, data: Data?)
+	case decodingFailed(underlying: DecodingError, data: Data?)
 
 	public var errorDescription: String? {
 		switch self {
@@ -241,10 +241,9 @@ public final class URLSessionHTTPClient: HTTPClient {
 		}
 	}
 
-	private func decode<T: Decodable>(_ type: T.Type, data: Data, response: URLResponse) throws -> T {
-		guard let http = response as? HTTPURLResponse else { throw HTTPError.invalidResponse }
-		guard (200..<300).contains(http.statusCode) else {
-			throw HTTPError.unacceptableStatus(code: http.statusCode, data: data)
+	private func decode<T: Decodable>(_ type: T.Type, data: Data, response: HTTPURLResponse) throws -> T {
+		guard (200..<300).contains(response.statusCode) else {
+			throw HTTPError.unacceptableStatus(code: response.statusCode, data: data)
 		}
 
 		do {

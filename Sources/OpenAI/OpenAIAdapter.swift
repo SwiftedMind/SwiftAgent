@@ -115,7 +115,7 @@ public actor OpenAIAdapter: Adapter {
 				)
 			} catch let httpError as HTTPError {
 				throw GenerationError.from(httpError)
-			} catch {
+			} catch let error {
 				throw GenerationError.unknown
 			}
 

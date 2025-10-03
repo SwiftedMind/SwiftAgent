@@ -70,10 +70,11 @@ public extension URLSessionHTTPClient {
 					guard let httpResponse = response as? HTTPURLResponse else {
 						throw SSEError.invalidResponse
 					}
+					
 					guard (200..<300).contains(httpResponse.statusCode) else {
 						let errorPreview = try await readPrefix(from: asyncBytes, maxLength: 4 * 1024)
 						NetworkLog.response(response, data: errorPreview)
-						throw SSEError.badStatus(code: httpResponse.statusCode, body: errorPreview)
+						throw HTTPError.unacceptableStatus(code: httpResponse.statusCode, data: errorPreview)
 					}
 
 					NetworkLog.response(response, data: nil)
@@ -110,7 +111,6 @@ public extension URLSessionHTTPClient {
 /// Errors that can occur while working with Server-Sent Events streams.
 public enum SSEError: Error, LocalizedError, Sendable {
 	case invalidResponse
-	case badStatus(code: Int, body: Data?)
 	case notEventStream(contentType: String?)
 	case cancelled
 	case decodingFailed(underlying: Error, data: Data)
@@ -119,8 +119,6 @@ public enum SSEError: Error, LocalizedError, Sendable {
 		switch self {
 		case .invalidResponse:
 			"Invalid response (no HTTPURLResponse)."
-		case let .badStatus(code, _):
-			"HTTP \(code) while opening SSE stream."
 		case let .notEventStream(contentType):
 			"Expected text/event-stream, got: \(contentType ?? "nil")."
 		case .cancelled:

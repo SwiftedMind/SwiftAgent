@@ -47,10 +47,8 @@ struct OpenAIAdapterStreamingErrorTests {
 			}
 
 			switch generationError {
-			case let .serviceQuotaExceeded(context):
-				#expect(context.knownCode == .insufficientQuota)
-				#expect(context.rawCode == "insufficient_quota")
-				#expect(context.message.contains("You exceeded your current quota"))
+			case let .providerError(context):
+				#expect(context.code == "insufficient_quota")
 			default:
 				Issue.record("Unexpected error thrown: \(generationError)")
 			}

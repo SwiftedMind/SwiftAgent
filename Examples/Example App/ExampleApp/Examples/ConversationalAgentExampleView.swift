@@ -62,7 +62,7 @@ struct ConversationalAgentExampleView: View {
 		
 		
 		do {
-			try await session.respond(to: userInput)
+//			try await session.respond(to: userInput)
 			let stream = try session.streamResponse(to: userInput, groundingWith: [.currentDate(Date())]) { input, sources in
 				PromptTag("context") {
 					for source in sources {

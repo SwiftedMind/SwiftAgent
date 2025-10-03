@@ -18,7 +18,7 @@ extension OpenAIAdapter {
 
 		AgentLog.start(
 			model: String(describing: model),
-			toolNames: tools.map { $0.name },
+			toolNames: tools.map(\.name),
 			promptPreview: prompt.input
 		)
 
@@ -41,6 +41,7 @@ extension OpenAIAdapter {
 				)
 			} catch {
 				AgentLog.error(error, context: "streaming response")
+				print(error)
 				setup.continuation.finish(throwing: error)
 				return
 			}
@@ -103,7 +104,7 @@ extension OpenAIAdapter {
 				streamLoop: for try await event in eventStream {
 					try Task.checkCancellation()
 					guard let decodedEvent = try decoder.decodeEvent(from: event) else { continue }
-					
+
 					switch decodedEvent {
 					case .created:
 						continue
@@ -212,23 +213,28 @@ extension OpenAIAdapter {
 							continuation: continuation
 						)
 					case .audio, .audioTranscript, .codeInterpreterCall, .fileSearchCall, .imageGenerationCall,
-							.mcpCall, .mcpCallArguments, .mcpListTools, .outputTextAnnotation,
-							.reasoningSummaryPart, .reasoningSummaryText, .refusal, .webSearchCall, .reasoningSummary:
+					     .mcpCall, .mcpCallArguments, .mcpListTools, .outputTextAnnotation,
+					     .reasoningSummaryPart, .reasoningSummaryText, .refusal, .webSearchCall, .reasoningSummary:
 						continue
 					case let .error(errorEvent):
-						if errorEvent.code == "insufficient_quota" {
-							let context = GenerationError.ServiceQuotaExceededContext(message: errorEvent.message)
-							throw GenerationError.serviceQuotaExceeded(context)
-						}
-						
-						let context = GenerationError.ProviderErrorContext(message: errorEvent.message, code: errorEvent.code)
-						throw GenerationError.providerError(context)
+						let errorType = errorEvent._type.rawValue
+
+						let providerContext = GenerationError.ProviderErrorContext(
+							message: errorEvent.message,
+							code: errorEvent.code,
+							category: categorizeStreamError(code: errorEvent.code, type: errorType),
+							type: errorType,
+							parameter: errorEvent.param
+						)
+						throw GenerationError.providerError(providerContext)
 					}
 				}
+			} catch let error as HTTPError {
+				throw GenerationError.from(error)
 			} catch let error as SSEError {
 				let context = GenerationError.StreamingFailureContext(
 					reason: .transportFailure,
-					detail: error.errorDescription,
+					detail: error.errorDescription
 				)
 				throw GenerationError.streamingFailure(context)
 			}
@@ -823,4 +829,31 @@ private func transcriptStatusForReasoning(
 	case .inProgress:
 		return SwiftAgent.Transcript.Status.inProgress
 	}
+}
+
+private func categorizeStreamError(code: String?, type: String?) -> GenerationError.ProviderErrorContext.Category {
+	let normalizedValues = [code, type]
+		.compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+	guard !normalizedValues.isEmpty else { return .unknown }
+
+	let contains: ([String]) -> Bool = { keywords in
+		normalizedValues.contains { value in keywords.contains { value.contains($0) } }
+	}
+
+	if contains(["auth", "token", "key", "credential"]) {
+		return .authentication
+	}
+	if contains(["permission", "forbidden", "denied", "unauthorized"]) {
+		return .permissionDenied
+	}
+	if contains(["not_found", "missing", "unknown_model", "unknown_tool"]) {
+		return .resourceMissing
+	}
+	if contains(["invalid", "unsupported", "conflict", "parameter", "limit", "quota", "rate"]) {
+		return .requestInvalid
+	}
+	if contains(["server", "internal", "unavailable", "timeout", "overloaded"]) {
+		return .server
+	}
+	return .unknown
 }
