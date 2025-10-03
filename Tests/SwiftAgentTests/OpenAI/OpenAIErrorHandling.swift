@@ -20,12 +20,7 @@ import Testing
 private final class ExampleSession {}
 
 // TODO: Doesn't succeed because replay mock client can't yet return custom status codes, so it returns 200 + an error schema which fails to decode
-// TODO: The decode error should be caught I think and turned into a GenerationError
-/*
- 
- keyNotFound(CodingKeys(stringValue: "created_at", intValue: nil), Swift.DecodingError.Context(codingPath: [], debugDescription: "No value associated with key CodingKeys(stringValue: \"created_at\", intValue: nil) (\"created_at\").", underlyingError: nil))
- 
- */
+// TODO: Add unit tests for a variety of error cases and in both streaming and non-streaming variants
 
 @Suite("OpenAIAdapter - Error Handling")
 struct OpenAIErrorHandling {
@@ -44,7 +39,7 @@ struct OpenAIErrorHandling {
 		session = ExampleSession(instructions: "", configuration: configuration)
 	}
 
-	@Test("Error event surfaces a failure")
+	@Test("'insufficient_quote' is thrown error")
 	func errorEventSurfacesFailure() async throws {
 
 		do {

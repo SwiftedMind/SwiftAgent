@@ -41,7 +41,6 @@ extension OpenAIAdapter {
 				)
 			} catch {
 				AgentLog.error(error, context: "streaming response")
-				print(error)
 				setup.continuation.finish(throwing: error)
 				return
 			}
@@ -229,14 +228,8 @@ extension OpenAIAdapter {
 						throw GenerationError.providerError(providerContext)
 					}
 				}
-			} catch let error as HTTPError {
-				throw GenerationError.from(error)
-			} catch let error as SSEError {
-				let context = GenerationError.StreamingFailureContext(
-					reason: .transportFailure,
-					detail: error.errorDescription
-				)
-				throw GenerationError.streamingFailure(context)
+			} catch {
+				throw GenerationError.fromStream(error, httpErrorMapper: GenerationError.from)
 			}
 
 			guard responseCompleted else {

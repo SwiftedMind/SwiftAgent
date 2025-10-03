@@ -93,6 +93,63 @@ public enum GenerationError: Error, LocalizedError {
 }
 
 public extension GenerationError {
+	/// Convenience helper to build a request failure error with minimal boilerplate.
+	static func requestFailed(
+		reason: RequestFailureContext.Reason,
+		detail: String,
+		underlyingError: (any Error)? = nil
+	) -> GenerationError {
+		.requestFailed(
+			RequestFailureContext(
+				reason: reason,
+				detail: detail,
+				underlyingError: underlyingError
+			)
+		)
+	}
+
+	/// Convenience helper to build a provider error error with minimal boilerplate.
+	static func providerError(
+		message: String,
+		category: ProviderErrorContext.Category,
+		statusCode: Int? = nil,
+		code: String? = nil,
+		type: String? = nil,
+		parameter: String? = nil,
+		underlyingError: (any Error)? = nil
+	) -> GenerationError {
+		.providerError(
+			ProviderErrorContext(
+				message: message,
+				code: code,
+				category: category,
+				statusCode: statusCode,
+				type: type,
+				parameter: parameter,
+				underlyingError: underlyingError
+			)
+		)
+	}
+
+	/// Convenience helper to build a streaming failure error with minimal boilerplate.
+	static func streamingFailure(
+		reason: StreamingFailureContext.Reason,
+		detail: String? = nil,
+		code: String? = nil,
+		providerError: ProviderErrorContext? = nil
+	) -> GenerationError {
+		.streamingFailure(
+			StreamingFailureContext(
+				reason: reason,
+				detail: detail,
+				code: code,
+				providerError: providerError
+			)
+		)
+	}
+}
+
+public extension GenerationError {
 	/// Context information for unsupported tool call errors.
 	struct UnsupportedToolCalledContext: Sendable {
 		/// The name of the tool that the model tried to call.
@@ -176,8 +233,6 @@ public extension GenerationError {
 		}
 	}
 }
-
-// (Removed) ServiceQuotaExceededContext: quota and rate limit issues are represented via `providerError`.
 
 public extension GenerationError {
 	/// Context information for provider errors reported by the backend.

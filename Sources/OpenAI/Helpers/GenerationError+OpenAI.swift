@@ -6,136 +6,47 @@ import OpenAI
 import SwiftAgent
 
 public extension GenerationError {
+	/// OpenAI-specific HTTP error mapping that delegates to the generic mapper
+	/// and only overrides cases where the OpenAI error payload provides richer context.
 	static func from(_ httpError: HTTPError) -> GenerationError {
-		switch httpError {
-		case .invalidURL:
-			.requestFailed(
-				GenerationError.RequestFailureContext(
-					reason: .invalidRequestConfiguration,
-					detail: "The configured provider endpoint URL is invalid.",
-					underlyingError: nil
-				)
-			)
-		case let .requestFailed(underlying):
-			.requestFailed(
-				GenerationError.RequestFailureContext(
-					reason: .networkFailure,
-					detail: underlying.localizedDescription
-				)
-			)
-		case .invalidResponse:
-			.requestFailed(
-				GenerationError.RequestFailureContext(
-					reason: .invalidResponse,
-					detail: "The provider returned a response without HTTP information."
-				)
-			)
-		case let .unacceptableStatus(code, data):
-			mapStatusError(statusCode: code, data: data)
-		case let .decodingFailed(underlying, _):
-			.requestFailed(
-				GenerationError.RequestFailureContext(
-					reason: .decodingFailure,
-					detail: underlying.localizedDescription,
-					underlyingError: underlying
-				)
-			)
-		}
+		fromHTTP(httpError, override: openAIHTTPOverride)
 	}
 }
 
 private extension GenerationError {
-	static func mapStatusError(statusCode: Int, data: Data?) -> GenerationError {
+	/// Provider-specific override used by `fromHTTP(_:override:)`.
+	/// Returns `nil` for cases where the generic mapping is sufficient.
+	static func openAIHTTPOverride(_ httpError: HTTPError) -> GenerationError? {
+		guard case let .unacceptableStatus(statusCode, data) = httpError else {
+			return nil
+		}
+
+		// For request timeout, let the generic mapper apply its standard behavior.
+		if statusCode == 408 { return nil }
+
 		let apiError = decodeAPIError(from: data)
 		let message = bestMessage(for: statusCode, apiError: apiError)
 
-		switch statusCode {
-		case 401:
-			return .providerError(
-				ProviderErrorContext(
-					message: message,
-					code: apiError?.code,
-					category: .authentication,
-					statusCode: statusCode,
-					type: apiError?.type,
-					parameter: apiError?.param
-				)
-			)
-		case 403:
-			return .providerError(
-				ProviderErrorContext(
-					message: message,
-					code: apiError?.code,
-					category: .permissionDenied,
-					statusCode: statusCode,
-					type: apiError?.type,
-					parameter: apiError?.param
-				)
-			)
-		case 404:
-			return .providerError(
-				ProviderErrorContext(
-					message: message,
-					code: apiError?.code,
-					category: .resourceMissing,
-					statusCode: statusCode,
-					type: apiError?.type,
-					parameter: apiError?.param
-				)
-			)
-		case 400, 409, 422, 429:
-			return .providerError(
-				ProviderErrorContext(
-					message: message,
-					code: apiError?.code,
-					category: .requestInvalid,
-					statusCode: statusCode,
-					type: apiError?.type,
-					parameter: apiError?.param
-				)
-			)
-		case 500...599:
-			return .providerError(
-				ProviderErrorContext(
-					message: message,
-					code: apiError?.code,
-					category: .server,
-					statusCode: statusCode,
-					type: apiError?.type,
-					parameter: apiError?.param
-				)
-			)
-		case 408:
-			return .requestFailed(
-				GenerationError.RequestFailureContext(
-					reason: .networkFailure,
-					detail: message
-				)
-			)
-		default:
-			if (400...499).contains(statusCode) {
-				return .providerError(
-					ProviderErrorContext(
-						message: message,
-						code: apiError?.code,
-						category: .requestInvalid,
-						statusCode: statusCode,
-						type: apiError?.type,
-						parameter: apiError?.param
-					)
-				)
-			}
-			return .providerError(
-				ProviderErrorContext(
-					message: message,
-					code: apiError?.code,
-					category: .unknown,
-					statusCode: statusCode,
-					type: apiError?.type,
-					parameter: apiError?.param
-				)
-			)
+		let category: ProviderErrorContext.Category = switch statusCode {
+		case 401: .authentication
+		case 403: .permissionDenied
+		case 404: .resourceMissing
+		case 400, 409, 422, 429: .requestInvalid
+		case 500...599: .server
+		case 400...499: .requestInvalid
+		default: .unknown
 		}
+
+		return .providerError(
+			ProviderErrorContext(
+				message: message,
+				code: apiError?.code,
+				category: category,
+				statusCode: statusCode,
+				type: apiError?.type,
+				parameter: apiError?.param,
+			),
+		)
 	}
 
 	static func decodeAPIError(from data: Data?) -> APIError? {

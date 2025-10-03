@@ -241,15 +241,20 @@ public final class URLSessionHTTPClient: HTTPClient {
 		}
 	}
 
-	private func decode<T: Decodable>(_ type: T.Type, data: Data, response: HTTPURLResponse) throws -> T {
-		guard (200..<300).contains(response.statusCode) else {
-			throw HTTPError.unacceptableStatus(code: response.statusCode, data: data)
+	private func decode<T: Decodable>(_ type: T.Type, data: Data, response: URLResponse) throws -> T {
+		guard let httpResponse = response as? HTTPURLResponse else {
+			throw HTTPError.invalidResponse
+		}
+		guard (200..<300).contains(httpResponse.statusCode) else {
+			throw HTTPError.unacceptableStatus(code: httpResponse.statusCode, data: data)
 		}
 
 		do {
 			return try configuration.jsonDecoder.decode(type, from: data)
+		} catch let decodingError as DecodingError {
+			throw HTTPError.decodingFailed(underlying: decodingError, data: data)
 		} catch {
-			throw HTTPError.decodingFailed(underlying: error, data: data)
+			throw error
 		}
 	}
 }

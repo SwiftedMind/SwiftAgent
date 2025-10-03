@@ -28,7 +28,7 @@ public struct OpenAIConfiguration: AdapterConfiguration {
 
 		let interceptors = HTTPClientInterceptors(
 			prepareRequest: { request in
-//				request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+				request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
 			},
 			onUnauthorized: { _, _, _ in
 				// Let the caller decide how to refresh; default is not to retry
