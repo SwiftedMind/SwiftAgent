@@ -18,7 +18,7 @@ public extension URLSessionHTTPClient {
 		path: String,
 		method: HTTPMethod = .post,
 		headers: [String: String] = [:],
-		body: (some Encodable)? = nil,
+		body: (some Encodable)? = nil
 	) -> AsyncThrowingStream<EventSource.Event, Error> {
 		let encodedBodyResult = Result<Data?, Error> {
 			try body.map { try configuration.jsonEncoder.encode($0) }

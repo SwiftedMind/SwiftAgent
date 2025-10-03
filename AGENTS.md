@@ -40,10 +40,10 @@ When a solution starts to expand, apply this checklist:
 - agents/swift/swift-testing.md - An overview of the Swift Testing framework
 - agents.local/tests.md - Guidelines on writing unit tests for the SDK
 
-## Available Tools
+## Available MCPs
 
 - `XcodeBuildMCP` to build and test the project
-- `sosumi` tool - Access to Apple's documentation for all Swift and SwiftUI APIs, guidelines and best practices. Use this to complement or fix/enhance your potentially outdated knowledge of these APIs.
+- `sosumi` mcp - Access to Apple's documentation for all Swift and SwiftUI APIs, guidelines and best practices. Use this to complement or fix/enhance your potentially outdated knowledge of these APIs.
 - `context7` - Access to documentation for a large amount of libraries and SDKs, including:
 	- MacPaw: "OpenAI Swift" - Swift implementation of the OpenAI API (Responses API)
 	- Swift Syntax: When working with Swift Macros, you can refer to this since its APIs constantly change which might cause problems for you

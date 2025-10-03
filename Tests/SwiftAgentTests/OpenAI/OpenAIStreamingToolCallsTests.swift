@@ -10,7 +10,7 @@ import Testing
 
 @LanguageModelProvider(for: .openAI)
 private final class ExampleSession {
-	// @Tool var weather = WeatherTool()
+	 @Tool var weather = WeatherTool()
 }
 
 @Suite("OpenAIAdapter - Streaming - Tool Calls")
@@ -52,7 +52,7 @@ struct OpenAIAdapterStreamingToolCallsTests {
 		var generatedTranscript = Transcript()
 
 		for try await snapshot in stream {
-			generatedTranscript.append(contentsOf: snapshot.transcript.entries)
+			generatedTranscript = snapshot.transcript
 		}
 
 		return generatedTranscript

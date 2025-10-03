@@ -11,7 +11,7 @@ import Testing
 @LanguageModelProvider(for: .openAI)
 private final class ExampleSession {}
 
-@Suite("OpenAIAdapter - Streaming - Text") @MainActor
+@Suite("OpenAIAdapter - Streaming - Text")
 struct OpenAIAdapterStreamingTextTests {
 	typealias Transcript = SwiftAgent.Transcript
 
@@ -31,7 +31,6 @@ struct OpenAIAdapterStreamingTextTests {
 	@Test("Single response")
 	func singleResponse() async throws {
 		let generatedTranscript = try await processStreamResponse()
-
 		await validateHTTPRequests()
 		try validateTranscript(generatedTranscript: generatedTranscript)
 	}
@@ -40,7 +39,7 @@ struct OpenAIAdapterStreamingTextTests {
 
 	private func processStreamResponse() async throws -> Transcript {
 		let stream = try session.streamResponse(
-			to: "input",
+			to: "prompt",
 			using: .gpt5,
 			options: .init(include: [.reasoning_encryptedContent]),
 		)
@@ -48,7 +47,7 @@ struct OpenAIAdapterStreamingTextTests {
 		var generatedTranscript = Transcript()
 
 		for try await snapshot in stream {
-			generatedTranscript.append(contentsOf: snapshot.transcript.entries)
+			generatedTranscript = snapshot.transcript
 		}
 
 		return generatedTranscript

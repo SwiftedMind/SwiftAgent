@@ -30,7 +30,7 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
 	func withAuthorization<T>(
 		token: String,
 		refresh: (@Sendable () async throws -> String)?,
-		perform: () async throws -> T,
+		perform: () async throws -> T
 	) async rethrows -> T
 }
 
@@ -48,22 +48,22 @@ package extension LanguageModelProvider {
 	// MARK: - Private Response Helpers
 
 	@MainActor
-	private func appendTranscript(_ entry: Transcript.Entry) {
+	func appendTranscript(_ entry: Transcript.Entry) {
 		transcript.append(entry)
 	}
 
 	@MainActor
-	private func appendTranscript(_ entries: [Transcript.Entry]) {
+	func appendTranscript(_ entries: [Transcript.Entry]) {
 		transcript.append(contentsOf: entries)
 	}
 
 	@MainActor
-	private func upsertTranscript(_ entry: Transcript.Entry) {
+	func upsertTranscript(_ entry: Transcript.Entry) {
 		transcript.upsert(entry)
 	}
 
 	@MainActor
-	private func mergeTokenUsage(_ usage: TokenUsage) {
+	func mergeTokenUsage(_ usage: TokenUsage) {
 		tokenUsage.merge(usage)
 	}
 
@@ -71,7 +71,7 @@ package extension LanguageModelProvider {
 		from prompt: Transcript.Prompt,
 		generating type: Content.Type,
 		using model: Adapter.Model,
-		options: Adapter.GenerationOptions?,
+		options: Adapter.GenerationOptions?
 	) async throws -> AgentResponse<Content> where Content: Generable {
 		let promptEntry = Transcript.Entry.prompt(prompt)
 		await appendTranscript(promptEntry)
@@ -81,7 +81,7 @@ package extension LanguageModelProvider {
 			generating: type,
 			using: model,
 			including: transcript,
-			options: options ?? .automatic(for: model),
+			options: options ?? .automatic(for: model)
 		)
 
 		var generatedTranscript = Transcript()
@@ -112,7 +112,7 @@ package extension LanguageModelProvider {
 								return try AgentResponse<Content>(
 									content: Content(structuredSegment.content),
 									transcript: generatedTranscript,
-									tokenUsage: generatedUsage,
+									tokenUsage: generatedUsage
 								)
 							}
 						}
@@ -149,7 +149,7 @@ package extension LanguageModelProvider {
 			return AgentResponse<Content>(
 				content: finalResponseSegments.joined(separator: "\n") as! Content,
 				transcript: generatedTranscript,
-				tokenUsage: generatedUsage,
+				tokenUsage: generatedUsage
 			)
 		} else {
 			// For structured content, if we reach here, no structured segment was found
@@ -162,7 +162,7 @@ package extension LanguageModelProvider {
 		from prompt: Transcript.Prompt,
 		generating type: Content.Type,
 		using model: Adapter.Model,
-		options: Adapter.GenerationOptions?,
+		options: Adapter.GenerationOptions?
 	) -> AsyncThrowingStream<AgentSnapshot<Content>, any Error> {
 		let setup = AsyncThrowingStream<AgentSnapshot<Content>, any Error>.makeStream()
 
@@ -176,7 +176,7 @@ package extension LanguageModelProvider {
 					generating: type,
 					using: model,
 					including: transcript,
-					options: options ?? .automatic(for: model),
+					options: options ?? .automatic(for: model)
 				)
 
 				var generatedTranscript = Transcript()
@@ -185,15 +185,39 @@ package extension LanguageModelProvider {
 					switch update {
 					case let .transcript(entry):
 						generatedTranscript.upsert(entry)
+						continuation.yield(
+							AgentSnapshot(
+								content: nil,
+								transcript: generatedTranscript,
+								tokenUsage: generatedUsage
+							)
+						)
 
 					case let .tokenUsage(usage):
 						generatedUsage.merge(usage)
+						continuation.yield(
+							AgentSnapshot(
+								content: nil,
+								transcript: generatedTranscript,
+								tokenUsage: generatedUsage
+							)
+						)
 					}
 				}
 
 				// Update the transcript and token usage when the stream is finished
 				await appendTranscript(generatedTranscript.entries)
 				await mergeTokenUsage(generatedUsage)
+				
+				// TODO: Send the final, parsed content, if type != String.self
+				continuation.yield(
+					AgentSnapshot(
+						content: nil,
+						transcript: generatedTranscript,
+						tokenUsage: generatedUsage
+					)
+				)
+				continuation.finish()
 			} catch {
 				continuation.finish(throwing: error)
 			}
@@ -267,7 +291,7 @@ public extension LanguageModelProvider {
 	func withAuthorization<T>(
 		token: String,
 		refresh: (@Sendable () async throws -> String)? = nil,
-		perform: () async throws -> T,
+		perform: () async throws -> T
 	) async rethrows -> T {
 		precondition(!token.isEmpty, "Authorization token must not be empty.")
 		let context = AuthorizationContext(bearerToken: token, refreshToken: refresh)

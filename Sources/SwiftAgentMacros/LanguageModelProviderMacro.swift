@@ -116,7 +116,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 	) throws -> [ExtensionDeclSyntax] {
 		let extensionDecl: DeclSyntax =
 			"""
-			extension \(type.trimmed): LanguageModelProvider {}
+			extension \(type.trimmed): LanguageModelProvider, @unchecked Sendable {}
 			"""
 
 		guard let extensionDeclSyntax = extensionDecl.as(ExtensionDeclSyntax.self) else {

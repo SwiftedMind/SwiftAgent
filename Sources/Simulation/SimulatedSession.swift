@@ -22,7 +22,7 @@ public extension LanguageModelProvider {
 		let sourcesData = try encodeGrounding([GroundingSource]())
 		let transcriptPrompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
 		let promptEntry = Transcript.Entry.prompt(transcriptPrompt)
-		transcript.append(promptEntry)
+		await appendTranscript(promptEntry)
 
 		let stream = await simulationAdapter(with: configuration).respond(
 			to: transcriptPrompt,
@@ -36,7 +36,7 @@ public extension LanguageModelProvider {
 		for try await update in stream {
 			switch update {
 			case let .transcript(entry):
-				transcript.append(entry)
+				await appendTranscript(entry)
 				addedEntities.append(entry)
 
 				if case let .response(response) = entry {
@@ -75,7 +75,7 @@ public extension LanguageModelProvider {
 		let sourcesData = try encodeGrounding([GroundingSource]())
 		let transcriptPrompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
 		let promptEntry = Transcript.Entry.prompt(transcriptPrompt)
-		transcript.append(promptEntry)
+		await appendTranscript(promptEntry)
 
 		let stream = await simulationAdapter(with: configuration).respond(
 			to: transcriptPrompt,
@@ -88,7 +88,7 @@ public extension LanguageModelProvider {
 		for try await update in stream {
 			switch update {
 			case let .transcript(entry):
-				transcript.append(entry)
+				await appendTranscript(entry)
 				addedEntities.append(entry)
 
 				if case let .response(response) = entry {

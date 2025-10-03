@@ -27,7 +27,7 @@ public actor OpenAIAdapter: Adapter {
 		httpClient = configuration.httpClient
 	}
 
-	public nonisolated func respond(
+	public func respond(
 		to prompt: Transcript.Prompt,
 		generating type: (some Generable).Type,
 		using model: Model = .default,
@@ -65,6 +65,7 @@ public actor OpenAIAdapter: Adapter {
 				// Surface a clear, user-friendly message
 				AgentLog.error(error, context: "agent response")
 				setup.continuation.finish(throwing: error)
+				return
 			}
 
 			setup.continuation.finish()
@@ -77,7 +78,7 @@ public actor OpenAIAdapter: Adapter {
 		return setup.stream
 	}
 
-	private nonisolated func run(
+	private func run(
 		transcript: Transcript,
 		generating type: (some Generable).Type,
 		using model: Model = .default,
@@ -92,7 +93,7 @@ public actor OpenAIAdapter: Adapter {
 			currentStep += 1
 			AgentLog.stepRequest(step: currentStep)
 
-			let request = try await responseQuery(
+			let request = try responseQuery(
 				including: Transcript(entries: transcript.entries + generatedTranscript.entries),
 				generating: type,
 				using: model,
@@ -102,14 +103,21 @@ public actor OpenAIAdapter: Adapter {
 			try Task.checkCancellation()
 
 			// Call provider backend
-			let response = try await httpClient.send(
-				path: responsesPath,
-				method: .post,
-				queryItems: nil,
-				headers: nil,
-				body: request,
-				responseType: ResponseObject.self,
-			)
+			let response: ResponseObject
+			do {
+				response = try await httpClient.send(
+					path: responsesPath,
+					method: .post,
+					queryItems: nil,
+					headers: nil,
+					body: request,
+					responseType: ResponseObject.self,
+				)
+			} catch let httpError as HTTPError {
+				throw GenerationError.from(httpError)
+			} catch {
+				throw GenerationError.unknown
+			}
 
 			// Emit token usage if available
 			if let usage = response.usage {

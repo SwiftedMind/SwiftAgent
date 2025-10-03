@@ -24,7 +24,7 @@
 ///
 /// Tool parameters are omitted automatically when the corresponding properties have default values.
 @attached(member, names: arbitrary)
-@attached(extension, conformances: LanguageModelProvider)
+@attached(extension, conformances: LanguageModelProvider, Sendable)
 public macro LanguageModelProvider(for provider: Provider) = #externalMacro(
 	module: "SwiftAgentMacros",
 	type: "LanguageModelProviderMacro",

@@ -59,8 +59,10 @@ struct ConversationalAgentExampleView: View {
 
 	private func sendMessage() async {
 		guard let session, userInput.isEmpty == false else { return }
-
+		
+		
 		do {
+			try await session.respond(to: userInput)
 			let stream = try session.streamResponse(to: userInput, groundingWith: [.currentDate(Date())]) { input, sources in
 				PromptTag("context") {
 					for source in sources {

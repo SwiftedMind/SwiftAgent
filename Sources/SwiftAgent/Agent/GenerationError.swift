@@ -17,6 +17,12 @@ public enum GenerationError: Error, LocalizedError {
 	case structuredContentParsingFailed(StructuredContentParsingFailedContext)
 	/// The model refused to generate the requested content type.
 	case contentRefusal(ContentRefusalContext)
+	/// The provider reported that the caller exceeded the available quota.
+	case serviceQuotaExceeded(ServiceQuotaExceededContext)
+	/// The provider reported an error that does not have a dedicated case yet.
+	case providerError(ProviderErrorContext)
+	/// The streaming pipeline failed while consuming incremental updates from the provider.
+	case streamingFailure(StreamingFailureContext)
 	/// An unknown or unspecified generation error occurred.
 	case unknown
 
@@ -36,6 +42,12 @@ public enum GenerationError: Error, LocalizedError {
 				return "Model refused to generate content for \(context.expectedType): \(reason)"
 			}
 			return "Model refused to generate content for \(context.expectedType)"
+		case let .serviceQuotaExceeded(context):
+			return "Provider quota exceeded: \(context.message)"
+		case let .providerError(context):
+			return "Provider error: \(context.message)"
+		case let .streamingFailure(context):
+			return "Streaming failed: \(context.detail)"
 		case .unknown:
 			return "Unknown generation error"
 		}
@@ -75,11 +87,11 @@ public extension GenerationError {
 		/// The raw content that failed to parse.
 		var rawContent: String
 		/// The underlying parsing error.
-		var underlyingError: String
+		var underlyingError: any Error
 
-		public init(rawContent: String, underlyingError: Error) {
+		public init(rawContent: String, underlyingError: any Error) {
 			self.rawContent = rawContent
-			self.underlyingError = underlyingError.localizedDescription
+			self.underlyingError = underlyingError
 		}
 	}
 
@@ -93,6 +105,69 @@ public extension GenerationError {
 		public init(expectedType: String, reason: String? = nil) {
 			self.expectedType = expectedType
 			self.reason = reason
+		}
+	}
+}
+
+public extension GenerationError {
+	/// Context information for provider errors reported by the backend.
+	struct ServiceQuotaExceededContext: Sendable {
+		/// The human-readable message provided by the backend.
+		public var message: String
+
+		public init(message: String) {
+			self.message = message
+		}
+	}
+}
+
+public extension GenerationError {
+	/// Context information for provider errors reported by the backend.
+	struct ProviderErrorContext: Sendable {
+		/// The human-readable message provided by the backend.
+		public var message: String
+		
+		public var code: String?
+
+		public init(message: String, code: String?) {
+			self.message = message
+			self.code = code
+		}
+	}
+}
+
+public extension GenerationError {
+	/// Additional details about failures that occur while streaming provider updates.
+	struct StreamingFailureContext: Sendable {
+		/// A categorisation of the streaming failure.
+		public enum Reason: Sendable {
+			case responseFailed
+			case responseIncomplete
+			case errorEvent
+			case transportFailure
+			case decodingFailure
+			case cancelled
+		}
+
+		/// The reason why streaming failed.
+		public var reason: Reason
+		/// A human-readable explanation of the failure.
+		public var detail: String?
+
+		public var code: String?
+		/// Additional provider error details when the backend supplied them.
+		public var providerError: ProviderErrorContext?
+
+		public init(
+			reason: Reason,
+			detail: String?,
+			code: String? = nil,
+			providerError: ProviderErrorContext? = nil
+		) {
+			self.reason = reason
+			self.detail = detail
+			self.code = code
+			self.providerError = providerError
 		}
 	}
 }
