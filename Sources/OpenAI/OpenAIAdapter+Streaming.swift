@@ -213,15 +213,12 @@ extension OpenAIAdapter {
 						continue
 					case let .error(errorEvent):
 						let errorType = errorEvent._type.rawValue
-
-						let providerContext = GenerationError.ProviderErrorContext(
-							message: errorEvent.message,
+						throw GenerationError.fromStreamErrorEvent(
 							code: errorEvent.code,
-							category: categorizeStreamError(code: errorEvent.code, type: errorType),
 							type: errorType,
-							parameter: errorEvent.param
+							message: errorEvent.message,
+							param: errorEvent.param
 						)
-						throw GenerationError.providerError(providerContext)
 					}
 				}
 			} catch {
@@ -818,31 +815,4 @@ private func transcriptStatusForReasoning(
 	case .inProgress:
 		return SwiftAgent.Transcript.Status.inProgress
 	}
-}
-
-private func categorizeStreamError(code: String?, type: String?) -> GenerationError.ProviderErrorContext.Category {
-	let normalizedValues = [code, type]
-		.compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-	guard !normalizedValues.isEmpty else { return .unknown }
-
-	let contains: ([String]) -> Bool = { keywords in
-		normalizedValues.contains { value in keywords.contains { value.contains($0) } }
-	}
-
-	if contains(["auth", "token", "key", "credential"]) {
-		return .authentication
-	}
-	if contains(["permission", "forbidden", "denied", "unauthorized"]) {
-		return .permissionDenied
-	}
-	if contains(["not_found", "missing", "unknown_model", "unknown_tool"]) {
-		return .resourceMissing
-	}
-	if contains(["invalid", "unsupported", "conflict", "parameter", "limit", "quota", "rate"]) {
-		return .requestInvalid
-	}
-	if contains(["server", "internal", "unavailable", "timeout", "overloaded"]) {
-		return .server
-	}
-	return .unknown
 }

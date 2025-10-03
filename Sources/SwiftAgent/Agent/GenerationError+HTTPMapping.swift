@@ -53,9 +53,32 @@ public extension GenerationError {
 
 			return .providerError(
 				message: message,
-				category: category(for: statusCode),
+				category: categoryForHTTPStatus(statusCode),
 				statusCode: statusCode,
 			)
+		}
+	}
+}
+
+public extension GenerationError {
+	/// Maps HTTP status codes to provider error categories.
+	/// This is shared across all provider implementations for consistency.
+	static func categoryForHTTPStatus(_ statusCode: Int) -> ProviderErrorContext.Category {
+		switch statusCode {
+		case 401:
+			.authentication
+		case 403:
+			.permissionDenied
+		case 404:
+			.resourceMissing
+		case 400, 409, 422, 429:
+			.requestInvalid
+		case 500...599:
+			.server
+		case 400...499:
+			.requestInvalid
+		default:
+			.unknown
 		}
 	}
 }
@@ -77,24 +100,5 @@ private extension GenerationError {
 		let trimmed = localized.trimmingCharacters(in: .whitespacesAndNewlines)
 		if !trimmed.isEmpty { return trimmed.capitalized }
 		return "HTTP status \(statusCode)"
-	}
-
-	static func category(for statusCode: Int) -> ProviderErrorContext.Category {
-		switch statusCode {
-		case 401:
-			.authentication
-		case 403:
-			.permissionDenied
-		case 404:
-			.resourceMissing
-		case 400, 409, 422, 429:
-			.requestInvalid
-		case 500...599:
-			.server
-		case 400...499:
-			.requestInvalid
-		default:
-			.unknown
-		}
 	}
 }
