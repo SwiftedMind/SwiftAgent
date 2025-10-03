@@ -28,7 +28,7 @@ public extension LanguageModelProvider {
 	///   and token usage information.
 	///
 	/// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
-	@discardableResult
+	@MainActor @discardableResult
 	func respond(
 		to prompt: String,
 		using model: Adapter.Model = .default,

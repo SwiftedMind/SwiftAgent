@@ -8,13 +8,16 @@ import OpenAI
 @testable import SwiftAgent
 import Testing
 
-@Suite("OpenAIAdapter - Streaming - Text")
+@LanguageModelProvider(for: .openAI)
+private final class ExampleSession {}
+
+@Suite("OpenAIAdapter - Streaming - Text") @MainActor
 struct OpenAIAdapterStreamingTextTests {
 	typealias Transcript = SwiftAgent.Transcript
 
 	// MARK: - Properties
 
-	private let adapter: OpenAIAdapter
+	private let session: ExampleSession
 	private let mockHTTPClient: ReplayHTTPClient<CreateModelResponseQuery>
 
 	// MARK: - Initialization
@@ -22,7 +25,7 @@ struct OpenAIAdapterStreamingTextTests {
 	init() async {
 		mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(recordedResponse: helloWorldResponse)
 		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
-		adapter = await OpenAIAdapter(tools: [], instructions: "", configuration: configuration)
+		session = ExampleSession(instructions: "", configuration: configuration)
 	}
 
 	@Test("Single response")
@@ -35,26 +38,17 @@ struct OpenAIAdapterStreamingTextTests {
 
 	// MARK: - Private Test Helper Methods
 
-	private func processStreamResponse() async throws -> Transcript<NoContext> {
-		let inputPrompt = Transcript<NoContext>.Prompt(input: "input", prompt: "prompt")
-		let initialTranscript = Transcript<NoContext>(entries: [.prompt(inputPrompt)])
-
-		let stream = await adapter.streamResponse(
-			to: inputPrompt,
-			generating: String.self,
-			including: initialTranscript,
+	private func processStreamResponse() async throws -> Transcript {
+		let stream = try session.streamResponse(
+			to: "input",
+			using: .gpt5,
 			options: .init(include: [.reasoning_encryptedContent]),
 		)
 
-		var generatedTranscript = Transcript<NoContext>()
+		var generatedTranscript = Transcript()
 
-		for try await event in stream {
-			switch event {
-			case let .transcript(entry):
-				generatedTranscript.upsert(entry)
-			default:
-				break
-			}
+		for try await snapshot in stream {
+			generatedTranscript.append(contentsOf: snapshot.transcript.entries)
 		}
 
 		return generatedTranscript
@@ -83,7 +77,7 @@ struct OpenAIAdapterStreamingTextTests {
 		#expect(text == "prompt")
 	}
 
-	private func validateTranscript(generatedTranscript: Transcript<NoContext>) throws {
+	private func validateTranscript(generatedTranscript: Transcript) throws {
 		#expect(generatedTranscript.count == 2)
 
 		guard case let .reasoning(reasoning) = generatedTranscript[0] else {

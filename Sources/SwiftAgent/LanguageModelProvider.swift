@@ -4,8 +4,7 @@ import Foundation
 import FoundationModels
 import Internal
 
-@MainActor
-public protocol LanguageModelProvider<Adapter>: AnyObject {
+public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
 	/// The transcript type for this session, containing the conversation history.
 	typealias Transcript = SwiftAgent.Transcript
 	typealias ResolvedTranscript = Transcript.Resolved<Self>
@@ -18,14 +17,14 @@ public protocol LanguageModelProvider<Adapter>: AnyObject {
 	nonisolated var tools: [any ResolvableTool<Self>] { get }
 
 	var adapter: Adapter { get }
-	var transcript: Transcript { get set }
-	var tokenUsage: TokenUsage { get set }
+	@MainActor var transcript: Transcript { get set }
+	@MainActor var tokenUsage: TokenUsage { get set }
 
 	nonisolated func encodeGrounding(_ grounding: [GroundingSource]) throws -> Data
 	nonisolated func decodeGrounding(from data: Data) throws -> [GroundingSource]
 
-	func resetTokenUsage()
-	func toolResolver() -> ToolResolver<Self>
+	@MainActor func resetTokenUsage()
+	@MainActor func toolResolver() -> ToolResolver<Self>
 
 	@discardableResult
 	func withAuthorization<T>(
@@ -48,6 +47,26 @@ public extension LanguageModelProvider {
 package extension LanguageModelProvider {
 	// MARK: - Private Response Helpers
 
+	@MainActor
+	private func appendTranscript(_ entry: Transcript.Entry) {
+		transcript.append(entry)
+	}
+
+	@MainActor
+	private func appendTranscript(_ entries: [Transcript.Entry]) {
+		transcript.append(contentsOf: entries)
+	}
+
+	@MainActor
+	private func upsertTranscript(_ entry: Transcript.Entry) {
+		transcript.upsert(entry)
+	}
+
+	@MainActor
+	private func mergeTokenUsage(_ usage: TokenUsage) {
+		tokenUsage.merge(usage)
+	}
+
 	func processResponse<Content>(
 		from prompt: Transcript.Prompt,
 		generating type: Content.Type,
@@ -55,7 +74,7 @@ package extension LanguageModelProvider {
 		options: Adapter.GenerationOptions?,
 	) async throws -> AgentResponse<Content> where Content: Generable {
 		let promptEntry = Transcript.Entry.prompt(prompt)
-		transcript.append(promptEntry)
+		await appendTranscript(promptEntry)
 
 		let stream = await adapter.respond(
 			to: prompt,
@@ -71,7 +90,7 @@ package extension LanguageModelProvider {
 		for try await update in stream {
 			switch update {
 			case let .transcript(entry):
-				transcript.upsert(entry)
+				await upsertTranscript(entry)
 				generatedTranscript.upsert(entry)
 
 				// Handle content extraction based on type
@@ -101,7 +120,7 @@ package extension LanguageModelProvider {
 				}
 			case let .tokenUsage(usage):
 				// Update session token usage immediately for real-time tracking
-				tokenUsage.merge(usage)
+				await mergeTokenUsage(usage)
 
 				if var current = generatedUsage {
 					current.merge(usage)
@@ -147,10 +166,10 @@ package extension LanguageModelProvider {
 	) -> AsyncThrowingStream<AgentSnapshot<Content>, any Error> {
 		let setup = AsyncThrowingStream<AgentSnapshot<Content>, any Error>.makeStream()
 
-		let task = Task<Void, Never> {
+		let task = Task<Void, Never> { [continuation = setup.continuation] in
 			do {
 				let promptEntry = Transcript.Entry.prompt(prompt)
-				transcript.append(promptEntry)
+				await appendTranscript(promptEntry)
 
 				let stream = await adapter.streamResponse(
 					to: prompt,
@@ -173,10 +192,10 @@ package extension LanguageModelProvider {
 				}
 
 				// Update the transcript and token usage when the stream is finished
-				transcript.append(contentsOf: generatedTranscript.entries)
-				tokenUsage.merge(generatedUsage)
+				await appendTranscript(generatedTranscript.entries)
+				await mergeTokenUsage(generatedUsage)
 			} catch {
-				setup.continuation.finish(throwing: error)
+				continuation.finish(throwing: error)
 			}
 		}
 
@@ -269,7 +288,7 @@ public extension LanguageModelProvider {
 	///
 	/// - Note: This method does not affect token usage tracking. Use `resetTokenUsage()`
 	///   if you also want to reset the cumulative token counter.
-	func clearTranscript() {
+	@MainActor func clearTranscript() {
 		transcript = Transcript()
 	}
 
@@ -282,11 +301,11 @@ public extension LanguageModelProvider {
 	///
 	/// - Note: This method only affects the session's cumulative token tracking.
 	///   Individual response token usage is not affected.
-	func resetTokenUsage() {
+	@MainActor func resetTokenUsage() {
 		tokenUsage = TokenUsage()
 	}
 
-	func toolResolver() -> ToolResolver<Self> {
+	@MainActor func toolResolver() -> ToolResolver<Self> {
 		ToolResolver(for: self, transcript: transcript)
 	}
 }

@@ -73,22 +73,22 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
 		members.append(
 			"""
-			var adapter: \(raw: provider.adapterTypeName)
+			let adapter: \(raw: provider.adapterTypeName)
 			""",
 		)
 		members.append(
 			"""
-			var transcript: SwiftAgent.Transcript
+			@MainActor var transcript: SwiftAgent.Transcript
 			""",
 		)
 		members.append(
 			"""
-			var tokenUsage: TokenUsage
+			@MainActor var tokenUsage: TokenUsage
 			""",
 		)
 		members.append(
 			"""
-			nonisolated let tools: [any ResolvableTool<SessionType>]
+			let tools: [any ResolvableTool<SessionType>]
 			""",
 		)
 

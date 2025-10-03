@@ -8,13 +8,18 @@ import OpenAI
 @testable import SwiftAgent
 import Testing
 
+@LanguageModelProvider(for: .openAI)
+private final class ExampleSession {
+	// @Tool var weather = WeatherTool()
+}
+
 @Suite("OpenAIAdapter - Streaming - Tool Calls")
 struct OpenAIAdapterStreamingToolCallsTests {
 	typealias Transcript = SwiftAgent.Transcript
 
 	// MARK: - Properties
 
-	private let adapter: OpenAIAdapter
+	private let session: ExampleSession
 	private let mockHTTPClient: ReplayHTTPClient<CreateModelResponseQuery>
 
 	// MARK: - Initialization
@@ -22,7 +27,7 @@ struct OpenAIAdapterStreamingToolCallsTests {
 	init() async {
 		mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(recordedResponses: [response1, response2])
 		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
-		adapter = await OpenAIAdapter(tools: Tools.all, instructions: "", configuration: configuration)
+		session = ExampleSession(instructions: "", configuration: configuration)
 	}
 
 	@Test("Single Tool Call (2 responses)")
@@ -35,27 +40,19 @@ struct OpenAIAdapterStreamingToolCallsTests {
 
 	// MARK: - Private Test Helper Methods
 
-	private func processStreamResponse() async throws -> Transcript<NoContext> {
+	private func processStreamResponse() async throws -> Transcript {
 		let userPrompt = "What is the weather in New York City, USA?"
-		let prompt = Transcript<NoContext>.Prompt(input: userPrompt, prompt: userPrompt)
-		let transcript = Transcript<NoContext>(entries: [.prompt(prompt)])
 
-		let stream = await adapter.streamResponse(
-			to: prompt,
+		let stream = try session.streamResponse(
+			to: userPrompt,
 			generating: String.self,
-			including: transcript,
 			options: .init(include: [.reasoning_encryptedContent]),
 		)
 
-		var generatedTranscript = Transcript<NoContext>()
+		var generatedTranscript = Transcript()
 
-		for try await event in stream {
-			switch event {
-			case let .transcript(entry):
-				generatedTranscript.upsert(entry)
-			default:
-				break
-			}
+		for try await snapshot in stream {
+			generatedTranscript.append(contentsOf: snapshot.transcript.entries)
 		}
 
 		return generatedTranscript
@@ -134,7 +131,7 @@ struct OpenAIAdapterStreamingToolCallsTests {
 		#expect(functionOutput.output == "\"Sunny\"")
 	}
 
-	private func validateTranscript(generatedTranscript: Transcript<NoContext>) throws {
+	private func validateTranscript(generatedTranscript: Transcript) throws {
 		#expect(generatedTranscript.count == 4)
 
 		guard case let .reasoning(reasoning) = generatedTranscript[0] else {
@@ -192,16 +189,12 @@ struct OpenAIAdapterStreamingToolCallsTests {
 
 // MARK: - Tools
 
-#tools(accessLevel: .fileprivate) {
-	WeatherTool()
-}
-
 private struct WeatherTool: SwiftAgentTool {
 	var name: String = "get_weather"
 	var description: String = "Get current temperature for a given location."
 
 	@Generable
-	struct Arguments {
+	struct Arguments: Equatable {
 		var location: String
 	}
 
