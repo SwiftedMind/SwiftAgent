@@ -1,11 +1,3 @@
-//
-//  ExampleSession.swift
-//  SwiftAgent
-//
-//  Created by Dennis Müller on 03.10.25.
-//
-
-
 // By Dennis Müller
 
 import Dependencies
@@ -19,7 +11,6 @@ import Testing
 @LanguageModelProvider(for: .openAI)
 private final class ExampleSession {}
 
-// TODO: Doesn't succeed because replay mock client can't yet return custom status codes, so it returns 200 + an error schema which fails to decode
 // TODO: Add unit tests for a variety of error cases and in both streaming and non-streaming variants
 
 @Suite("OpenAIAdapter - Error Handling")
@@ -34,14 +25,15 @@ struct OpenAIErrorHandling {
 	// MARK: - Initialization
 
 	init() async {
-		mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(recordedResponse: insufficientQuotaErrorResponse)
+		mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(
+			recordedResponse: .init(body: insufficientQuotaErrorResponse, statusCode: 429),
+		)
 		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
 		session = ExampleSession(instructions: "", configuration: configuration)
 	}
 
 	@Test("'insufficient_quote' is thrown error")
 	func errorEventSurfacesFailure() async throws {
-
 		do {
 			_ = try await session.respond(
 				to: "prompt",

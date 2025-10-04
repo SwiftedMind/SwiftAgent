@@ -19,7 +19,7 @@ public enum GenerationError: Error, LocalizedError {
 	case contentRefusal(ContentRefusalContext)
 	/// The request to the provider could not be completed before reaching the model.
 	case requestFailed(RequestFailureContext)
-	/// The provider reported an error that does not have a dedicated case yet.
+	/// The provider reported an error.
 	case providerError(ProviderErrorContext)
 	/// The streaming pipeline failed while consuming incremental updates from the provider.
 	case streamingFailure(StreamingFailureContext)
@@ -56,20 +56,7 @@ public enum GenerationError: Error, LocalizedError {
 				return "Could not decode provider response: \(context.detail)"
 			}
 		case let .providerError(context):
-			switch context.category {
-			case .authentication:
-				return "Provider authentication failed: \(context.message)"
-			case .permissionDenied:
-				return "Provider denied the request: \(context.message)"
-			case .requestInvalid:
-				return "Provider rejected the request: \(context.message)"
-			case .resourceMissing:
-				return "Requested provider resource was not found: \(context.message)"
-			case .server:
-				return "Provider is temporarily unavailable: \(context.message)"
-			case .unknown:
-				return "Provider error: \(context.message)"
-			}
+			return "Provider error: \(context.message)"
 		case let .streamingFailure(context):
 			if let detail = context.detail?.trimmingCharacters(in: .whitespacesAndNewlines), !detail.isEmpty {
 				return "Streaming failed: \(detail)"
@@ -79,8 +66,6 @@ public enum GenerationError: Error, LocalizedError {
 				return "Streaming failed: provider response failed"
 			case .responseIncomplete:
 				return "Streaming failed: provider response incomplete"
-			case .errorEvent:
-				return "Streaming failed due to provider error event"
 			case .transportFailure:
 				return "Streaming failed due to transport failure"
 			case .decodingFailure:
@@ -101,37 +86,35 @@ public extension GenerationError {
 	static func requestFailed(
 		reason: RequestFailureContext.Reason,
 		detail: String,
-		underlyingError: (any Error)? = nil
+		underlyingError: (any Error)? = nil,
 	) -> GenerationError {
 		.requestFailed(
 			RequestFailureContext(
 				reason: reason,
 				detail: detail,
-				underlyingError: underlyingError
-			)
+				underlyingError: underlyingError,
+			),
 		)
 	}
 
 	/// Convenience helper to build a provider error error with minimal boilerplate.
 	static func providerError(
 		message: String,
-		category: ProviderErrorContext.Category,
 		statusCode: Int? = nil,
 		code: String? = nil,
 		type: String? = nil,
 		parameter: String? = nil,
-		underlyingError: (any Error)? = nil
+		underlyingError: (any Error)? = nil,
 	) -> GenerationError {
 		.providerError(
 			ProviderErrorContext(
 				message: message,
 				code: code,
-				category: category,
 				statusCode: statusCode,
 				type: type,
 				parameter: parameter,
-				underlyingError: underlyingError
-			)
+				underlyingError: underlyingError,
+			),
 		)
 	}
 
@@ -140,28 +123,28 @@ public extension GenerationError {
 		reason: StreamingFailureContext.Reason,
 		detail: String? = nil,
 		code: String? = nil,
-		providerError: ProviderErrorContext? = nil
+		providerError: ProviderErrorContext? = nil,
 	) -> GenerationError {
 		.streamingFailure(
 			StreamingFailureContext(
 				reason: reason,
 				detail: detail,
 				code: code,
-				providerError: providerError
-			)
+				providerError: providerError,
+			),
 		)
 	}
 
 	/// Convenience helper to build a tool execution failure error with minimal boilerplate.
 	static func toolExecutionFailed(
 		toolName: String,
-		underlyingError: any Error
+		underlyingError: any Error,
 	) -> GenerationError {
 		.toolExecutionFailed(
 			ToolExecutionFailedContext(
 				toolName: toolName,
-				underlyingError: underlyingError
-			)
+				underlyingError: underlyingError,
+			),
 		)
 	}
 }
@@ -242,7 +225,7 @@ public extension GenerationError {
 		public init(
 			reason: Reason,
 			detail: String,
-			underlyingError: (any Error)? = nil
+			underlyingError: (any Error)? = nil,
 		) {
 			self.reason = reason
 			self.detail = detail
@@ -254,18 +237,6 @@ public extension GenerationError {
 public extension GenerationError {
 	/// Context information for provider errors reported by the backend.
 	struct ProviderErrorContext: Sendable {
-		/// High-level categories for provider originated errors.
-		public enum Category: Sendable {
-			case authentication
-			case permissionDenied
-			case requestInvalid
-			case resourceMissing
-			case server
-			case unknown
-		}
-
-		/// The classified category for the error.
-		public var category: Category
 		/// The human-readable message provided by the backend.
 		public var message: String
 		/// The HTTP status code if the backend provided one.
@@ -282,13 +253,11 @@ public extension GenerationError {
 		public init(
 			message: String,
 			code: String? = nil,
-			category: Category = .unknown,
 			statusCode: Int? = nil,
 			type: String? = nil,
 			parameter: String? = nil,
-			underlyingError: (any Error)? = nil
+			underlyingError: (any Error)? = nil,
 		) {
-			self.category = category
 			self.message = message
 			self.statusCode = statusCode
 			self.code = code
@@ -299,6 +268,7 @@ public extension GenerationError {
 	}
 }
 
+// TODO: Make sure that the streaming errors are literally only for SSE related errors, not provider specific errors. For example, when an "error" SSE event is received, that should be a provider error, not a streaming error. But when an event cannot be parsed or something else related to the streaming process fails, that should be a streaming error. Make sure this is the case in HTTPClient+SSE.swift and GenerationError+HTTPMapping.swift.
 public extension GenerationError {
 	/// Additional details about failures that occur while streaming provider updates.
 	struct StreamingFailureContext: Sendable {
@@ -306,7 +276,6 @@ public extension GenerationError {
 		public enum Reason: Sendable {
 			case responseFailed
 			case responseIncomplete
-			case errorEvent
 			case transportFailure
 			case decodingFailure
 			case cancelled
@@ -325,7 +294,7 @@ public extension GenerationError {
 			reason: Reason,
 			detail: String?,
 			code: String? = nil,
-			providerError: ProviderErrorContext? = nil
+			providerError: ProviderErrorContext? = nil,
 		) {
 			self.reason = reason
 			self.detail = detail

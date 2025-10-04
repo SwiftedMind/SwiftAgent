@@ -10,7 +10,7 @@ import Testing
 
 @LanguageModelProvider(for: .openAI)
 private final class ExampleSession {
-	 @Tool var weather = WeatherTool()
+	@Tool var weather = WeatherTool()
 }
 
 @Suite("OpenAIAdapter - Streaming - Tool Calls")
@@ -25,7 +25,12 @@ struct OpenAIAdapterStreamingToolCallsTests {
 	// MARK: - Initialization
 
 	init() async {
-		mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(recordedResponses: [response1, response2])
+		mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(
+			recordedResponses: [
+				.init(body: response1),
+				.init(body: response2),
+			],
+		)
 		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
 		session = ExampleSession(instructions: "", configuration: configuration)
 	}

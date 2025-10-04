@@ -22,6 +22,16 @@ actor ReplayHTTPClient<RequestBodyType: Encodable & Sendable>: HTTPClient {
 		}
 	}
 
+	struct RecordedResponse: Sendable {
+		var body: String
+		var statusCode: Int
+
+		init(body: String, statusCode: Int = 200) {
+			self.body = body
+			self.statusCode = statusCode
+		}
+	}
+
 	struct Request: Sendable {
 		var path: String
 		var method: HTTPMethod
@@ -30,14 +40,14 @@ actor ReplayHTTPClient<RequestBodyType: Encodable & Sendable>: HTTPClient {
 		var body: RequestBodyType
 	}
 
-	private var pendingRecordedResponses: [String]
+	private var pendingRecordedResponses: [RecordedResponse]
 	private(set) var recordedRequests: [Request] = []
 
-	init(recordedResponses: [String]) {
+	init(recordedResponses: [RecordedResponse]) {
 		pendingRecordedResponses = recordedResponses
 	}
 
-	init(recordedResponse: String) {
+	init(recordedResponse: RecordedResponse) {
 		pendingRecordedResponses = [recordedResponse]
 	}
 
@@ -56,8 +66,11 @@ actor ReplayHTTPClient<RequestBodyType: Encodable & Sendable>: HTTPClient {
 		}
 
 		let response = try await takeNextRecordedResponse()
-		guard let data = response.data(using: .utf8) else {
+		guard let data = response.body.data(using: .utf8) else {
 			throw ReplayError.invalidUTF8RecordedResponse
+		}
+		guard (200..<300).contains(response.statusCode) else {
+			throw HTTPError.unacceptableStatus(code: response.statusCode, data: data)
 		}
 
 		return try JSONDecoder().decode(ResponseBody.self, from: data)
@@ -80,7 +93,14 @@ actor ReplayHTTPClient<RequestBodyType: Encodable & Sendable>: HTTPClient {
 
 				do {
 					let response = try await takeNextRecordedResponse()
-					for event in await parseEvents(from: response) {
+					guard let data = response.body.data(using: .utf8) else {
+						throw ReplayError.invalidUTF8RecordedResponse
+					}
+					guard (200..<300).contains(response.statusCode) else {
+						throw HTTPError.unacceptableStatus(code: response.statusCode, data: data)
+					}
+
+					for event in await parseEvents(from: response.body) {
 						continuation.yield(event)
 					}
 					continuation.finish()
@@ -102,7 +122,7 @@ actor ReplayHTTPClient<RequestBodyType: Encodable & Sendable>: HTTPClient {
 }
 
 private extension ReplayHTTPClient {
-	func takeNextRecordedResponse() throws -> String {
+	func takeNextRecordedResponse() throws -> RecordedResponse {
 		guard let response = pendingRecordedResponses.first else {
 			throw ReplayError.noRecordedResponsesRemaining
 		}

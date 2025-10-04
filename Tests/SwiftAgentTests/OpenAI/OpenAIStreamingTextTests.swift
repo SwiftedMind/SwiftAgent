@@ -23,7 +23,9 @@ struct OpenAIAdapterStreamingTextTests {
 	// MARK: - Initialization
 
 	init() async {
-		mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(recordedResponse: helloWorldResponse)
+		mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(
+			recordedResponse: .init(body: helloWorldResponse),
+		)
 		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
 		session = ExampleSession(instructions: "", configuration: configuration)
 	}

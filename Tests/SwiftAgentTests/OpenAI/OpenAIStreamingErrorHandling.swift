@@ -23,7 +23,9 @@ struct OpenAIAdapterStreamingErrorTests {
 	// MARK: - Initialization
 
 	init() async {
-		mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(recordedResponse: insufficientQuotaErrorResponse)
+		mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(
+			recordedResponse: .init(body: insufficientQuotaErrorResponse, statusCode: 200),
+		)
 		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
 		session = ExampleSession(instructions: "", configuration: configuration)
 	}
