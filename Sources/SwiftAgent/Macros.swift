@@ -1,5 +1,7 @@
 // By Dennis Müller
 
+import Observation
+
 /// Synthesizes a complete `LanguageModelProvider` implementation, including tool wrappers and
 /// support infrastructure for interacting with Foundation Models.
 ///
@@ -24,7 +26,7 @@
 ///
 /// Tool parameters are omitted automatically when the corresponding properties have default values.
 @attached(member, names: arbitrary)
-@attached(extension, conformances: LanguageModelProvider, Sendable)
+@attached(extension, conformances: LanguageModelProvider, Sendable, Observation.Observable)
 public macro LanguageModelProvider(_ provider: Provider) = #externalMacro(
 	module: "SwiftAgentMacros",
 	type: "LanguageModelProviderMacro",

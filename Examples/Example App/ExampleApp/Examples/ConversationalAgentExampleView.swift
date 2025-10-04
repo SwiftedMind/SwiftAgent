@@ -20,7 +20,7 @@ struct ConversationalAgentExampleView: View {
 	@State private var userInput = "Compute 234 + 6 using the tool!"
 	@State private var generatingTranscript: OpenAISession.PartiallyResolvedTranscript = .init()
 	@State private var session: OpenAISession?
-
+	
 	// MARK: - Body
 
 	var body: some View {

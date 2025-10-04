@@ -1,5 +1,6 @@
 // By Dennis Müller
 
+import SwiftDiagnostics
 import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
@@ -26,7 +27,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 	public static func expansion(
 		of node: AttributeSyntax,
 		providingMembersOf declaration: some DeclGroupSyntax,
-		in context: some MacroExpansionContext,
+		in context: some MacroExpansionContext
 	) throws -> [DeclSyntax] {
 		guard let classDeclaration = declaration.as(ClassDeclSyntax.self) else {
 			throw MacroError.onlyApplicableToClass
@@ -34,6 +35,14 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		guard let provider = try extractProvider(from: node) else {
 			throw MacroError.missingProvider
 		}
+
+		if let observableAttribute = attribute(
+			named: "Observable",
+			in: classDeclaration.attributes
+		) {
+			diagnoseManualObservable(on: observableAttribute, typeName: classDeclaration.name.text, in: context)
+		}
+		diagnoseObservationIgnored(in: classDeclaration, context: context)
 
 		let toolProperties = try extractToolProperties(from: classDeclaration)
 		let groundingProperties = try extractGroundingProperties(from: classDeclaration)
@@ -47,7 +56,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			  var wrappedValue: ToolType
 			  init(wrappedValue: ToolType) { self.wrappedValue = wrappedValue }
 			}
-			""",
+			"""
 		)
 
 		members.append(
@@ -57,45 +66,51 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			  var wrappedValue: Source.Type
 			  init(_ wrappedValue: Source.Type) { self.wrappedValue = wrappedValue }
 			}
-			""",
+			"""
 		)
 
 		members.append(
 			"""
 			typealias Adapter = \(raw: provider.adapterTypeName)
-			""",
+			"""
 		)
 		members.append(
 			"""
 			typealias SessionType = \(raw: classDeclaration.name.text)
-			""",
+			"""
 		)
 
 		members.append(
 			"""
 			let adapter: \(raw: provider.adapterTypeName)
-			""",
-		)
-		members.append(
 			"""
-			@MainActor var transcript: SwiftAgent.Transcript = Transcript()
-			""",
 		)
-		members.append(
-			"""
-			@MainActor var tokenUsage: TokenUsage = TokenUsage()
-			""",
-		)
+		members.append(contentsOf:
+			generateObservableMembers(
+				named: "transcript",
+				type: "SwiftAgent.Transcript",
+				initialValue: "Transcript()",
+				actorAttribute: "@MainActor"
+			))
+		members.append(contentsOf:
+			generateObservableMembers(
+				named: "tokenUsage",
+				type: "TokenUsage",
+				initialValue: "TokenUsage()",
+				actorAttribute: "@MainActor"
+			))
 		members.append(
 			"""
 			let tools: [any ResolvableTool<SessionType>]
-			""",
+			"""
 		)
+
+		members.append(contentsOf: generateObservationSupportMembers())
 
 		try members.append(contentsOf:
 			generateInitializers(
 				for: toolProperties,
-				provider: provider,
+				provider: provider
 			))
 
 		members.append(generateGroundingSourceEnum(for: groundingProperties))
@@ -112,11 +127,13 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		attachedTo declaration: some DeclGroupSyntax,
 		providingExtensionsOf type: some TypeSyntaxProtocol,
 		conformingTo protocols: [TypeSyntax],
-		in context: some MacroExpansionContext,
+		in context: some MacroExpansionContext
 	) throws -> [ExtensionDeclSyntax] {
+		let conformances = ["LanguageModelProvider", "@unchecked Sendable", "nonisolated Observation.Observable"]
+
 		let extensionDecl: DeclSyntax =
 			"""
-			extension \(type.trimmed): LanguageModelProvider, @unchecked Sendable {}
+			extension \(type.trimmed): \(raw: conformances.joined(separator: ", ")) {}
 			"""
 
 		guard let extensionDeclSyntax = extensionDecl.as(ExtensionDeclSyntax.self) else {
@@ -139,14 +156,18 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
 	private static func attributeList(
 		_ attributes: AttributeListSyntax?,
-		containsAttributeNamed name: String,
+		containsAttributeNamed name: String
 	) -> Bool {
 		guard let attributes else {
 			return false
 		}
 
 		return attributes.contains { attribute in
-			attribute.as(AttributeSyntax.self)?.attributeName.trimmedDescription == name
+			guard let attributeSyntax = attribute.as(AttributeSyntax.self) else {
+				return false
+			}
+
+			return attributeBaseName(attributeSyntax) == name
 		}
 	}
 
@@ -161,7 +182,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
 			let hasToolAttribute = attributeList(
 				variableDecl.attributes,
-				containsAttributeNamed: "Tool",
+				containsAttributeNamed: "Tool"
 			)
 
 			guard hasToolAttribute else {
@@ -190,7 +211,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			return ToolProperty(
 				identifier: identifierPattern.identifier,
 				typeName: typeName,
-				hasInitializer: binding.initializer != nil,
+				hasInitializer: binding.initializer != nil
 			)
 		}
 	}
@@ -217,7 +238,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
 			return GroundingProperty(
 				identifier: identifierPattern.identifier,
-				typeName: typeName,
+				typeName: typeName
 			)
 		}
 	}
@@ -243,11 +264,35 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
 	private static func attribute(
 		named name: String,
-		in attributes: AttributeListSyntax?,
+		in attributes: AttributeListSyntax?
 	) -> AttributeSyntax? {
 		attributes?
 			.compactMap { $0.as(AttributeSyntax.self) }
-			.first(where: { $0.attributeName.trimmedDescription == name })
+			.first(where: { attributeBaseName($0) == name })
+	}
+
+	private static func attributeBaseName(_ attribute: AttributeSyntax) -> String {
+		baseName(from: attribute.attributeName)
+	}
+
+	private static func baseName(from type: TypeSyntax) -> String {
+		let description = type.trimmedDescription
+		guard !description.isEmpty else {
+			return description
+		}
+
+		let components = description.split(separator: ".")
+		guard let lastComponent = components.last else {
+			return description
+		}
+
+		let sanitizedComponent = lastComponent
+			.split(separator: "(")
+			.first?
+			.split(separator: "<")
+			.first
+
+		return String(sanitizedComponent ?? lastComponent)
 	}
 
 	private static func extractGroundingTypeName(from attribute: AttributeSyntax) throws -> String {
@@ -281,7 +326,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
 	private static func generateInitializers(
 		for tools: [ToolProperty],
-		provider: Provider,
+		provider: Provider
 	) throws -> [DeclSyntax] {
 		var initializers: [DeclSyntax] = []
 
@@ -289,7 +334,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			(
 				name: tool.identifier.text,
 				type: tool.typeName,
-				hasInitializer: tool.hasInitializer,
+				hasInitializer: tool.hasInitializer
 			)
 		}
 
@@ -341,7 +386,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 					configuration: .direct(apiKey: apiKey)
 				)
 			}
-			""",
+			"""
 		)
 
 		let configurationInitParameters = initParameters.isEmpty
@@ -362,7 +407,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 					configuration: configuration
 				)
 			}
-			""",
+			"""
 		)
 
 		return initializers
@@ -482,4 +527,168 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			}
 			"""
 	}
+
+	private static func diagnoseManualObservable(
+		on attribute: AttributeSyntax,
+		typeName: String,
+		in context: some MacroExpansionContext
+	) {
+		context.diagnose(
+			Diagnostic(
+				node: Syntax(attribute),
+				message: Diagnostics.manualObservable(typeName: typeName)
+			)
+		)
+	}
+
+	private static func diagnoseObservationIgnored(
+		in classDeclaration: ClassDeclSyntax,
+		context: some MacroExpansionContext
+	) {
+		for member in classDeclaration.memberBlock.members {
+			guard let variableDecl = member.decl.as(VariableDeclSyntax.self),
+			      let ignoredAttribute = attribute(
+			      	named: "ObservationIgnored",
+			      	in: variableDecl.attributes
+			      )
+			else {
+				continue
+			}
+
+			context.diagnose(
+				Diagnostic(
+					node: Syntax(ignoredAttribute),
+					message: Diagnostics.observationIgnored()
+				)
+			)
+		}
+	}
+
+	private static func generateObservableMembers(
+		named name: String,
+		type: String,
+		initialValue: String,
+		actorAttribute: String
+	) -> [DeclSyntax] {
+		let storedProperty: DeclSyntax =
+			"""
+				\(raw: actorAttribute) private var _\(raw: name): \(raw: type) = \(raw: initialValue)
+			"""
+
+		let keyPath = "\\.\(name)"
+		let computedProperty: DeclSyntax =
+			"""
+			\(raw: actorAttribute) var \(raw: name): \(raw: type) {
+			  @storageRestrictions(initializes: _\(raw: name))
+			  init(initialValue) {
+			    _\(raw: name) = initialValue
+			  }
+			  get {
+			    access(keyPath: \(raw: keyPath))
+			    return _\(raw: name)
+			  }
+			  set {
+			    guard shouldNotifyObservers(_\(raw: name), newValue) else {
+			      _\(raw: name) = newValue
+			      return
+			    }
+
+			    withMutation(keyPath: \(raw: keyPath)) {
+			      _\(raw: name) = newValue
+			    }
+			  }
+			  _modify {
+			    access(keyPath: \(raw: keyPath))
+			    _$observationRegistrar.willSet(self, keyPath: \(raw: keyPath))
+			    defer {
+			      _$observationRegistrar.didSet(self, keyPath: \(raw: keyPath))
+			    }
+			    yield &_\(raw: name)
+			  }
+			}
+			"""
+
+		return [storedProperty, computedProperty]
+	}
+
+	private static func generateObservationSupportMembers() -> [DeclSyntax] {
+		[
+			"""
+			private let _$observationRegistrar = Observation.ObservationRegistrar()
+			""",
+			"""
+			nonisolated func access(
+			  keyPath: KeyPath<SessionType, some Any>
+			) {
+			  _$observationRegistrar.access(self, keyPath: keyPath)
+			}
+			""",
+			"""
+			nonisolated func withMutation<A>(
+			  keyPath: KeyPath<SessionType, some Any>,
+			  _ mutation: () throws -> A
+			) rethrows -> A {
+			  try _$observationRegistrar.withMutation(of: self, keyPath: keyPath, mutation)
+			}
+			""",
+			"""
+			private nonisolated func shouldNotifyObservers<A>(
+			  _ lhs: A,
+			  _ rhs: A
+			) -> Bool {
+			  true
+			}
+			""",
+			"""
+			private nonisolated func shouldNotifyObservers<A: Equatable>(
+			  _ lhs: A,
+			  _ rhs: A
+			) -> Bool {
+			  lhs != rhs
+			}
+			""",
+			"""
+			private nonisolated func shouldNotifyObservers<A: AnyObject>(
+			  _ lhs: A,
+			  _ rhs: A
+			) -> Bool {
+			  lhs !== rhs
+			}
+			""",
+			"""
+			private nonisolated func shouldNotifyObservers<A: Equatable & AnyObject>(
+			  _ lhs: A,
+			  _ rhs: A
+			) -> Bool {
+			  lhs != rhs
+			}
+			""",
+		]
+	}
+
+	private enum Diagnostics {
+		private static let domain = "LanguageModelProviderMacro"
+
+		static func manualObservable(typeName: String) -> SimpleDiagnosticMessage {
+			SimpleDiagnosticMessage(
+				message: "LanguageModelProvider already adds @Observable; remove it from \(typeName)",
+				diagnosticID: MessageID(domain: domain, id: "manual-observable"),
+				severity: .error
+			)
+		}
+
+		static func observationIgnored() -> SimpleDiagnosticMessage {
+			SimpleDiagnosticMessage(
+				message: "@ObservationIgnored isn't supported here; LanguageModelProvider manages observation automatically",
+				diagnosticID: MessageID(domain: domain, id: "observation-ignored"),
+				severity: .error
+			)
+		}
+	}
+}
+
+private struct SimpleDiagnosticMessage: DiagnosticMessage {
+	let message: String
+	let diagnosticID: MessageID
+	let severity: DiagnosticSeverity
 }
