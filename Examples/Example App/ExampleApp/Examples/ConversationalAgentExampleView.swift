@@ -145,11 +145,11 @@ struct ConversationalAgentExampleView: View {
 			}
 
 			for try await snapshot in stream {
-				let partiallyResolvedTranscript = try snapshot.transcript.partiallyResolved(in: session)
+				let partiallyResolvedTranscript = snapshot.transcript.partiallyResolved(in: session)
 				generatingTranscript = partiallyResolvedTranscript
 			}
 
-			transcript = try session.transcript.resolved(in: session)
+			transcript = session.transcript.resolved(in: session)
 			generatingTranscript = .init([])
 		} catch {
 			print("Error", error.localizedDescription)

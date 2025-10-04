@@ -124,45 +124,49 @@ public struct ToolResolver<Session: LanguageModelProvider> {
 	/// - Throws: ``AgentToolRunKindError/unknownTool(name:)`` if the tool is not found,
 	///           or conversion/resolution errors from the underlying tool
 	///
-	public func resolve(_ call: ToolCall) throws -> Session.ResolvedToolRun {
+	public func resolve(
+		_ call: ToolCall,
+	) throws(TranscriptResolutionError.ToolRunResolution) -> Session.ResolvedToolRun {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
+			let error = TranscriptResolutionError.ToolRunResolution.unknownTool(name: call.toolName)
 			AgentLog.error(
-				AgentToolRunKindError.unknownTool(name: call.toolName),
+				error,
 				context: "Tool resolution failed. Available tools: \(availableTools)",
 			)
-			throw AgentToolRunKindError.unknownTool(name: call.toolName)
+			throw error
 		}
 
 		let output = findOutput(for: call)
 
 		do {
-			let resolvedTool = try tool.resolve(arguments: call.arguments, output: output)
-			return resolvedTool
+			return try tool.resolve(arguments: call.arguments, output: output)
 		} catch {
 			AgentLog.error(error, context: "Tool resolution for '\(call.toolName)'")
-			throw error
+			throw TranscriptResolutionError.ToolRunResolution.resolutionFailed(description: error.localizedDescription)
 		}
 	}
 
-	public func resolvePartially(_ call: ToolCall) throws -> Session.PartiallyResolvedToolRun {
+	public func resolvePartially(
+		_ call: ToolCall,
+	) throws(TranscriptResolutionError.ToolRunResolution) -> Session.PartiallyResolvedToolRun {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
+			let error = TranscriptResolutionError.ToolRunResolution.unknownTool(name: call.toolName)
 			AgentLog.error(
-				AgentToolRunKindError.unknownTool(name: call.toolName),
+				error,
 				context: "Tool partial resolution failed. Available tools: \(availableTools)",
 			)
-			throw AgentToolRunKindError.unknownTool(name: call.toolName)
+			throw error
 		}
 
 		let output = findOutput(for: call)
 
 		do {
-			let resolvedTool = try tool.resolvePartially(arguments: call.arguments, output: output)
-			return resolvedTool
+			return try tool.resolvePartially(arguments: call.arguments, output: output)
 		} catch {
 			AgentLog.error(error, context: "Tool resolution for '\(call.toolName)'")
-			throw error
+			throw TranscriptResolutionError.ToolRunResolution.resolutionFailed(description: error.localizedDescription)
 		}
 	}
 
@@ -185,15 +189,4 @@ public struct ToolResolver<Session: LanguageModelProvider> {
 			return structure.content
 		}
 	}
-}
-
-/// Errors that can occur during tool resolution.
-package enum AgentToolRunKindError: Error, Sendable, Equatable {
-	/// The requested tool name was not found in the resolver's tool collection.
-	///
-	/// This error occurs when a tool call references a tool that was not provided
-	/// to the resolver during initialization.
-	///
-	/// - Parameter name: The name of the unknown tool that was requested
-	case unknownTool(name: String)
 }

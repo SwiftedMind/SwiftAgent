@@ -20,14 +20,14 @@ public struct Transcript: Sendable, Equatable {
 
 	public func resolved<Session: LanguageModelProvider>(
 		in session: Session,
-	) throws -> Session.ResolvedTranscript {
-		try Transcript.Resolved(transcript: self, session: session)
+	) -> Session.ResolvedTranscript {
+		Transcript.Resolved(transcript: self, session: session)
 	}
 
 	public func partiallyResolved<Session: LanguageModelProvider>(
 		in session: Session,
-	) throws -> Session.PartiallyResolvedTranscript {
-		try Transcript.PartiallyResolved(transcript: self, session: session)
+	) -> Session.PartiallyResolvedTranscript {
+		Transcript.PartiallyResolved(transcript: self, session: session)
 	}
 }
 
@@ -229,7 +229,7 @@ public extension Transcript {
 			self.segments = segments
 			self.status = status
 		}
-		
+
 		public var text: String? {
 			var components: [String] = []
 			for segment in segments {
@@ -240,8 +240,9 @@ public extension Transcript {
 					return nil
 				}
 			}
-			
+
 			guard !components.isEmpty else { return nil }
+
 			return components.joined(separator: "\n")
 		}
 	}

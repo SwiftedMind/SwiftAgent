@@ -49,18 +49,28 @@ public extension Transcript {
 		/// All transcript entries with resolved tool runs attached where available.
 		public package(set) var entries: [Entry]
 
-		init(transcript: Transcript, session: Session) throws {
+		init(transcript: Transcript, session: Session) {
 			let resolver = ToolResolver(for: session, transcript: transcript)
 			entries = []
 
 			for entry in transcript.entries {
 				switch entry {
 				case let .prompt(prompt):
-					try entries.append(.prompt(Resolved.Prompt(
+					var decodedSources: [Session.GroundingSource] = []
+					var errorContext: TranscriptResolutionError.PromptResolution?
+
+					do {
+						decodedSources = try session.decodeGrounding(from: prompt.sources)
+					} catch {
+						errorContext = .groundingDecodingFailed(description: error.localizedDescription)
+					}
+
+					entries.append(.prompt(Resolved.Prompt(
 						id: prompt.id,
 						input: prompt.input,
-						sources: session.decodeGrounding(from: prompt.sources),
+						sources: decodedSources,
 						prompt: prompt.prompt,
+						error: errorContext,
 					)))
 				case let .reasoning(reasoning):
 					entries.append(.reasoning(reasoning))
@@ -68,8 +78,16 @@ public extension Transcript {
 					entries.append(.response(response))
 				case let .toolCalls(toolCalls):
 					for call in toolCalls {
-						let resolution = try resolver.resolve(call)
-						entries.append(.toolRun(.init(call: call, resolution: resolution)))
+						var resolvedRun: Session.ResolvedToolRun?
+						var toolRunError: TranscriptResolutionError.ToolRunResolution?
+
+						do {
+							resolvedRun = try resolver.resolve(call)
+						} catch {
+							toolRunError = error
+						}
+
+						entries.append(.toolRun(.init(call: call, resolution: resolvedRun, error: toolRunError)))
 					}
 				case .toolOutput:
 					// Handled already by the .toolCalls cases
@@ -103,6 +121,7 @@ public extension Transcript {
 			public var id: String
 			public var input: String
 			public var sources: [Session.GroundingSource]
+			public let error: TranscriptResolutionError.PromptResolution?
 			package var prompt: String
 
 			package init(
@@ -110,10 +129,12 @@ public extension Transcript {
 				input: String,
 				sources: [Session.GroundingSource],
 				prompt: String,
+				error: TranscriptResolutionError.PromptResolution? = nil,
 			) {
 				self.id = id
 				self.input = input
 				self.sources = sources
+				self.error = error
 				self.prompt = prompt
 			}
 		}
@@ -127,13 +148,19 @@ public extension Transcript {
 
 			/// The tool resolution.
 			public let resolution: Session.ResolvedToolRun?
+			public let error: TranscriptResolutionError.ToolRunResolution?
 
 			/// The tool name captured within the original call, convenient for switching logic.
 			public var toolName: String { call.toolName }
 
-			init(call: Transcript.ToolCall, resolution: Session.ResolvedToolRun?) {
+			init(
+				call: Transcript.ToolCall,
+				resolution: Session.ResolvedToolRun?,
+				error: TranscriptResolutionError.ToolRunResolution?,
+			) {
 				self.call = call
 				self.resolution = resolution
+				self.error = error
 			}
 		}
 	}
