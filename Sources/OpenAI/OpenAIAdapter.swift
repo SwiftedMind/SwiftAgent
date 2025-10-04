@@ -90,6 +90,7 @@ public actor OpenAIAdapter: Adapter {
 		var currentStep = 0
 
 		for _ in 0..<allowedSteps {
+			try Task.checkCancellation()
 			currentStep += 1
 			AgentLog.stepRequest(step: currentStep)
 
@@ -139,6 +140,7 @@ public actor OpenAIAdapter: Adapter {
 			}
 
 			for output in response.output {
+				try Task.checkCancellation()
 				try await handleOutput(
 					output,
 					type: type,

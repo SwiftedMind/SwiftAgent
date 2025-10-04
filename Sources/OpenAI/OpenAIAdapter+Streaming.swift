@@ -77,6 +77,7 @@ extension OpenAIAdapter {
 		var currentStep = 0
 
 		stepLoop: for _ in 0..<allowedSteps {
+			try Task.checkCancellation()
 			currentStep += 1
 			AgentLog.stepRequest(step: currentStep)
 
@@ -548,6 +549,7 @@ extension OpenAIAdapter {
 		var executedAny = false
 
 		for identifier in functionCallOrder {
+			try Task.checkCancellation()
 			guard var state = functionCallStates[identifier] else { continue }
 			guard !state.hasInvokedTool else { continue }
 			guard !state.argumentsBuffer.isEmpty else { continue }
