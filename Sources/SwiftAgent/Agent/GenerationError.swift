@@ -62,16 +62,10 @@ public enum GenerationError: Error, LocalizedError {
 				return "Streaming failed: \(detail)"
 			}
 			switch context.reason {
-			case .responseFailed:
-				return "Streaming failed: provider response failed"
-			case .responseIncomplete:
-				return "Streaming failed: provider response incomplete"
 			case .transportFailure:
 				return "Streaming failed due to transport failure"
 			case .decodingFailure:
 				return "Streaming failed: could not decode provider updates"
-			case .cancelled:
-				return "Streaming cancelled"
 			}
 		case let .toolExecutionFailed(context):
 			return "Tool '\(context.toolName)' failed: \(context.underlyingError.localizedDescription)"
@@ -268,17 +262,13 @@ public extension GenerationError {
 	}
 }
 
-// TODO: Make sure that the streaming errors are literally only for SSE related errors, not provider specific errors. For example, when an "error" SSE event is received, that should be a provider error, not a streaming error. But when an event cannot be parsed or something else related to the streaming process fails, that should be a streaming error. Make sure this is the case in HTTPClient+SSE.swift and GenerationError+HTTPMapping.swift.
 public extension GenerationError {
 	/// Additional details about failures that occur while streaming provider updates.
 	struct StreamingFailureContext: Sendable {
 		/// A categorisation of the streaming failure.
 		public enum Reason: Sendable {
-			case responseFailed
-			case responseIncomplete
 			case transportFailure
 			case decodingFailure
-			case cancelled
 		}
 
 		/// The reason why streaming failed.

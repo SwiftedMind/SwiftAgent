@@ -32,13 +32,6 @@ public extension GenerationError {
 			)
 		}
 
-		if error is CancellationError {
-			return .requestFailed(
-				reason: .networkFailure,
-				detail: "Request cancelled.",
-			)
-		}
-
 		return .unknown
 	}
 
@@ -67,10 +60,6 @@ public extension GenerationError {
 					reason: .transportFailure,
 					detail: "Expected text/event-stream but received \(contentType ?? "unknown").",
 				)
-			case .cancelled:
-				return .streamingFailure(
-					reason: .cancelled,
-				)
 			case let .decodingFailed(underlying, _):
 				return .streamingFailure(
 					reason: .decodingFailure,
@@ -85,12 +74,6 @@ public extension GenerationError {
 				reason: .transportFailure,
 				detail: urlError.localizedDescription,
 				providerError: nil,
-			)
-		}
-
-		if error is CancellationError {
-			return .streamingFailure(
-				reason: .cancelled,
 			)
 		}
 

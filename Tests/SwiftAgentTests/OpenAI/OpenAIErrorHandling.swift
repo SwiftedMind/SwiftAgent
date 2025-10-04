@@ -12,6 +12,13 @@ import Testing
 private final class ExampleSession {}
 
 // TODO: Add unit tests for a variety of error cases and in both streaming and non-streaming variants
+// TODO: Add tests for cancellation errors
+// TODO: Add tests for invalid request errors
+// TODO: Add tests for invalid response errors
+// TODO: Add tests for decoding errors
+// TODO: Add tests for network errors
+// TODO: Add tests for provider errors
+// TODO: Add tests for streaming errors
 
 @Suite("OpenAIAdapter - Error Handling")
 struct OpenAIErrorHandling {

@@ -18,7 +18,7 @@ public extension URLSessionHTTPClient {
 		path: String,
 		method: HTTPMethod = .post,
 		headers: [String: String] = [:],
-		body: (some Encodable)? = nil
+		body: (some Encodable)? = nil,
 	) -> AsyncThrowingStream<EventSource.Event, Error> {
 		let encodedBodyResult = Result<Data?, Error> {
 			try body.map { try configuration.jsonEncoder.encode($0) }
@@ -70,7 +70,6 @@ public extension URLSessionHTTPClient {
 					guard let httpResponse = response as? HTTPURLResponse else {
 						throw SSEError.invalidResponse
 					}
-					
 					guard (200..<300).contains(httpResponse.statusCode) else {
 						let errorPreview = try await readPrefix(from: asyncBytes, maxLength: 4 * 1024)
 						NetworkLog.response(response, data: errorPreview)
@@ -85,7 +84,7 @@ public extension URLSessionHTTPClient {
 
 					continuation.finish()
 				} catch is CancellationError {
-					continuation.finish(throwing: SSEError.cancelled)
+					continuation.finish(throwing: CancellationError())
 				} catch {
 					continuation.finish(throwing: error)
 				}
@@ -112,7 +111,6 @@ public extension URLSessionHTTPClient {
 public enum SSEError: Error, LocalizedError, Sendable {
 	case invalidResponse
 	case notEventStream(contentType: String?)
-	case cancelled
 	case decodingFailed(underlying: Error, data: Data)
 
 	public var errorDescription: String? {
@@ -121,8 +119,6 @@ public enum SSEError: Error, LocalizedError, Sendable {
 			"Invalid response (no HTTPURLResponse)."
 		case let .notEventStream(contentType):
 			"Expected text/event-stream, got: \(contentType ?? "nil")."
-		case .cancelled:
-			"Stream cancelled."
 		case let .decodingFailed(underlying, _):
 			"Failed to decode SSE data: \(underlying.localizedDescription)"
 		}
