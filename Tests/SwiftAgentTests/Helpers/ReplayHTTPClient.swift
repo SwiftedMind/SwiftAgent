@@ -73,6 +73,7 @@ actor ReplayHTTPClient<RequestBodyType: Encodable & Sendable>: HTTPClient {
 			throw HTTPError.unacceptableStatus(code: response.statusCode, data: data)
 		}
 
+		try Task.checkCancellation()
 		return try JSONDecoder().decode(ResponseBody.self, from: data)
 	}
 

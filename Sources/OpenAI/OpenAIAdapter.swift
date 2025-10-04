@@ -68,6 +68,7 @@ public actor OpenAIAdapter: Adapter {
 				return
 			}
 
+			print("Hello")
 			setup.continuation.finish()
 		}
 
