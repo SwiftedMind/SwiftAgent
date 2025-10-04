@@ -4,7 +4,7 @@ import Foundation
 import FoundationModels
 import OpenAISession
 
-@LanguageModelProvider(for: .openAI)
+@LanguageModelProvider(.openAI)
 final class OpenAISession {
 	@Tool var calculator = CalculatorTool()
 	@Tool var weather = WeatherTool()

@@ -11,7 +11,7 @@
 ///
 /// Example:
 /// ```swift
-/// @LanguageModelProvider(for: .openAI)
+/// @LanguageModelProvider(.openAI)
 /// final class MySession {
 ///   @Tool var calculator: CalculatorTool
 ///   @Tool var weather = WeatherTool()
@@ -25,7 +25,7 @@
 /// Tool parameters are omitted automatically when the corresponding properties have default values.
 @attached(member, names: arbitrary)
 @attached(extension, conformances: LanguageModelProvider, Sendable)
-public macro LanguageModelProvider(for provider: Provider) = #externalMacro(
+public macro LanguageModelProvider(_ provider: Provider) = #externalMacro(
 	module: "SwiftAgentMacros",
 	type: "LanguageModelProviderMacro",
 )

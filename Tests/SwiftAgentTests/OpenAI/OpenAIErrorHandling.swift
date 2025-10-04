@@ -8,17 +8,8 @@ import OpenAI
 @testable import SwiftAgent
 import Testing
 
-@LanguageModelProvider(for: .openAI)
+@LanguageModelProvider(.openAI)
 private final class ExampleSession {}
-
-// TODO: Add unit tests for a variety of error cases and in both streaming and non-streaming variants
-// TODO: Add tests for cancellation errors
-// TODO: Add tests for invalid request errors
-// TODO: Add tests for invalid response errors
-// TODO: Add tests for decoding errors
-// TODO: Add tests for network errors
-// TODO: Add tests for provider errors
-// TODO: Add tests for streaming errors
 
 @Suite("OpenAIAdapter - Error Handling")
 struct OpenAIErrorHandling {
@@ -27,7 +18,7 @@ struct OpenAIErrorHandling {
 	@Test("'CancellationError' is thrown")
 	func cancellationError() async throws {
 		let mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(
-			recordedResponse: .init(body: "", statusCode: 200),
+			recordedResponse: .init(body: "", statusCode: 200, delay: .milliseconds(10)),
 		)
 		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
 		let session = ExampleSession(instructions: "", configuration: configuration)

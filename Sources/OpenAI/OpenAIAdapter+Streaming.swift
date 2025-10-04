@@ -39,6 +39,9 @@ extension OpenAIAdapter {
 					options: options,
 					continuation: setup.continuation,
 				)
+
+				AgentLog.finish()
+				setup.continuation.finish()
 			} catch {
 				AgentLog.error(error, context: "streaming response")
 				setup.continuation.finish(throwing: error)
@@ -221,11 +224,14 @@ extension OpenAIAdapter {
 						)
 					}
 				}
+
 			} catch is CancellationError {
 				throw CancellationError()
 			} catch {
 				throw GenerationError.fromStream(error, httpErrorMapper: GenerationError.from)
 			}
+
+			try Task.checkCancellation()
 
 			guard responseCompleted else {
 				continue stepLoop
@@ -251,8 +257,6 @@ extension OpenAIAdapter {
 				continue stepLoop
 			}
 
-			AgentLog.finish()
-			continuation.finish()
 			return
 		}
 	}

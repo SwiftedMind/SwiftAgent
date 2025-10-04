@@ -25,10 +25,12 @@ actor ReplayHTTPClient<RequestBodyType: Encodable & Sendable>: HTTPClient {
 	struct RecordedResponse: Sendable {
 		var body: String
 		var statusCode: Int
+		var delay: Duration?
 
-		init(body: String, statusCode: Int = 200) {
+		init(body: String, statusCode: Int = 200, delay: Duration? = nil) {
 			self.body = body
 			self.statusCode = statusCode
+			self.delay = delay
 		}
 	}
 
@@ -66,6 +68,12 @@ actor ReplayHTTPClient<RequestBodyType: Encodable & Sendable>: HTTPClient {
 		}
 
 		let response = try await takeNextRecordedResponse()
+
+		if let delay = response.delay {
+			try await Task.sleep(for: delay)
+			try Task.checkCancellation()
+		}
+
 		guard let data = response.body.data(using: .utf8) else {
 			throw ReplayError.invalidUTF8RecordedResponse
 		}
@@ -73,7 +81,6 @@ actor ReplayHTTPClient<RequestBodyType: Encodable & Sendable>: HTTPClient {
 			throw HTTPError.unacceptableStatus(code: response.statusCode, data: data)
 		}
 
-		try Task.checkCancellation()
 		return try JSONDecoder().decode(ResponseBody.self, from: data)
 	}
 

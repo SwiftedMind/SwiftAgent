@@ -224,7 +224,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
 	private static func extractProvider(from attribute: AttributeSyntax) throws -> Provider? {
 		guard let arguments = attribute.arguments?.as(LabeledExprListSyntax.self),
-		      let providerArgument = arguments.first(where: { $0.label?.text == "for" })
+		      let providerArgument = arguments.first
 		else {
 			return nil
 		}

@@ -8,7 +8,7 @@ import OpenAI
 @testable import SwiftAgent
 import Testing
 
-@LanguageModelProvider(for: .openAI)
+@LanguageModelProvider(.openAI)
 private final class ExampleSession {}
 
 @Suite("OpenAIAdapter - Streaming - Text")

@@ -8,12 +8,41 @@ import OpenAI
 @testable import SwiftAgent
 import Testing
 
-@LanguageModelProvider(for: .openAI)
+@LanguageModelProvider(.openAI)
 private final class ExampleSession {}
 
 @Suite("OpenAIAdapter - Streaming - Error Handling")
 struct OpenAIAdapterStreamingErrorTests {
 	typealias Transcript = SwiftAgent.Transcript
+
+	@Test("'CancellationError' is thrown")
+	func cancellationError() async throws {
+		let mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(
+			recordedResponse: .init(body: "", statusCode: 200, delay: .milliseconds(10)),
+		)
+		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
+		let session = ExampleSession(instructions: "", configuration: configuration)
+
+		do {
+			let task = Task {
+				let stream = try session.streamResponse(
+					to: "prompt",
+					using: .gpt5,
+					options: .init(include: [.reasoning_encryptedContent]),
+				)
+				for try await _ in stream {
+					Issue.record("Expected the stream to finish because of the cancellation")
+				}
+
+				// When a task is cancelled, the stream should finish
+				#expect(Task.isCancelled)
+			}
+			task.cancel()
+			try await task.value
+		} catch {
+			Issue.record("Expected CancellationError but received \(error)")
+		}
+	}
 
 	@Test("Error event surfaces a failure")
 	func errorEventSurfacesFailure() async throws {
@@ -57,12 +86,15 @@ struct OpenAIAdapterStreamingErrorTests {
 		let session = ExampleSession(instructions: "", configuration: configuration)
 
 		do {
-			_ = try await session.respond(
+			let stream = try session.streamResponse(
 				to: "prompt",
 				using: .gpt5,
 				options: .init(include: [.reasoning_encryptedContent]),
 			)
-			Issue.record("Expected respond to throw")
+			for try await _ in stream {
+				Issue.record("Expected streamResponse to throw when an error event is received")
+				return
+			}
 		} catch {
 			guard let generationError = error as? GenerationError else {
 				Issue.record("Expected GenerationError but received \(error)")
