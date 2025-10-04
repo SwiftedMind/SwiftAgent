@@ -22,33 +22,40 @@ enum Provider: String {
 	}
 }
 
-/// Member macro that synthesizes LanguageModelProvider implementation
+/// Member macro that synthesizes the boilerplate required by `LanguageModelProvider`-conformant
+/// sessions, including adapters, tool registries, observation plumbing, and grounding support.
 public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
+	/// Generates stored properties, type aliases, wrappers, and helper types for the annotated class.
 	public static func expansion(
 		of node: AttributeSyntax,
 		providingMembersOf declaration: some DeclGroupSyntax,
-		in context: some MacroExpansionContext
+		in context: some MacroExpansionContext,
 	) throws -> [DeclSyntax] {
+		// Macro only supports class declarations so we can synthesize stored members safely.
 		guard let classDeclaration = declaration.as(ClassDeclSyntax.self) else {
-			throw MacroError.onlyApplicableToClass
-		}
-		guard let provider = try extractProvider(from: node) else {
-			throw MacroError.missingProvider
+			throw MacroError.onlyApplicableToClass(node: Syntax(node)).asDiagnosticsError()
 		}
 
+		// Provider argument decides which adapter and configuration types get emitted.
+		let provider = try extractProvider(from: node)
+
+		// Surface diagnostics when the user adds conflicting observation attributes manually.
 		if let observableAttribute = attribute(
 			named: "Observable",
-			in: classDeclaration.attributes
+			in: classDeclaration.attributes,
 		) {
-			diagnoseManualObservable(on: observableAttribute, typeName: classDeclaration.name.text, in: context)
+			MacroError.manualObservable(node: Syntax(observableAttribute), typeName: classDeclaration.name.text)
+				.diagnose(in: context)
 		}
 		diagnoseObservationIgnored(in: classDeclaration, context: context)
 
+		// Gather the declared tools and grounding sources up front so generation can reference them.
 		let toolProperties = try extractToolProperties(from: classDeclaration)
 		let groundingProperties = try extractGroundingProperties(from: classDeclaration)
 
 		var members: [DeclSyntax] = []
 
+		// Property wrappers copied onto the session type so user code can declare tools/groundings.
 		members.append(
 			"""
 			@propertyWrapper
@@ -56,7 +63,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			  var wrappedValue: ToolType
 			  init(wrappedValue: ToolType) { self.wrappedValue = wrappedValue }
 			}
-			"""
+			""",
 		)
 
 		members.append(
@@ -66,51 +73,53 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			  var wrappedValue: Source.Type
 			  init(_ wrappedValue: Source.Type) { self.wrappedValue = wrappedValue }
 			}
-			"""
+			""",
 		)
 
 		members.append(
 			"""
 			typealias Adapter = \(raw: provider.adapterTypeName)
-			"""
+			""",
 		)
 		members.append(
 			"""
 			typealias SessionType = \(raw: classDeclaration.name.text)
-			"""
+			""",
 		)
 
+		// Store the chosen adapter and observation-aware state the macro manages.
 		members.append(
 			"""
 			let adapter: \(raw: provider.adapterTypeName)
-			"""
+			""",
 		)
 		members.append(contentsOf:
 			generateObservableMembers(
 				named: "transcript",
 				type: "SwiftAgent.Transcript",
 				initialValue: "Transcript()",
-				actorAttribute: "@MainActor"
+				actorAttribute: "@MainActor",
 			))
 		members.append(contentsOf:
 			generateObservableMembers(
 				named: "tokenUsage",
 				type: "TokenUsage",
 				initialValue: "TokenUsage()",
-				actorAttribute: "@MainActor"
+				actorAttribute: "@MainActor",
 			))
 		members.append(
 			"""
 			let tools: [any ResolvableTool<SessionType>]
-			"""
+			""",
 		)
 
 		members.append(contentsOf: generateObservationSupportMembers())
 
+		// Emit initializers, grounding source types, and tool wrappers derived from the user's declarations.
 		try members.append(contentsOf:
 			generateInitializers(
 				for: toolProperties,
-				provider: provider
+				provider: provider,
 			))
 
 		members.append(generateGroundingSourceEnum(for: groundingProperties))
@@ -122,12 +131,13 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		return members
 	}
 
+	/// Extends the annotated class to add the required protocol conformances produced by the macro.
 	public static func expansion(
 		of node: AttributeSyntax,
 		attachedTo declaration: some DeclGroupSyntax,
 		providingExtensionsOf type: some TypeSyntaxProtocol,
 		conformingTo protocols: [TypeSyntax],
-		in context: some MacroExpansionContext
+		in context: some MacroExpansionContext,
 	) throws -> [ExtensionDeclSyntax] {
 		let conformances = ["LanguageModelProvider", "@unchecked Sendable", "nonisolated Observation.Observable"]
 
@@ -143,20 +153,23 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		return [extensionDeclSyntax]
 	}
 
+	/// Captures information about a `@Tool` property declared on the session type.
 	private struct ToolProperty {
 		let identifier: TokenSyntax
 		let typeName: String
 		let hasInitializer: Bool
 	}
 
+	/// Captures information about a `@Grounding` property declared on the session type.
 	private struct GroundingProperty {
 		let identifier: TokenSyntax
 		let typeName: String
 	}
 
+	/// Checks whether an attribute list already contains an attribute with the provided base name.
 	private static func attributeList(
 		_ attributes: AttributeListSyntax?,
-		containsAttributeNamed name: String
+		containsAttributeNamed name: String,
 	) -> Bool {
 		guard let attributes else {
 			return false
@@ -171,28 +184,29 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		}
 	}
 
+	/// Finds every `@Tool` property on the session declaration and records essential metadata.
 	private static func extractToolProperties(from classDeclaration: ClassDeclSyntax) throws -> [ToolProperty] {
 		try classDeclaration.memberBlock.members.compactMap { member in
 			guard let variableDecl = member.decl.as(VariableDeclSyntax.self) else {
 				return nil
 			}
 			guard variableDecl.bindingSpecifier.tokenKind == .keyword(.var) else {
-				throw MacroError.mustBeVar
+				throw MacroError.mustBeVar(node: Syntax(variableDecl.bindingSpecifier)).asDiagnosticsError()
 			}
 
 			let hasToolAttribute = attributeList(
 				variableDecl.attributes,
-				containsAttributeNamed: "Tool"
+				containsAttributeNamed: "Tool",
 			)
 
 			guard hasToolAttribute else {
 				return nil
 			}
 			guard let binding = variableDecl.bindings.first else {
-				throw MacroError.noBinding
+				throw MacroError.noBinding(node: Syntax(variableDecl)).asDiagnosticsError()
 			}
 			guard let identifierPattern = binding.pattern.as(IdentifierPatternSyntax.self) else {
-				throw MacroError.invalidPattern
+				throw MacroError.invalidPattern(node: Syntax(binding.pattern)).asDiagnosticsError()
 			}
 
 			let typeName: String
@@ -202,20 +216,21 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 				if let functionCall = initializer.value.as(FunctionCallExprSyntax.self) {
 					typeName = functionCall.calledExpression.trimmedDescription
 				} else {
-					throw MacroError.cannotInferType
+					throw MacroError.cannotInferType(node: Syntax(initializer.value)).asDiagnosticsError()
 				}
 			} else {
-				throw MacroError.missingTypeAnnotation
+				throw MacroError.missingTypeAnnotation(node: Syntax(binding.pattern)).asDiagnosticsError()
 			}
 
 			return ToolProperty(
 				identifier: identifierPattern.identifier,
 				typeName: typeName,
-				hasInitializer: binding.initializer != nil
+				hasInitializer: binding.initializer != nil,
 			)
 		}
 	}
 
+	/// Collects `@Grounding` declarations to drive `GroundingSource` synthesis.
 	private static func extractGroundingProperties(from classDeclaration: ClassDeclSyntax) throws -> [GroundingProperty] {
 		try classDeclaration.memberBlock.members.compactMap { member in
 			guard let variableDecl = member.decl.as(VariableDeclSyntax.self) else {
@@ -225,56 +240,63 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 				return nil
 			}
 			guard variableDecl.bindingSpecifier.tokenKind == .keyword(.var) else {
-				throw MacroError.mustBeVar
+				throw MacroError.mustBeVar(node: Syntax(variableDecl.bindingSpecifier)).asDiagnosticsError()
 			}
 			guard let binding = variableDecl.bindings.first else {
-				throw MacroError.noBinding
+				throw MacroError.noBinding(node: Syntax(variableDecl)).asDiagnosticsError()
 			}
 			guard let identifierPattern = binding.pattern.as(IdentifierPatternSyntax.self) else {
-				throw MacroError.invalidPattern
+				throw MacroError.invalidPattern(node: Syntax(binding.pattern)).asDiagnosticsError()
 			}
 
 			let typeName = try extractGroundingTypeName(from: groundingAttribute)
 
 			return GroundingProperty(
 				identifier: identifierPattern.identifier,
-				typeName: typeName
+				typeName: typeName,
 			)
 		}
 	}
 
-	private static func extractProvider(from attribute: AttributeSyntax) throws -> Provider? {
+	/// Reads the provider argument from the macro attribute, if one was supplied.
+	private static func extractProvider(from attribute: AttributeSyntax) throws -> Provider {
 		guard let arguments = attribute.arguments?.as(LabeledExprListSyntax.self),
 		      let providerArgument = arguments.first
 		else {
-			return nil
+			throw MacroError.missingProvider(node: Syntax(attribute)).asDiagnosticsError()
+		}
+		if let label = providerArgument.label, label.text != "for" {
+			throw MacroError.invalidProvider(node: Syntax(providerArgument)).asDiagnosticsError()
 		}
 		guard let memberAccess = providerArgument.expression.as(MemberAccessExprSyntax.self) else {
-			throw MacroError.invalidProvider
+			throw MacroError.invalidProvider(node: Syntax(providerArgument.expression)).asDiagnosticsError()
 		}
 
 		let providerName = memberAccess.declName.baseName.text
 
 		guard let provider = Provider(rawValue: providerName) else {
-			throw MacroError.invalidProvider
+			throw MacroError.invalidProvider(node: Syntax(memberAccess)).asDiagnosticsError()
 		}
 
 		return provider
 	}
 
+	/// Returns the first attribute with the given name from an attribute list, if present.
 	private static func attribute(
 		named name: String,
-		in attributes: AttributeListSyntax?
+		in attributes: AttributeListSyntax?,
 	) -> AttributeSyntax? {
 		attributes?
 			.compactMap { $0.as(AttributeSyntax.self) }
 			.first(where: { attributeBaseName($0) == name })
 	}
 
+	/// Extracts the last path component of an attribute name, stripping generic arguments and parens.
 	private static func attributeBaseName(_ attribute: AttributeSyntax) -> String {
 		baseName(from: attribute.attributeName)
 	}
 
+	/// Extracts the simple base name from a potentially qualified type or attribute.
 	private static func baseName(from type: TypeSyntax) -> String {
 		let description = type.trimmedDescription
 		guard !description.isEmpty else {
@@ -295,49 +317,53 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		return String(sanitizedComponent ?? lastComponent)
 	}
 
+	/// Pulls the concrete type referenced by a `@Grounding` attribute argument.
 	private static func extractGroundingTypeName(from attribute: AttributeSyntax) throws -> String {
 		guard let arguments = attribute.arguments else {
-			throw MacroError.missingGroundingType
+			throw MacroError.missingGroundingType(node: Syntax(attribute)).asDiagnosticsError()
 		}
 		guard case let .argumentList(argumentList) = arguments else {
-			throw MacroError.invalidGroundingAttribute
+			throw MacroError.invalidGroundingAttribute(node: Syntax(attribute)).asDiagnosticsError()
 		}
 		guard argumentList.count == 1, let argument = argumentList.first else {
-			throw MacroError.missingGroundingType
+			throw MacroError.missingGroundingType(node: Syntax(attribute)).asDiagnosticsError()
 		}
 		guard argument.label == nil else {
-			throw MacroError.invalidGroundingAttribute
+			throw MacroError.invalidGroundingAttribute(node: Syntax(attribute)).asDiagnosticsError()
 		}
 
 		let content = argument.expression.trimmedDescription
 
 		guard content.hasSuffix(".self") else {
-			throw MacroError.missingGroundingType
+			throw MacroError.missingGroundingType(node: Syntax(attribute)).asDiagnosticsError()
 		}
 
 		let typeName = content.dropLast(".self".count)
 
 		guard !typeName.isEmpty else {
-			throw MacroError.missingGroundingType
+			throw MacroError.missingGroundingType(node: Syntax(attribute)).asDiagnosticsError()
 		}
 
 		return String(typeName)
 	}
 
+	/// Builds the `init` overloads that wire tools into the adapter and configure credentials.
 	private static func generateInitializers(
 		for tools: [ToolProperty],
-		provider: Provider
+		provider: Provider,
 	) throws -> [DeclSyntax] {
 		var initializers: [DeclSyntax] = []
 
+		// Capture parameter metadata so we can drive wrapper creation and initializer signatures.
 		let toolParameters = tools.map { tool in
 			(
 				name: tool.identifier.text,
 				type: tool.typeName,
-				hasInitializer: tool.hasInitializer
+				hasInitializer: tool.hasInitializer,
 			)
 		}
 
+		// Populate stored wrappers for tools that must be injected by the initializer.
 		let wrapperAssignments = toolParameters
 			.compactMap { parameter in
 				guard !parameter.hasInitializer else {
@@ -357,10 +383,12 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			let baseToolExpression = parameter.hasInitializer
 				? "_\(parameter.name).wrappedValue"
 				: parameter.name
+			// Wrap each declared tool so we can hand it to the adapter as a `ResolvableTool`.
 			return "      \(wrapperName)(baseTool: \(baseToolExpression))"
 		}
 		.joined(separator: ",\n")
 
+		// Construct the literal array so the adapter receives every tool in declaration order.
 		let toolsArrayCode = toolsArrayInit.isEmpty ? "[]" : "[\n\(toolsArrayInit)\n    ]"
 
 		let initParameters = toolParameters
@@ -372,11 +400,12 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			? "instructions: String,\n    apiKey: String"
 			: "\(initParameters),\n    instructions: String,\n    apiKey: String"
 
+		// Base initializer wires direct API key authentication through the generated adapter.
 		initializers.append(
 			"""
-			init(
-			\(raw: allInitParameters)
-			) {
+				init(
+				\(raw: allInitParameters)
+				) {
 			  \(raw: initializerPrologueBlock)  let tools: [any ResolvableTool<SessionType>] = \(raw: toolsArrayCode)
 			  self.tools = tools
 
@@ -386,18 +415,19 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 					configuration: .direct(apiKey: apiKey)
 				)
 			}
-			"""
+			""",
 		)
 
 		let configurationInitParameters = initParameters.isEmpty
 			? "instructions: String,\n    configuration: \(provider.configurationTypeName)"
 			: "\(initParameters),\n    instructions: String,\n    configuration: \(provider.configurationTypeName)"
 
+		// Overload initializer accepts a fully-formed provider configuration instead.
 		initializers.append(
 			"""
-			init(
-			\(raw: configurationInitParameters)
-			) {
+				init(
+				\(raw: configurationInitParameters)
+				) {
 			  \(raw: initializerPrologueBlock)  let tools: [any ResolvableTool<SessionType>] = \(raw: toolsArrayCode)
 			  self.tools = tools
 
@@ -407,12 +437,13 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 					configuration: configuration
 				)
 			}
-			"""
+			""",
 		)
 
 		return initializers
 	}
 
+	/// Produces the `ResolvedToolRun` enum mapping each tool wrapper to a case.
 	private static func generateResolvedToolRunEnum(for tools: [ToolProperty]) -> DeclSyntax {
 		let cases = tools.map { tool -> String in
 			let wrapperName = "Resolvable\(tool.identifier.text.capitalizedFirstLetter())Tool"
@@ -428,6 +459,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			"""
 	}
 
+	/// Produces the `PartiallyResolvedToolRun` enum mapping each tool wrapper to a case.
 	private static func generatePartiallyResolvedToolRunEnum(for tools: [ToolProperty]) -> DeclSyntax {
 		let cases = tools.map { tool -> String in
 			let wrapperName = "Resolvable\(tool.identifier.text.capitalizedFirstLetter())Tool"
@@ -443,6 +475,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			"""
 	}
 
+	/// Emits the `GroundingSource` enum used to send and receive grounding payloads.
 	private static func generateGroundingSourceEnum(for groundings: [GroundingProperty]) -> DeclSyntax {
 		guard !groundings.isEmpty else {
 			return
@@ -480,6 +513,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			"""
 	}
 
+	/// Wraps a user-declared tool so it can integrate with the provider's resolution APIs.
 	private static func generateResolvableWrapper(for tool: ToolProperty) -> DeclSyntax {
 		let wrapperName = "Resolvable\(tool.identifier.text.capitalizedFirstLetter())Tool"
 
@@ -528,47 +562,31 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			"""
 	}
 
-	private static func diagnoseManualObservable(
-		on attribute: AttributeSyntax,
-		typeName: String,
-		in context: some MacroExpansionContext
-	) {
-		context.diagnose(
-			Diagnostic(
-				node: Syntax(attribute),
-				message: Diagnostics.manualObservable(typeName: typeName)
-			)
-		)
-	}
-
+	/// Emits a diagnostic when the user tries to opt out of observation for a property the macro manages.
 	private static func diagnoseObservationIgnored(
 		in classDeclaration: ClassDeclSyntax,
-		context: some MacroExpansionContext
+		context: some MacroExpansionContext,
 	) {
 		for member in classDeclaration.memberBlock.members {
 			guard let variableDecl = member.decl.as(VariableDeclSyntax.self),
 			      let ignoredAttribute = attribute(
 			      	named: "ObservationIgnored",
-			      	in: variableDecl.attributes
+			      	in: variableDecl.attributes,
 			      )
 			else {
 				continue
 			}
 
-			context.diagnose(
-				Diagnostic(
-					node: Syntax(ignoredAttribute),
-					message: Diagnostics.observationIgnored()
-				)
-			)
+			MacroError.observationIgnored(node: Syntax(ignoredAttribute)).diagnose(in: context)
 		}
 	}
 
+	/// Synthesizes stored and computed properties that bridge Observation to macro-managed members.
 	private static func generateObservableMembers(
 		named name: String,
 		type: String,
 		initialValue: String,
-		actorAttribute: String
+		actorAttribute: String,
 	) -> [DeclSyntax] {
 		let storedProperty: DeclSyntax =
 			"""
@@ -611,6 +629,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		return [storedProperty, computedProperty]
 	}
 
+	/// Adds the reusable observation registrar helpers shared by all generated sessions.
 	private static func generateObservationSupportMembers() -> [DeclSyntax] {
 		[
 			"""
@@ -665,30 +684,4 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			""",
 		]
 	}
-
-	private enum Diagnostics {
-		private static let domain = "LanguageModelProviderMacro"
-
-		static func manualObservable(typeName: String) -> SimpleDiagnosticMessage {
-			SimpleDiagnosticMessage(
-				message: "LanguageModelProvider already adds @Observable; remove it from \(typeName)",
-				diagnosticID: MessageID(domain: domain, id: "manual-observable"),
-				severity: .error
-			)
-		}
-
-		static func observationIgnored() -> SimpleDiagnosticMessage {
-			SimpleDiagnosticMessage(
-				message: "@ObservationIgnored isn't supported here; LanguageModelProvider manages observation automatically",
-				diagnosticID: MessageID(domain: domain, id: "observation-ignored"),
-				severity: .error
-			)
-		}
-	}
-}
-
-private struct SimpleDiagnosticMessage: DiagnosticMessage {
-	let message: String
-	let diagnosticID: MessageID
-	let severity: DiagnosticSeverity
 }
