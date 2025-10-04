@@ -229,6 +229,21 @@ public extension Transcript {
 			self.segments = segments
 			self.status = status
 		}
+		
+		public var text: String? {
+			var components: [String] = []
+			for segment in segments {
+				switch segment {
+				case let .text(textSegment):
+					components.append(textSegment.content)
+				case .structure:
+					return nil
+				}
+			}
+			
+			guard !components.isEmpty else { return nil }
+			return components.joined(separator: "\n")
+		}
 	}
 
 	enum Segment: Sendable, Identifiable, Equatable {

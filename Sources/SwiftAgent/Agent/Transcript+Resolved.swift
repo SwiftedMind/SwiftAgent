@@ -126,12 +126,12 @@ public extension Transcript {
 			public var id: String { call.id }
 
 			/// The tool resolution.
-			public let resolution: Session.ResolvedToolRun
+			public let resolution: Session.ResolvedToolRun?
 
 			/// The tool name captured within the original call, convenient for switching logic.
 			public var toolName: String { call.toolName }
 
-			init(call: Transcript.ToolCall, resolution: Session.ResolvedToolRun) {
+			init(call: Transcript.ToolCall, resolution: Session.ResolvedToolRun?) {
 				self.call = call
 				self.resolution = resolution
 			}

@@ -4,42 +4,101 @@ import OpenAISession
 import SimulatedSession
 import SwiftUI
 
+// TODO: Views must handle partial tool runs and finished tool runs?
+
+/*
+
+ - Maybe the OpenAISession's transcript should be resolved by default? (with transcript.raw to access the raw transcript or so)
+ - And the AgentSnapshot should also be a partially resolved transcript
+ - But how to handle resolution failures?
+ - And what if you change the model provider? It _should_ be as simple as swapping the adapter and changing nothing else.
+ - Should be fine because the underlying transcript is the same and the resolution is derived from that at runtime.
+
+ */
+
 struct ConversationalAgentExampleView: View {
 	@State private var userInput = "Compute 234 + 6 using the tool!"
-	@State private var transcript: Transcript.PartiallyResolved<OpenAISession> = .init([])
+	@State private var transcript: Transcript.Resolved<OpenAISession> = .init([])
+	@State private var generatingTranscript: Transcript.PartiallyResolved<OpenAISession> = .init([])
 	@State private var session: OpenAISession?
 
 	// MARK: - Body
 
 	var body: some View {
-		Form {
-			Button("Send") {
-				Task {
-					try await sendMessage()
-				}
-			}
+		List {
 			ForEach(transcript) { entry in
 				switch entry {
 				case let .prompt(prompt):
-					Text("Prompt: \(prompt.input)")
+					Text(prompt.input)
 				case let .reasoning(reasoning):
-					Text("Reasoning: \(reasoning.summary.joined(separator: ", "))")
+					Text(reasoning.summary.joined(separator: ", "))
+						.foregroundStyle(.secondary)
 				case let .toolRun(toolRun):
 					switch toolRun.resolution {
-					case let .weather(weatherRun):
-						Text("Weather Run: \(weatherRun.arguments)")
+					case let .calculator(calculatorRun):
+						Text(
+							"Calculator Run: \(calculatorRun.arguments.firstNumber) \(calculatorRun.arguments.operation) \(calculatorRun.arguments.secondNumber)",
+						)
 					default:
-						Text("Calculator")
+						Text("Weather Run: \(toolRun)")
 					}
 					Text("Tool Run: \(toolRun.toolName)")
 				case let .response(response):
-					Text("Response: \(response)")
+					if let text = response.text {
+						Text(text)
+					}
+				}
+			}
+			ForEach(generatingTranscript) { entry in
+				switch entry {
+				case let .prompt(prompt):
+					Text(prompt.input)
+				case let .reasoning(reasoning):
+					Text(reasoning.summary.joined(separator: ", "))
+						.foregroundStyle(.secondary)
+				case let .toolRun(toolRun):
+					switch toolRun.resolution {
+					case let .calculator(calculatorRun):
+						Text(
+							"Calculator Run: \(calculatorRun.arguments.firstNumber) \(calculatorRun.arguments.operation) \(calculatorRun.arguments.secondNumber)",
+						)
+					default:
+						Text("Weather Run: \(toolRun)")
+					}
+					Text("Tool Run: \(toolRun.toolName)")
+				case let .response(response):
+					if let text = response.text {
+						Text(text)
+					}
 				}
 			}
 		}
-//			.animation(.default, value: transcript)
-		.formStyle(.grouped)
+		.listStyle(.plain)
+		.animation(.default, value: generatingTranscript)
 		.onAppear(perform: setupAgent)
+		.safeAreaBar(edge: .bottom) {
+			GlassEffectContainer {
+				HStack(alignment: .bottom) {
+					TextField("Message", text: $userInput, axis: .vertical)
+						.padding(.horizontal)
+						.padding(.vertical, 10)
+						.frame(maxWidth: .infinity, alignment: .leading)
+						.frame(minHeight: 45)
+						.glassEffect(.regular, in: .rect(cornerRadius: 45 / 2))
+					Button {
+						Task {
+							await sendMessage()
+						}
+					} label: {
+						Image(systemName: "arrow.up")
+							.frame(width: 45, height: 45)
+					}
+					.glassEffect(.regular)
+				}
+			}
+			.padding(.horizontal)
+			.padding(.bottom, 10)
+		}
 	}
 
 	// MARK: - Setup
@@ -51,7 +110,7 @@ struct ConversationalAgentExampleView: View {
 			Use the available tools when appropriate to help answer questions.
 			Be concise but informative in your responses.
 			""",
-			configuration: .direct(apiKey: Secret.OpenAI.apiKey)
+			configuration: .direct(apiKey: Secret.OpenAI.apiKey),
 		)
 	}
 
@@ -59,11 +118,18 @@ struct ConversationalAgentExampleView: View {
 
 	private func sendMessage() async {
 		guard let session, userInput.isEmpty == false else { return }
-		
-		
+
 		do {
-//			try await session.respond(to: userInput)
-			let stream = try session.streamResponse(to: userInput, groundingWith: [.currentDate(Date())]) { input, sources in
+			let options = OpenAIGenerationOptions(
+				include: [.reasoning_encryptedContent],
+				reasoning: .init(effort: .medium, summary: .auto),
+			)
+
+			let stream = try session.streamResponse(
+				to: userInput,
+				groundingWith: [.currentDate(Date())],
+				options: options,
+			) { input, sources in
 				PromptTag("context") {
 					for source in sources {
 						switch source {
@@ -80,20 +146,16 @@ struct ConversationalAgentExampleView: View {
 
 			for try await snapshot in stream {
 				let partiallyResolvedTranscript = try snapshot.transcript.partiallyResolved(in: session)
-				print(partiallyResolvedTranscript)
-				transcript = partiallyResolvedTranscript
+				generatingTranscript = partiallyResolvedTranscript
 			}
+
+			transcript = try session.transcript.resolved(in: session)
+			generatingTranscript = .init([])
 		} catch {
 			print("Error", error.localizedDescription)
 		}
 	}
 }
-
-// MARK: - Prompt Context
-
-// enum ContextSource: PromptContextSource {
-//	case currentDate(Date)
-// }
 
 #Preview {
 	NavigationStack {
