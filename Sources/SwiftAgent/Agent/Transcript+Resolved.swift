@@ -45,12 +45,14 @@ public extension Transcript {
 	/// An immutable **projection** of a transcript with tool runs resolved.
 	///
 	/// You can obtain instances via ``Transcript/resolved(using:)``.
-	struct Resolved<Session: LanguageModelProvider>: Equatable {
+	struct Resolved<Session: LanguageModelProvider>: Equatable, Sendable {
+		public let unresolvedTranscript: Transcript
 		/// All transcript entries with resolved tool runs attached where available.
 		public package(set) var entries: [Entry]
 
 		init(transcript: Transcript, session: Session) {
 			let resolver = ToolResolver(for: session, transcript: transcript)
+			unresolvedTranscript = transcript
 			entries = []
 
 			for entry in transcript.entries {
@@ -97,7 +99,7 @@ public extension Transcript {
 		}
 
 		/// Transcript entry augmented with resolved tool runs.
-		public enum Entry: Identifiable, Equatable {
+		public enum Entry: Identifiable, Equatable, Sendable {
 			case prompt(Prompt)
 			case reasoning(Transcript.Reasoning)
 			case toolRun(ToolRunKind)
@@ -140,7 +142,7 @@ public extension Transcript {
 		}
 
 		/// A resolved tool run.
-		public struct ToolRunKind: Identifiable, Equatable {
+		public struct ToolRunKind: Identifiable, Equatable, Sendable {
 			private let call: Transcript.ToolCall
 
 			/// The identifier of this run.
@@ -171,6 +173,7 @@ extension Transcript.Resolved: RandomAccessCollection, RangeReplaceableCollectio
 	public var endIndex: Int { entries.endIndex }
 
 	public init() {
+		unresolvedTranscript = Transcript()
 		entries = []
 	}
 

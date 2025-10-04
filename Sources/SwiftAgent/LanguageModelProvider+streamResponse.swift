@@ -34,7 +34,7 @@ public extension LanguageModelProvider {
 		to prompt: String,
 		using model: Adapter.Model = .default,
 		options: Adapter.GenerationOptions? = nil,
-	) throws -> AsyncThrowingStream<AgentSnapshot<String>, any Error> {
+	) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {
 		let sourcesData = try encodeGrounding([GroundingSource]())
 		let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
 		return processResponseStream(from: prompt, generating: String.self, using: model, options: options)
@@ -71,7 +71,7 @@ public extension LanguageModelProvider {
 		to prompt: Prompt,
 		using model: Adapter.Model = .default,
 		options: Adapter.GenerationOptions? = nil,
-	) throws -> AsyncThrowingStream<AgentSnapshot<String>, any Error> {
+	) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {
 		try streamResponse(to: prompt.formatted(), using: model, options: options)
 	}
 
@@ -79,7 +79,7 @@ public extension LanguageModelProvider {
 		using model: Adapter.Model = .default,
 		options: Adapter.GenerationOptions? = nil,
 		@PromptBuilder prompt: @Sendable () throws -> Prompt,
-	) throws -> AsyncThrowingStream<AgentSnapshot<String>, any Error> {
+	) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {
 		try streamResponse(to: prompt().formatted(), using: model, options: options)
 	}
 }
@@ -126,7 +126,7 @@ public extension LanguageModelProvider {
 		generating type: Content.Type = Content.self,
 		using model: Adapter.Model = .default,
 		options: Adapter.GenerationOptions? = nil,
-	) throws -> AsyncThrowingStream<AgentSnapshot<Content>, any Error> where Content: Generable {
+	) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
 		let sourcesData = try encodeGrounding([GroundingSource]())
 		let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
 		return processResponseStream(from: prompt, generating: type, using: model, options: options)
@@ -170,7 +170,7 @@ public extension LanguageModelProvider {
 		generating type: Content.Type = Content.self,
 		using model: Adapter.Model = .default,
 		options: Adapter.GenerationOptions? = nil,
-	) throws -> AsyncThrowingStream<AgentSnapshot<Content>, any Error> where Content: Generable {
+	) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
 		try streamResponse(to: prompt.formatted(), generating: type, using: model, options: options)
 	}
 
@@ -208,7 +208,7 @@ public extension LanguageModelProvider {
 		using model: Adapter.Model = .default,
 		options: Adapter.GenerationOptions? = nil,
 		@PromptBuilder prompt: @Sendable () throws -> Prompt,
-	) throws -> AsyncThrowingStream<AgentSnapshot<Content>, any Error> where Content: Generable {
+	) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
 		try streamResponse(to: prompt().formatted(), generating: type, using: model, options: options)
 	}
 }
@@ -222,7 +222,7 @@ public extension LanguageModelProvider {
 		groundingWith sources: [GroundingSource],
 		options: Adapter.GenerationOptions? = nil,
 		@PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [GroundingSource]) -> Prompt,
-	) throws -> AsyncThrowingStream<AgentSnapshot<String>, any Error> {
+	) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {
 		let sourcesData = try encodeGrounding(sources)
 
 		let prompt = Transcript.Prompt(
@@ -241,7 +241,7 @@ public extension LanguageModelProvider {
 		using model: Adapter.Model = .default,
 		options: Adapter.GenerationOptions? = nil,
 		@PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [GroundingSource]) -> Prompt,
-	) throws -> AsyncThrowingStream<AgentSnapshot<Content>, any Error> {
+	) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
 		let sourcesData = try encodeGrounding(sources)
 
 		let prompt = Transcript.Prompt(

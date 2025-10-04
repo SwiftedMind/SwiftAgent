@@ -18,15 +18,14 @@ import SwiftUI
 
 struct ConversationalAgentExampleView: View {
 	@State private var userInput = "Compute 234 + 6 using the tool!"
-	@State private var transcript: Transcript.Resolved<OpenAISession> = .init([])
-	@State private var generatingTranscript: Transcript.PartiallyResolved<OpenAISession> = .init([])
+	@State private var generatingTranscript: OpenAISession.PartiallyResolvedTranscript = .init()
 	@State private var session: OpenAISession?
 
 	// MARK: - Body
 
 	var body: some View {
 		List {
-			ForEach(transcript) { entry in
+			ForEach(session?.resolvedTranscript ?? .init()) { entry in
 				switch entry {
 				case let .prompt(prompt):
 					Text(prompt.input)
@@ -73,6 +72,16 @@ struct ConversationalAgentExampleView: View {
 				}
 			}
 		}
+		.task {
+			let transcriptStream = Observations {
+				session?.transcript
+			}
+
+			for await transcript in transcriptStream {
+				print("QQQ", transcript)
+			}
+			print("ABCCC")
+		}
 		.listStyle(.plain)
 		.animation(.default, value: generatingTranscript)
 		.onAppear(perform: setupAgent)
@@ -84,7 +93,7 @@ struct ConversationalAgentExampleView: View {
 						.padding(.vertical, 10)
 						.frame(maxWidth: .infinity, alignment: .leading)
 						.frame(minHeight: 45)
-						.glassEffect(.regular, in: .rect(cornerRadius: 45 / 2))
+						.glassEffect(.regular.interactive(), in: .rect(cornerRadius: 45 / 2))
 					Button {
 						Task {
 							await sendMessage()
@@ -93,7 +102,7 @@ struct ConversationalAgentExampleView: View {
 						Image(systemName: "arrow.up")
 							.frame(width: 45, height: 45)
 					}
-					.glassEffect(.regular)
+					.glassEffect(.regular.interactive())
 				}
 			}
 			.padding(.horizontal)
@@ -145,11 +154,9 @@ struct ConversationalAgentExampleView: View {
 			}
 
 			for try await snapshot in stream {
-				let partiallyResolvedTranscript = snapshot.transcript.partiallyResolved(in: session)
-				generatingTranscript = partiallyResolvedTranscript
+				generatingTranscript = snapshot.resolvedTranscript
 			}
 
-			transcript = session.transcript.resolved(in: session)
 			generatingTranscript = .init([])
 		} catch {
 			print("Error", error.localizedDescription)

@@ -78,12 +78,12 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		)
 		members.append(
 			"""
-			@MainActor var transcript: SwiftAgent.Transcript
+			@MainActor var transcript: SwiftAgent.Transcript = Transcript()
 			""",
 		)
 		members.append(
 			"""
-			@MainActor var tokenUsage: TokenUsage
+			@MainActor var tokenUsage: TokenUsage = TokenUsage()
 			""",
 		)
 		members.append(
@@ -340,8 +340,6 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 					instructions: instructions,
 					configuration: .direct(apiKey: apiKey)
 				)
-			  transcript = Transcript()
-			  tokenUsage = TokenUsage()
 			}
 			""",
 		)
@@ -363,8 +361,6 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 					instructions: instructions,
 					configuration: configuration
 				)
-			  transcript = Transcript()
-			  tokenUsage = TokenUsage()
 			}
 			""",
 		)
