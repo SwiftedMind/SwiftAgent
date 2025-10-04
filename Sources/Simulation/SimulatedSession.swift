@@ -18,7 +18,7 @@ public extension LanguageModelProvider {
 		to prompt: String,
 		generations: [SimulatedGeneration<String>],
 		configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-	) async throws -> AgentResponse<String> {
+	) async throws -> AgentResponse<String, Self> {
 		let sourcesData = try encodeGrounding([GroundingSource]())
 		let transcriptPrompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
 		let promptEntry = Transcript.Entry.prompt(transcriptPrompt)
@@ -59,9 +59,12 @@ public extension LanguageModelProvider {
 			}
 		}
 
-		return AgentResponse<String>(
+		let transcript = Transcript(entries: addedEntities)
+		let resolvedTranscript = transcript.resolved(in: self)
+		return AgentResponse<String, Self>(
 			content: responseContent.joined(separator: "\n"),
-			transcript: Transcript(entries: addedEntities),
+			transcript: transcript,
+			resolvedTranscript: resolvedTranscript,
 			tokenUsage: aggregatedUsage,
 		)
 	}
@@ -71,7 +74,7 @@ public extension LanguageModelProvider {
 		to prompt: String,
 		generations: [SimulatedGeneration<Content>],
 		configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-	) async throws -> AgentResponse<Content> where Content: MockableGenerable {
+	) async throws -> AgentResponse<Content, Self> where Content: MockableGenerable {
 		let sourcesData = try encodeGrounding([GroundingSource]())
 		let transcriptPrompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
 		let promptEntry = Transcript.Entry.prompt(transcriptPrompt)
@@ -97,9 +100,12 @@ public extension LanguageModelProvider {
 						case .text:
 							break
 						case let .structure(structuredSegment):
-							return try AgentResponse<Content>(
+							let transcript = Transcript(entries: addedEntities)
+							let resolvedTranscript = transcript.resolved(in: self)
+							return try AgentResponse<Content, Self>(
 								content: Content(structuredSegment.content),
-								transcript: Transcript(entries: addedEntities),
+								transcript: transcript,
+								resolvedTranscript: resolvedTranscript,
 								tokenUsage: aggregatedUsage,
 							)
 						}
@@ -124,7 +130,7 @@ public extension LanguageModelProvider {
 		to prompt: SwiftAgent.Prompt,
 		generations: [SimulatedGeneration<String>],
 		configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-	) async throws -> AgentResponse<String> {
+	) async throws -> AgentResponse<String, Self> {
 		try await simulateResponse(to: prompt.formatted(), generations: generations, configuration: configuration)
 	}
 
@@ -133,7 +139,7 @@ public extension LanguageModelProvider {
 		to prompt: SwiftAgent.Prompt,
 		generations: [SimulatedGeneration<Content>],
 		configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-	) async throws -> AgentResponse<Content> where Content: MockableGenerable {
+	) async throws -> AgentResponse<Content, Self> where Content: MockableGenerable {
 		try await simulateResponse(to: prompt.formatted(), generations: generations, configuration: configuration)
 	}
 
@@ -142,7 +148,7 @@ public extension LanguageModelProvider {
 		generations: [SimulatedGeneration<String>],
 		configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
 		@SwiftAgent.PromptBuilder prompt: () throws -> SwiftAgent.Prompt,
-	) async throws -> AgentResponse<String> {
+	) async throws -> AgentResponse<String, Self> {
 		try await simulateResponse(to: prompt().formatted(), generations: generations, configuration: configuration)
 	}
 
@@ -151,7 +157,7 @@ public extension LanguageModelProvider {
 		generations: [SimulatedGeneration<Content>],
 		configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
 		@SwiftAgent.PromptBuilder prompt: () throws -> SwiftAgent.Prompt,
-	) async throws -> AgentResponse<Content> where Content: MockableGenerable {
+	) async throws -> AgentResponse<Content, Self> where Content: MockableGenerable {
 		try await simulateResponse(to: prompt().formatted(), generations: generations, configuration: configuration)
 	}
 }

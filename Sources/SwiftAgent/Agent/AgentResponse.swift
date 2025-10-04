@@ -7,14 +7,14 @@ import Internal
 /// The response returned by LanguageModelProvider methods, containing generated content and metadata.
 ///
 /// ``AgentResponse`` encapsulates the result of an AI generation request, providing access to
-/// the generated content, transcript entries that were added during generation, and token usage statistics.
+/// the generated content, resolved transcript projection, and token usage statistics.
 ///
 /// ## Properties
 ///
 /// - **content**: The generated content, which can be a `String` for text responses or any
 ///   `@Generable` type for structured responses.
-/// - **transcript**: The transcript entries that were created during this generation,
-///   including reasoning steps, tool calls, and the final response.
+/// - **transcript**: The raw transcript entries that were created during this generation.
+/// - **resolvedTranscript**: A projection of the transcript with tool runs fully resolved for the session.
 /// - **tokenUsage**: Aggregated token consumption across all internal steps (optional).
 ///
 /// ## Example Usage
@@ -25,7 +25,7 @@ import Internal
 /// print("Used \(response.tokenUsage?.totalTokens ?? 0) tokens")
 /// print("Added \(response.transcript.count) transcript entries")
 /// ```
-public struct AgentResponse<Content: Generable> {
+public struct AgentResponse<Content: Generable, Session: LanguageModelProvider> {
 	/// The generated content from the AI model.
 	///
 	/// For text responses, this will be a `String`. For structured responses,
@@ -38,6 +38,11 @@ public struct AgentResponse<Content: Generable> {
 	/// including reasoning steps, tool calls, and the final response.
 	public var transcript: Transcript
 
+	/// The resolved transcript projection for the session.
+	///
+	/// This provides resolved tool runs corresponding to the generated transcript entries.
+	public let resolvedTranscript: Session.ResolvedTranscript
+
 	/// Token usage statistics aggregated across all internal generation steps.
 	///
 	/// Provides information about input tokens, output tokens, cached tokens, and reasoning tokens
@@ -47,10 +52,12 @@ public struct AgentResponse<Content: Generable> {
 	package init(
 		content: Content,
 		transcript: Transcript,
+		resolvedTranscript: Session.ResolvedTranscript,
 		tokenUsage: TokenUsage?,
 	) {
 		self.content = content
 		self.transcript = transcript
+		self.resolvedTranscript = resolvedTranscript
 		self.tokenUsage = tokenUsage
 	}
 }

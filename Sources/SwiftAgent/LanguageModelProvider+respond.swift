@@ -33,7 +33,7 @@ public extension LanguageModelProvider {
 		to prompt: String,
 		using model: Adapter.Model = .default,
 		options: Adapter.GenerationOptions? = nil,
-	) async throws -> AgentResponse<String> {
+	) async throws -> Response<String> {
 		let sourcesData = try encodeGrounding([GroundingSource]())
 
 		let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
@@ -69,7 +69,7 @@ public extension LanguageModelProvider {
 		to prompt: Prompt,
 		using model: Adapter.Model = .default,
 		options: Adapter.GenerationOptions? = nil,
-	) async throws -> AgentResponse<String> {
+	) async throws -> Response<String> {
 		try await respond(to: prompt.formatted(), using: model, options: options)
 	}
 
@@ -102,7 +102,7 @@ public extension LanguageModelProvider {
 		using model: Adapter.Model = .default,
 		options: Adapter.GenerationOptions? = nil,
 		@PromptBuilder prompt: () throws -> Prompt,
-	) async throws -> AgentResponse<String> {
+	) async throws -> Response<String> {
 		try await respond(to: prompt().formatted(), using: model, options: options)
 	}
 }
@@ -148,7 +148,7 @@ public extension LanguageModelProvider {
 		generating type: Content.Type = Content.self,
 		using model: Adapter.Model = .default,
 		options: Adapter.GenerationOptions? = nil,
-	) async throws -> AgentResponse<Content> where Content: Generable {
+	) async throws -> Response<Content> where Content: Generable {
 		let sourcesData = try encodeGrounding([GroundingSource]())
 		let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
 		return try await processResponse(from: prompt, generating: type, using: model, options: options)
@@ -189,7 +189,7 @@ public extension LanguageModelProvider {
 		generating type: Content.Type = Content.self,
 		using model: Adapter.Model = .default,
 		options: Adapter.GenerationOptions? = nil,
-	) async throws -> AgentResponse<Content> where Content: Generable {
+	) async throws -> Response<Content> where Content: Generable {
 		try await respond(
 			to: prompt.formatted(),
 			generating: type,
@@ -228,7 +228,7 @@ public extension LanguageModelProvider {
 		using model: Adapter.Model = .default,
 		options: Adapter.GenerationOptions? = nil,
 		@PromptBuilder prompt: () throws -> Prompt,
-	) async throws -> AgentResponse<Content> where Content: Generable {
+	) async throws -> Response<Content> where Content: Generable {
 		try await respond(
 			to: prompt().formatted(),
 			generating: type,
@@ -285,7 +285,7 @@ public extension LanguageModelProvider {
 		groundingWith sources: [GroundingSource],
 		options: Adapter.GenerationOptions? = nil,
 		@PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [GroundingSource]) -> Prompt,
-	) async throws -> AgentResponse<String> {
+	) async throws -> Response<String> {
 		let sourcesData = try encodeGrounding(sources)
 
 		let prompt = Transcript.Prompt(
@@ -345,7 +345,7 @@ public extension LanguageModelProvider {
 		groundingWith sources: [GroundingSource],
 		options: Adapter.GenerationOptions? = nil,
 		@PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [GroundingSource]) -> Prompt,
-	) async throws -> AgentResponse<Content> where Content: Generable {
+	) async throws -> Response<Content> where Content: Generable {
 		let sourcesData = try encodeGrounding(sources)
 
 		let prompt = Transcript.Prompt(

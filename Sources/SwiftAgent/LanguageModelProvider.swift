@@ -9,6 +9,7 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
 	typealias Transcript = SwiftAgent.Transcript
 	typealias ResolvedTranscript = Transcript.Resolved<Self>
 	typealias PartiallyResolvedTranscript = Transcript.PartiallyResolved<Self>
+	typealias Response<Content: Generable> = AgentResponse<Content, Self>
 	typealias Snapshot<Content: Generable> = AgentSnapshot<Content, Self>
 
 	associatedtype Adapter: SwiftAgent.Adapter & SendableMetatype
@@ -77,7 +78,7 @@ package extension LanguageModelProvider {
 		generating type: Content.Type,
 		using model: Adapter.Model,
 		options: Adapter.GenerationOptions?,
-	) async throws -> AgentResponse<Content> where Content: Generable {
+	) async throws -> Response<Content> where Content: Generable {
 		let promptEntry = Transcript.Entry.prompt(prompt)
 		await appendTranscript(promptEntry)
 
@@ -116,9 +117,11 @@ package extension LanguageModelProvider {
 								// We can return here since a structured response can only happen once
 								// TODO: Handle errors here in some way
 
-								return try AgentResponse<Content>(
+								let resolvedTranscript = generatedTranscript.resolved(in: self)
+								return try Response<Content>(
 									content: Content(structuredSegment.content),
 									transcript: generatedTranscript,
+									resolvedTranscript: resolvedTranscript,
 									tokenUsage: generatedUsage,
 								)
 							}
@@ -156,9 +159,11 @@ package extension LanguageModelProvider {
 				}
 				.flatMap(\.self)
 
-			return AgentResponse<Content>(
+			let resolvedTranscript = generatedTranscript.resolved(in: self)
+			return Response<Content>(
 				content: finalResponseSegments.joined(separator: "\n") as! Content,
 				transcript: generatedTranscript,
+				resolvedTranscript: resolvedTranscript,
 				tokenUsage: generatedUsage,
 			)
 		} else {
@@ -173,7 +178,7 @@ package extension LanguageModelProvider {
 		generating type: Content.Type,
 		using model: Adapter.Model,
 		options: Adapter.GenerationOptions?,
-	) -> AsyncThrowingStream<AgentSnapshot<Content, Self>, any Error> {
+	) -> AsyncThrowingStream<Snapshot<Content>, any Error> {
 		let setup = AsyncThrowingStream<AgentSnapshot<Content, Self>, any Error>.makeStream()
 
 		let task = Task<Void, Never> { [continuation = setup.continuation] in
@@ -197,7 +202,7 @@ package extension LanguageModelProvider {
 						generatedTranscript.upsert(entry)
 						let partiallyResolvedTranscript = generatedTranscript.partiallyResolved(in: self)
 						continuation.yield(
-							AgentSnapshot(
+							Snapshot(
 								content: nil,
 								transcript: generatedTranscript,
 								resolvedTranscript: partiallyResolvedTranscript,
@@ -209,7 +214,7 @@ package extension LanguageModelProvider {
 						generatedUsage.merge(usage)
 						let partiallyResolvedTranscript = generatedTranscript.partiallyResolved(in: self)
 						continuation.yield(
-							AgentSnapshot(
+							Snapshot(
 								content: nil,
 								transcript: generatedTranscript,
 								resolvedTranscript: partiallyResolvedTranscript,
@@ -226,7 +231,7 @@ package extension LanguageModelProvider {
 				// TODO: Send the final, parsed content, if type != String.self
 				let partiallyResolvedTranscript = generatedTranscript.partiallyResolved(in: self)
 				continuation.yield(
-					AgentSnapshot(
+					Snapshot(
 						content: nil,
 						transcript: generatedTranscript,
 						resolvedTranscript: partiallyResolvedTranscript,
