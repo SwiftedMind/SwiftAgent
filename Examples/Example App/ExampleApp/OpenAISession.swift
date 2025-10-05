@@ -17,7 +17,7 @@ struct CalculatorTool: Tool, SwiftAgentTool {
 	let description = "Performs basic mathematical calculations"
 
 	@Generable
-	struct Arguments: Equatable {
+	struct Arguments {
 		@Guide(description: "The first number")
 		let firstNumber: Double
 
@@ -29,7 +29,7 @@ struct CalculatorTool: Tool, SwiftAgentTool {
 	}
 
 	@Generable
-	struct Output: Equatable {
+	struct Output {
 		let result: Double
 		let expression: String
 	}
@@ -64,13 +64,13 @@ struct WeatherTool: Tool, SwiftAgentTool {
 	let description = "Gets current weather information for a location"
 
 	@Generable
-	struct Arguments: Equatable {
+	struct Arguments {
 		@Guide(description: "The city or location to get weather for")
 		let location: String
 	}
 
 	@Generable
-	struct Output: Equatable {
+	struct Output {
 		let location: String
 		let temperature: Int
 		let condition: String

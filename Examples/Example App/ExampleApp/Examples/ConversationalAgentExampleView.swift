@@ -6,16 +6,6 @@ import SwiftUI
 
 // TODO: Views must handle partial tool runs and finished tool runs?
 
-/*
-
- - Maybe the OpenAISession's transcript should be resolved by default? (with transcript.raw to access the raw transcript or so)
- - And the AgentSnapshot should also be a partially resolved transcript
- - But how to handle resolution failures?
- - And what if you change the model provider? It _should_ be as simple as swapping the adapter and changing nothing else.
- - Should be fine because the underlying transcript is the same and the resolution is derived from that at runtime.
-
- */
-
 struct ConversationalAgentExampleView: View {
 	@State private var userInput = "Compute 234 + 6 using the tool!"
 	@State private var generatingTranscript: OpenAISession.PartiallyResolvedTranscript = .init()
