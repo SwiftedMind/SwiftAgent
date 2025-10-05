@@ -40,7 +40,7 @@ public struct AgentSnapshot<Content: Generable, Provider: LanguageModelProvider>
 
 	/// The raw transcript before resolution, kept for consumers that still need direct access to the
 	/// untransformed entries.
-	public let streamingTranscript: Provider.StreamingTranscript
+	public let streamingTranscript: Provider.ResolvedTranscript
 
 	/// Current token usage statistics.
 	///
@@ -57,7 +57,7 @@ public struct AgentSnapshot<Content: Generable, Provider: LanguageModelProvider>
 	public init(
 		content: Content? = nil,
 		transcript: Transcript,
-		streamingTranscript: Provider.StreamingTranscript,
+		streamingTranscript: Provider.ResolvedTranscript,
 		tokenUsage: TokenUsage? = nil,
 	) {
 		self.content = content

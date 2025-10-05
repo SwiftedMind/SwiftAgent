@@ -80,16 +80,22 @@ public extension Transcript {
 					entries.append(.response(response))
 				case let .toolCalls(toolCalls):
 					for call in toolCalls {
-						var resolvedRun: Provider.ResolvedToolRun?
-						var toolRunError: TranscriptResolutionError.ToolRunResolution?
+						var resolution: ToolRunKind.Resolution
 
 						do {
-							resolvedRun = try resolver.resolve(call)
+							switch call.status {
+							case .inProgress:
+								resolution = try .inProgress(resolver.resolveStreaming(call))
+							case .completed:
+								resolution = try .completed(resolver.resolve(call))
+							default:
+								resolution = .failed(.resolutionFailed(description: "TODO"))
+							}
 						} catch {
-							toolRunError = error
+							resolution = .failed(error)
 						}
 
-						entries.append(.toolRun(.init(call: call, resolution: resolvedRun, error: toolRunError)))
+						entries.append(.toolRun(.init(call: call, resolution: resolution)))
 					}
 				case .toolOutput:
 					// Handled already by the .toolCalls cases
@@ -143,28 +149,29 @@ public extension Transcript {
 
 		/// A resolved tool run.
 		public struct ToolRunKind: Identifiable, Equatable, Sendable {
+			public enum Resolution: Equatable, Sendable {
+				case inProgress(Provider.StreamingToolRun)
+				case completed(Provider.ResolvedToolRun)
+				case failed(TranscriptResolutionError.ToolRunResolution)
+			}
+
 			private let call: Transcript.ToolCall
 
 			/// The identifier of this run.
 			public var id: String { call.id }
 
 			/// The tool resolution.
-			public let resolution: Provider.ResolvedToolRun?
-
-			/// The error that occurred during resolution.
-			public let error: TranscriptResolutionError.ToolRunResolution?
+			public let resolution: Resolution
 
 			/// The tool name captured within the original call, convenient for switching logic.
 			public var toolName: String { call.toolName }
 
 			init(
 				call: Transcript.ToolCall,
-				resolution: Provider.ResolvedToolRun?,
-				error: TranscriptResolutionError.ToolRunResolution?,
+				resolution: Resolution,
 			) {
 				self.call = call
 				self.resolution = resolution
-				self.error = error
 			}
 		}
 	}

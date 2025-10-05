@@ -200,7 +200,7 @@ package extension LanguageModelProvider {
 					switch update {
 					case let .transcript(entry):
 						generatedTranscript.upsert(entry)
-						let partiallyResolvedTranscript = generatedTranscript.streaming(in: self)
+						let partiallyResolvedTranscript = generatedTranscript.resolved(in: self)
 						continuation.yield(
 							Snapshot(
 								content: nil,
@@ -212,7 +212,7 @@ package extension LanguageModelProvider {
 
 					case let .tokenUsage(usage):
 						generatedUsage.merge(usage)
-						let partiallyResolvedTranscript = generatedTranscript.streaming(in: self)
+						let partiallyResolvedTranscript = generatedTranscript.resolved(in: self)
 						continuation.yield(
 							Snapshot(
 								content: nil,
@@ -229,7 +229,7 @@ package extension LanguageModelProvider {
 				await mergeTokenUsage(generatedUsage)
 
 				// TODO: Send the final, parsed content, if type != String.self
-				let partiallyResolvedTranscript = generatedTranscript.streaming(in: self)
+				let partiallyResolvedTranscript = generatedTranscript.resolved(in: self)
 				continuation.yield(
 					Snapshot(
 						content: nil,

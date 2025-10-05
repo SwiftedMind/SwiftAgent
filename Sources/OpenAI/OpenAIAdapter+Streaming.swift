@@ -1,5 +1,6 @@
 // By Dennis Müller
 
+import AsyncAlgorithms
 import Foundation
 import FoundationModels
 import Internal

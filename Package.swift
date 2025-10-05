@@ -17,6 +17,7 @@ let package = Package(
 		.package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.10.0"),
 		.package(url: "https://github.com/MacPaw/OpenAI.git", branch: "main"),
 		.package(url: "https://github.com/mattt/EventSource", from: "1.2.0"),
+		.package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.4"),
 	],
 	targets: [
 		.macro(
@@ -38,6 +39,7 @@ let package = Package(
 				"Internal",
 				"SwiftAgentMacros",
 				"EventSource",
+				.product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
 			],
 		),
 		.target(
@@ -48,6 +50,7 @@ let package = Package(
 				"SwiftAgentMacros",
 				"EventSource",
 				.product(name: "Dependencies", package: "swift-dependencies"),
+				.product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
 			],
 			path: "Sources/OpenAI",
 		),
