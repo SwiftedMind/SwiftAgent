@@ -45,12 +45,12 @@ public extension Transcript {
 	/// An immutable **projection** of a transcript with tool runs resolved.
 	///
 	/// You can obtain instances via ``Transcript/resolved(using:)``.
-	struct Resolved<Session: LanguageModelProvider>: Equatable, Sendable {
+	struct Resolved<Provider: LanguageModelProvider>: Equatable, Sendable {
 		public let unresolvedTranscript: Transcript
 		/// All transcript entries with resolved tool runs attached where available.
 		public package(set) var entries: [Entry]
 
-		init(transcript: Transcript, session: Session) {
+		init(transcript: Transcript, session: Provider) {
 			let resolver = ToolResolver(for: session, transcript: transcript)
 			unresolvedTranscript = transcript
 			entries = []
@@ -58,7 +58,7 @@ public extension Transcript {
 			for entry in transcript.entries {
 				switch entry {
 				case let .prompt(prompt):
-					var decodedSources: [Session.GroundingSource] = []
+					var decodedSources: [Provider.GroundingSource] = []
 					var errorContext: TranscriptResolutionError.PromptResolution?
 
 					do {
@@ -80,7 +80,7 @@ public extension Transcript {
 					entries.append(.response(response))
 				case let .toolCalls(toolCalls):
 					for call in toolCalls {
-						var resolvedRun: Session.ResolvedToolRun?
+						var resolvedRun: Provider.ResolvedToolRun?
 						var toolRunError: TranscriptResolutionError.ToolRunResolution?
 
 						do {
@@ -122,14 +122,14 @@ public extension Transcript {
 		public struct Prompt: Sendable, Identifiable, Equatable {
 			public var id: String
 			public var input: String
-			public var sources: [Session.GroundingSource]
+			public var sources: [Provider.GroundingSource]
 			public let error: TranscriptResolutionError.PromptResolution?
 			package var prompt: String
 
 			package init(
 				id: String = UUID().uuidString,
 				input: String,
-				sources: [Session.GroundingSource],
+				sources: [Provider.GroundingSource],
 				prompt: String,
 				error: TranscriptResolutionError.PromptResolution? = nil,
 			) {
@@ -149,7 +149,7 @@ public extension Transcript {
 			public var id: String { call.id }
 
 			/// The tool resolution.
-			public let resolution: Session.ResolvedToolRun?
+			public let resolution: Provider.ResolvedToolRun?
 			public let error: TranscriptResolutionError.ToolRunResolution?
 
 			/// The tool name captured within the original call, convenient for switching logic.
@@ -157,7 +157,7 @@ public extension Transcript {
 
 			init(
 				call: Transcript.ToolCall,
-				resolution: Session.ResolvedToolRun?,
+				resolution: Provider.ResolvedToolRun?,
 				error: TranscriptResolutionError.ToolRunResolution?,
 			) {
 				self.call = call

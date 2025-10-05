@@ -65,12 +65,12 @@ import OSLog
 ///
 /// By using a shared `ToolRunKind` type across all your tools, the resolver ensures
 /// compile-time safety when handling different tool types in a unified way.
-public struct ToolResolver<Session: LanguageModelProvider> {
+public struct ToolResolver<Provider: LanguageModelProvider> {
 	/// The tool call type from the associated transcript.
 	public typealias ToolCall = Transcript.ToolCall
 
 	/// Dictionary mapping tool names to their implementations for fast lookup.
-	private let toolsByName: [String: any ResolvableTool<Session>]
+	private let toolsByName: [String: any ResolvableTool<Provider>]
 
 	/// All tool outputs extracted from the conversation transcript.
 	private let transcriptToolOutputs: [Transcript.ToolOutput]
@@ -80,7 +80,7 @@ public struct ToolResolver<Session: LanguageModelProvider> {
 	/// - Parameters:
 	///   - tools: The tools that can be resolved, all sharing the same `Resolution` type
 	///   - transcript: The conversation transcript containing tool calls and outputs
-	init(for session: Session, transcript: Transcript) {
+	init(for session: Provider, transcript: Transcript) {
 		toolsByName = Dictionary(uniqueKeysWithValues: session.tools.map { ($0.name, $0) })
 		transcriptToolOutputs = transcript.compactMap { entry in
 			switch entry {
@@ -126,7 +126,7 @@ public struct ToolResolver<Session: LanguageModelProvider> {
 	///
 	public func resolve(
 		_ call: ToolCall,
-	) throws(TranscriptResolutionError.ToolRunResolution) -> Session.ResolvedToolRun {
+	) throws(TranscriptResolutionError.ToolRunResolution) -> Provider.ResolvedToolRun {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
 			let error = TranscriptResolutionError.ToolRunResolution.unknownTool(name: call.toolName)
@@ -149,7 +149,7 @@ public struct ToolResolver<Session: LanguageModelProvider> {
 
 	public func resolvePartially(
 		_ call: ToolCall,
-	) throws(TranscriptResolutionError.ToolRunResolution) -> Session.PartiallyResolvedToolRun {
+	) throws(TranscriptResolutionError.ToolRunResolution) -> Provider.PartiallyResolvedToolRun {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
 			let error = TranscriptResolutionError.ToolRunResolution.unknownTool(name: call.toolName)

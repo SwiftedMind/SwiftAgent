@@ -18,15 +18,15 @@ public struct Transcript: Sendable, Equatable {
 		}
 	}
 
-	public func resolved<Session: LanguageModelProvider>(
-		in session: Session,
-	) -> Session.ResolvedTranscript {
+	public func resolved<Provider: LanguageModelProvider>(
+		in session: Provider,
+	) -> Provider.ResolvedTranscript {
 		Transcript.Resolved(transcript: self, session: session)
 	}
 
-	public func partiallyResolved<Session: LanguageModelProvider>(
-		in session: Session,
-	) -> Session.PartiallyResolvedTranscript {
+	public func partiallyResolved<Provider: LanguageModelProvider>(
+		in session: Provider,
+	) -> Provider.PartiallyResolvedTranscript {
 		Transcript.PartiallyResolved(transcript: self, session: session)
 	}
 }

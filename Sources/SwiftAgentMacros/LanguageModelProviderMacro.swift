@@ -83,7 +83,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		)
 		members.append(
 			"""
-			typealias SessionType = \(raw: classDeclaration.name.text)
+			typealias ProviderType = \(raw: classDeclaration.name.text)
 			""",
 		)
 
@@ -109,7 +109,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			))
 		members.append(
 			"""
-			let tools: [any ResolvableTool<SessionType>]
+			let tools: [any ResolvableTool<ProviderType>]
 			""",
 		)
 
@@ -407,7 +407,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 				init(
 				\(raw: allInitParameters)
 				) {
-			  \(raw: initializerPrologueBlock)  let tools: [any ResolvableTool<SessionType>] = \(raw: toolsArrayCode)
+			  \(raw: initializerPrologueBlock)  let tools: [any ResolvableTool<ProviderType>] = \(raw: toolsArrayCode)
 			  self.tools = tools
 
 			  adapter = \(raw: provider.adapterTypeName)(
@@ -429,7 +429,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 				init(
 				\(raw: configurationInitParameters)
 				) {
-			  \(raw: initializerPrologueBlock)  let tools: [any ResolvableTool<SessionType>] = \(raw: toolsArrayCode)
+			  \(raw: initializerPrologueBlock)  let tools: [any ResolvableTool<ProviderType>] = \(raw: toolsArrayCode)
 			  self.tools = tools
 
 			  adapter = \(raw: provider.adapterTypeName)(
@@ -521,7 +521,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		return
 			"""
 			struct \(raw: wrapperName): ResolvableTool {
-			  typealias Session = SessionType
+			  typealias Provider = ProviderType
 			  typealias BaseTool = \(raw: tool.typeName)
 			  typealias Arguments = BaseTool.Arguments
 			  typealias Output = BaseTool.Output
@@ -550,13 +550,13 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
 			  func resolve(
 			    _ run: ToolRun<\(raw: wrapperName)>
-			  ) -> Session.ResolvedToolRun {
+			  ) -> Provider.ResolvedToolRun {
 			    .\(raw: tool.identifier.text)(run)
 			  }
 
 			  func resolvePartially(
 			    _ run: PartialToolRun<\(raw: wrapperName)>
-			  ) -> Session.PartiallyResolvedToolRun {
+			  ) -> Provider.PartiallyResolvedToolRun {
 			    .\(raw: tool.identifier.text)(run)
 			  }
 			}
@@ -638,14 +638,14 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			""",
 			"""
 			nonisolated func access(
-			  keyPath: KeyPath<SessionType, some Any>
+			  keyPath: KeyPath<ProviderType, some Any>
 			) {
 			  _$observationRegistrar.access(self, keyPath: keyPath)
 			}
 			""",
 			"""
 			nonisolated func withMutation<A>(
-			  keyPath: KeyPath<SessionType, some Any>,
+			  keyPath: KeyPath<ProviderType, some Any>,
 			  _ mutation: () throws -> A
 			) rethrows -> A {
 			  try _$observationRegistrar.withMutation(of: self, keyPath: keyPath, mutation)

@@ -23,7 +23,7 @@ import Internal
 ///   }
 /// }
 /// ```
-public struct AgentSnapshot<Content: Generable, Session: LanguageModelProvider> {
+public struct AgentSnapshot<Content: Generable, Provider: LanguageModelProvider> {
 	/// The generated content from the AI model.
 	///
 	/// This will be `nil` if the content is not available yet.
@@ -40,7 +40,7 @@ public struct AgentSnapshot<Content: Generable, Session: LanguageModelProvider> 
 
 	/// The raw transcript before resolution, kept for consumers that still need direct access to the
 	/// untransformed entries.
-	public let resolvedTranscript: Session.PartiallyResolvedTranscript
+	public let resolvedTranscript: Provider.PartiallyResolvedTranscript
 
 	/// Current token usage statistics.
 	///
@@ -57,7 +57,7 @@ public struct AgentSnapshot<Content: Generable, Session: LanguageModelProvider> 
 	public init(
 		content: Content? = nil,
 		transcript: Transcript,
-		resolvedTranscript: Session.PartiallyResolvedTranscript,
+		resolvedTranscript: Provider.PartiallyResolvedTranscript,
 		tokenUsage: TokenUsage? = nil,
 	) {
 		self.content = content

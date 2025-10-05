@@ -25,7 +25,7 @@ import Internal
 /// print("Used \(response.tokenUsage?.totalTokens ?? 0) tokens")
 /// print("Added \(response.transcript.count) transcript entries")
 /// ```
-public struct AgentResponse<Content: Generable, Session: LanguageModelProvider> {
+public struct AgentResponse<Content: Generable, Provider: LanguageModelProvider> {
 	/// The generated content from the AI model.
 	///
 	/// For text responses, this will be a `String`. For structured responses,
@@ -41,7 +41,7 @@ public struct AgentResponse<Content: Generable, Session: LanguageModelProvider> 
 	/// The resolved transcript projection for the session.
 	///
 	/// This provides resolved tool runs corresponding to the generated transcript entries.
-	public let resolvedTranscript: Session.ResolvedTranscript
+	public let resolvedTranscript: Provider.ResolvedTranscript
 
 	/// Token usage statistics aggregated across all internal generation steps.
 	///
@@ -52,7 +52,7 @@ public struct AgentResponse<Content: Generable, Session: LanguageModelProvider> 
 	package init(
 		content: Content,
 		transcript: Transcript,
-		resolvedTranscript: Session.ResolvedTranscript,
+		resolvedTranscript: Provider.ResolvedTranscript,
 		tokenUsage: TokenUsage?,
 	) {
 		self.content = content

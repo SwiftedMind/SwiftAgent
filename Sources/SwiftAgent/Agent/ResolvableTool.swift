@@ -4,12 +4,12 @@ import Foundation
 import FoundationModels
 import Internal
 
-public protocol ResolvableTool<Session>: SwiftAgentTool {
+public protocol ResolvableTool<Provider>: SwiftAgentTool {
 	/// The type returned when this tool is resolved.
 	///
 	/// Defaults to `Void` for tools that don't need custom resolution logic.
 	/// Override to return domain-specific types that represent the resolved tool execution.
-	associatedtype Session: LanguageModelProvider
+	associatedtype Provider: LanguageModelProvider
 
 	/// Resolves a tool run into a domain-specific result.
 	///
@@ -19,9 +19,9 @@ public protocol ResolvableTool<Session>: SwiftAgentTool {
 	///
 	/// - Parameter run: The tool run containing typed arguments and optional output
 	/// - Returns: A resolved representation of the tool execution
-	func resolve(_ run: ToolRun<Self>) -> Session.ResolvedToolRun
+	func resolve(_ run: ToolRun<Self>) -> Provider.ResolvedToolRun
 
-	func resolvePartially(_ run: PartialToolRun<Self>) -> Session.PartiallyResolvedToolRun
+	func resolvePartially(_ run: PartialToolRun<Self>) -> Provider.PartiallyResolvedToolRun
 }
 
 public extension ResolvableTool {
@@ -38,14 +38,14 @@ public extension ResolvableTool {
 	func resolve(
 		arguments: GeneratedContent,
 		output: GeneratedContent?,
-	) throws -> Session.ResolvedToolRun {
+	) throws -> Provider.ResolvedToolRun {
 		try resolve(run(for: arguments, output: output))
 	}
 
 	func resolvePartially(
 		arguments: GeneratedContent,
 		output: GeneratedContent?,
-	) throws -> Session.PartiallyResolvedToolRun {
+	) throws -> Provider.PartiallyResolvedToolRun {
 		let partialRun = try partialRun(for: arguments, output: output)
 		return resolvePartially(partialRun)
 	}
