@@ -8,7 +8,7 @@ import SwiftUI
 struct ExampleApp: App {
 	init() {
 		// Enable logging for development
-		SwiftAgentConfiguration.setLoggingEnabled(true)
+//		SwiftAgentConfiguration.setLoggingEnabled(true)
 //		SwiftAgentConfiguration.setNetworkLoggingEnabled(true)
 	}
 

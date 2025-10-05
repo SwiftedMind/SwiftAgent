@@ -273,15 +273,18 @@ public extension Transcript {
 
 	struct StructuredSegment: Sendable, Identifiable, Equatable {
 		public var id: String
+		public var typeName: String
 		public var content: GeneratedContent
 
-		public init(id: String = UUID().uuidString, content: GeneratedContent) {
+		public init(id: String = UUID().uuidString, typeName: String, content: GeneratedContent) {
 			self.id = id
+			self.typeName = typeName
 			self.content = content
 		}
 
-		public init(id: String = UUID().uuidString, content: some ConvertibleToGeneratedContent) {
+		public init(id: String = UUID().uuidString, typeName: String, content: some ConvertibleToGeneratedContent) {
 			self.id = id
+			self.typeName = typeName
 			self.content = content.generatedContent
 		}
 	}

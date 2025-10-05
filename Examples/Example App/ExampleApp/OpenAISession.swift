@@ -10,6 +10,7 @@ final class OpenAISession {
 	@Tool var calculator = CalculatorTool()
 	@Tool var weather = WeatherTool()
 	@Grounding(Date.self) var currentDate
+	// @StructuredOutput(WeatherReport.self) var weatherReport
 }
 
 struct CalculatorTool: Tool {

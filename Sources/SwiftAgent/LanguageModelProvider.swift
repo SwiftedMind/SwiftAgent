@@ -194,24 +194,26 @@ package extension LanguageModelProvider {
 					options: options ?? .automatic(for: model),
 				)
 
-				var generatedTranscript = Transcript()
+				var generatedTranscript = Transcript(entries: [promptEntry])
 				var generatedUsage: TokenUsage = .zero
+
+				// Throttle-latest: emit at most once per interval with the freshest state
+				let clock = ContinuousClock()
+				let throttleInterval: Duration = .seconds(0.1)
+				var nextEmitDeadline = clock.now
+
 				for try await update in stream {
 					switch update {
 					case let .transcript(entry):
 						generatedTranscript.upsert(entry)
-						let partiallyResolvedTranscript = generatedTranscript.resolved(in: self)
-						continuation.yield(
-							Snapshot(
-								content: nil,
-								transcript: generatedTranscript,
-								streamingTranscript: partiallyResolvedTranscript,
-								tokenUsage: generatedUsage,
-							),
-						)
 
 					case let .tokenUsage(usage):
 						generatedUsage.merge(usage)
+					}
+
+					// Throttle-latest: emit at most once per interval with the freshest state
+					let now = clock.now
+					if now >= nextEmitDeadline {
 						let partiallyResolvedTranscript = generatedTranscript.resolved(in: self)
 						continuation.yield(
 							Snapshot(
@@ -221,6 +223,7 @@ package extension LanguageModelProvider {
 								tokenUsage: generatedUsage,
 							),
 						)
+						nextEmitDeadline = now.advanced(by: throttleInterval)
 					}
 				}
 

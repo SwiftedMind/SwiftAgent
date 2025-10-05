@@ -4,55 +4,12 @@ import Foundation
 import FoundationModels
 
 public extension Transcript {
-	// Builds a *resolved transcript* — an immutable, read‑only **projection** of this transcript in which
-	// tool‑related events are materialized as strongly-typed runs.
-	//
-	// ### What it does
-	// - Walks the original entries in order.
-	// - Converts `.toolCalls` into one or more `.toolRun` entries by resolving each call with one
-	//   of the supplied tools.
-	// - Coalesces related `.toolOutput` items into the resulting `.toolRun` and does **not** surface
-	//   separate `.toolOutput` entries in the projection.
-	//
-	// ### When to use it
-	// Use this when you want to *render* or *inspect* tool results in a type‑safe way without
-	// mutating or duplicating transcript state.
-	//
-	// ### Failure
-	// Returns `nil` if any tool call cannot be resolved with the provided tools (for example,
-	// no matching tool by name, or decoding arguments failed).
-	//
-	// ### Example
-	// ```swift
-	// if let resolved = transcript.resolved(using: tools) {
-	//   for entry in resolved {
-	//     switch entry {
-	//     case let .toolRun(run):
-	//       render(run.resolution)
-	//     default:
-	//       break
-	//     }
-	//   }
-	// }
-	// ```
-	//
-	// - Parameter tools: The tools available during resolution. All must share the same resolution type.
-	// - Returns: A read‑only projection that layers resolved tool runs over the original entries, or `nil` on failure.
-//	func resolved<Resolver>(using toolGroup: Resolver) throws -> Resolved<Resolver>? {
-//		try Resolved(transcript: self, toolGroup: toolGroup)
-//	}
-
-	/// An immutable **projection** of a transcript with tool runs resolved.
-	///
-	/// You can obtain instances via ``Transcript/resolved(using:)``.
 	struct Resolved<Provider: LanguageModelProvider>: Equatable, Sendable {
-		public let unresolvedTranscript: Transcript
 		/// All transcript entries with resolved tool runs attached where available.
 		public package(set) var entries: [Entry]
 
 		init(transcript: Transcript, session: Provider) {
 			let resolver = ToolResolver(for: session, transcript: transcript)
-			unresolvedTranscript = transcript
 			entries = []
 
 			for entry in transcript.entries {
@@ -75,7 +32,10 @@ public extension Transcript {
 						error: errorContext,
 					)))
 				case let .reasoning(reasoning):
-					entries.append(.reasoning(reasoning))
+					entries.append(.reasoning(Resolved.Reasoning(
+						id: reasoning.id,
+						summary: reasoning.summary,
+					)))
 				case let .response(response):
 					entries.append(.response(response))
 				case let .toolCalls(toolCalls):
@@ -107,7 +67,7 @@ public extension Transcript {
 		/// Transcript entry augmented with resolved tool runs.
 		public enum Entry: Identifiable, Equatable, Sendable {
 			case prompt(Prompt)
-			case reasoning(Transcript.Reasoning)
+			case reasoning(Reasoning)
 			case toolRun(ToolRunKind)
 			case response(Transcript.Response)
 
@@ -125,7 +85,7 @@ public extension Transcript {
 			}
 		}
 
-		public struct Prompt: Sendable, Identifiable, Equatable {
+		public struct Prompt: Identifiable, Sendable, Equatable {
 			public var id: String
 			public var input: String
 			public var sources: [Provider.GroundingSource]
@@ -133,7 +93,7 @@ public extension Transcript {
 			package var prompt: String
 
 			package init(
-				id: String = UUID().uuidString,
+				id: String,
 				input: String,
 				sources: [Provider.GroundingSource],
 				prompt: String,
@@ -145,6 +105,28 @@ public extension Transcript {
 				self.error = error
 				self.prompt = prompt
 			}
+
+			public static func == (lhs: Prompt, rhs: Prompt) -> Bool {
+				lhs.id == rhs.id && lhs.prompt == rhs.prompt
+			}
+
+			public func hash(into hasher: inout Hasher) {
+				hasher.combine(id)
+				hasher.combine(prompt)
+			}
+		}
+
+		public struct Reasoning: Sendable, Identifiable, Equatable {
+			public var id: String
+			public var summary: [String]
+
+			package init(
+				id: String,
+				summary: [String],
+			) {
+				self.id = id
+				self.summary = summary
+			}
 		}
 
 		/// A resolved tool run.
@@ -155,22 +137,21 @@ public extension Transcript {
 				case failed(TranscriptResolutionError.ToolRunResolution)
 			}
 
-			private let call: Transcript.ToolCall
-
 			/// The identifier of this run.
-			public var id: String { call.id }
+			public var id: String
 
 			/// The tool resolution.
 			public let resolution: Resolution
 
 			/// The tool name captured within the original call, convenient for switching logic.
-			public var toolName: String { call.toolName }
+			public var toolName: String
 
 			init(
 				call: Transcript.ToolCall,
 				resolution: Resolution,
 			) {
-				self.call = call
+				id = call.id
+				toolName = call.toolName
 				self.resolution = resolution
 			}
 		}
@@ -182,7 +163,6 @@ extension Transcript.Resolved: RandomAccessCollection, RangeReplaceableCollectio
 	public var endIndex: Int { entries.endIndex }
 
 	public init() {
-		unresolvedTranscript = Transcript()
 		entries = []
 	}
 
