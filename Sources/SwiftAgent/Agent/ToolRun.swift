@@ -28,7 +28,10 @@ import Internal
 ///   }
 /// }
 /// ```
-public struct ToolRun<Tool: SwiftAgentTool> where Tool.Arguments: Equatable, Tool.Arguments.PartiallyGenerated: Equatable, Tool.Output: Equatable {
+public struct ToolRun<Tool: SwiftAgentTool> {
+	private let _arguments: GeneratedContent
+	private let _output: GeneratedContent?
+
 	/// The strongly typed inputs for this invocation.
 	///
 	/// These arguments are automatically parsed from the AI model's JSON tool call
@@ -48,7 +51,7 @@ public struct ToolRun<Tool: SwiftAgentTool> where Tool.Arguments: Equatable, Too
 	/// and is different from the planned output of the tool. You can read the problem's payload
 	/// via this property.
 	public var problem: Problem?
-	
+
 	/// Indicates whether the tool run has produced a typed output.
 	public var hasOutput: Bool {
 		output != nil
@@ -70,30 +73,37 @@ public struct ToolRun<Tool: SwiftAgentTool> where Tool.Arguments: Equatable, Too
 	///   - arguments: The parsed tool arguments
 	///   - output: The tool's output, if available
 	///   - problem: The problem payload provided when `Tool.Output` decoding fails
-	public init(
+	package init(
 		arguments: Tool.Arguments,
 		output: Tool.Output? = nil,
-		problem: Problem? = nil
+		problem: Problem? = nil,
+		_arguments: GeneratedContent,
+		_output: GeneratedContent? = nil,
 	) {
 		self.arguments = arguments
 		self.output = output
 		self.problem = problem
+		self._arguments = _arguments
+		self._output = _output
 	}
 }
 
-public struct PartialToolRun<Tool: SwiftAgentTool> where Tool.Arguments: Generable & Equatable, Tool.Arguments.PartiallyGenerated: Equatable, Tool.Output: Generable & Equatable {
+public struct PartialToolRun<Tool: SwiftAgentTool> {
+	private let _arguments: GeneratedContent
+	private let _output: GeneratedContent?
+
 	/// The strongly typed inputs for this invocation.
 	///
 	/// These arguments are automatically parsed from the AI model's JSON tool call
 	/// into your tool's `Arguments` type.
 	public let arguments: Tool.Arguments.PartiallyGenerated
-	
+
 	/// The tool's output, if available.
 	///
 	/// This will be `nil` when the tool run has not yet produced a result, or when
 	/// no corresponding output is found in the conversation transcript.
 	public var output: Tool.Output?
-	
+
 	/// Contains the recoverable problem information when decoding `Tool.Output` fails.
 	///
 	/// This happens when a tool execution throws ``ToolRunProblem`` and the adapter forwards
@@ -101,22 +111,22 @@ public struct PartialToolRun<Tool: SwiftAgentTool> where Tool.Arguments: Generab
 	/// and is different from the planned output of the tool. You can read the problem's payload
 	/// via this property.
 	public var problem: ToolRun<Tool>.Problem?
-	
+
 	/// Indicates whether the tool run has produced a typed output.
 	public var hasOutput: Bool {
 		output != nil
 	}
-	
+
 	/// Indicates whether a problem payload is available.
 	public var hasProblem: Bool {
 		problem != nil
 	}
-	
+
 	/// Indicates that the tool run is still awaiting an output.
 	public var isPending: Bool {
 		output == nil && problem == nil
 	}
-	
+
 	/// Creates a new tool run with the given arguments, optional output, and optional problem payload.
 	///
 	/// - Parameters:
@@ -126,11 +136,15 @@ public struct PartialToolRun<Tool: SwiftAgentTool> where Tool.Arguments: Generab
 	package init(
 		arguments: Tool.Arguments.PartiallyGenerated,
 		output: Tool.Output? = nil,
-		problem: ToolRun<Tool>.Problem? = nil
+		problem: ToolRun<Tool>.Problem? = nil,
+		_arguments: GeneratedContent,
+		_output: GeneratedContent? = nil,
 	) {
 		self.arguments = arguments
 		self.output = output
 		self.problem = problem
+		self._arguments = _arguments
+		self._output = _output
 	}
 }
 
@@ -160,9 +174,19 @@ public extension ToolRun {
 }
 
 extension ToolRun: Sendable where Tool.Arguments: Sendable, Tool.Output: Sendable {}
-extension ToolRun: Equatable where Tool.Arguments: Equatable, Tool.Output: Equatable {}
-extension ToolRun: Hashable where Tool.Arguments: Hashable, Tool.Output: Hashable {}
+extension ToolRun: Equatable {
+	public static func == (lhs: ToolRun<Tool>, rhs: ToolRun<Tool>) -> Bool {
+		lhs._arguments == rhs._arguments && lhs._output == rhs._output
+	}
+}
+
+// extension ToolRun: Hashable where Tool.Arguments: Hashable, Tool.Output: Hashable {}
 
 extension PartialToolRun: Sendable where Tool.Arguments.PartiallyGenerated: Sendable, Tool.Output: Sendable {}
-extension PartialToolRun: Equatable where Tool.Arguments.PartiallyGenerated: Equatable, Tool.Output: Equatable {}
-extension PartialToolRun: Hashable where Tool.Arguments.PartiallyGenerated: Hashable, Tool.Output: Hashable {}
+extension PartialToolRun: Equatable {
+	public static func == (lhs: PartialToolRun<Tool>, rhs: PartialToolRun<Tool>) -> Bool {
+		lhs._arguments == rhs._arguments && lhs._output == rhs._output
+	}
+}
+
+// extension PartialToolRun: Hashable where Tool.Arguments.PartiallyGenerated: Hashable, Tool.Output: Hashable {}

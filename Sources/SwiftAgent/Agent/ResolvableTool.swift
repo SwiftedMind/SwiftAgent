@@ -4,8 +4,7 @@ import Foundation
 import FoundationModels
 import Internal
 
-public protocol ResolvableTool<Session>: Equatable where Self: SwiftAgentTool, Self.Arguments: Equatable,
-	Self.Arguments.PartiallyGenerated: Equatable, Self.Output: Equatable {
+public protocol ResolvableTool<Session>: Equatable where Self: SwiftAgentTool {
 	/// The type returned when this tool is resolved.
 	///
 	/// Defaults to `Void` for tools that don't need custom resolution logic.
@@ -38,14 +37,14 @@ public extension ResolvableTool {
 	/// - Throws: Conversion or resolution errors
 	func resolve(
 		arguments: GeneratedContent,
-		output: GeneratedContent?
+		output: GeneratedContent?,
 	) throws -> Session.ResolvedToolRun {
 		try resolve(run(for: arguments, output: output))
 	}
 
 	func resolvePartially(
 		arguments: GeneratedContent,
-		output: GeneratedContent?
+		output: GeneratedContent?,
 	) throws -> Session.PartiallyResolvedToolRun {
 		let partialRun = try partialRun(for: arguments, output: output)
 		return resolvePartially(partialRun)
@@ -64,17 +63,31 @@ package extension ResolvableTool {
 		let parsedArguments = try self.arguments(from: arguments)
 
 		guard let output else {
-			return ToolRun(arguments: parsedArguments)
+			return ToolRun(
+				arguments: parsedArguments,
+				_arguments: arguments,
+				_output: output,
+			)
 		}
 
 		do {
-			return try ToolRun(arguments: parsedArguments, output: self.output(from: output))
+			return try ToolRun(
+				arguments: parsedArguments,
+				output: self.output(from: output),
+				_arguments: arguments,
+				_output: output,
+			)
 		} catch {
 			guard let problem = problem(from: output) else {
 				throw error
 			}
 
-			return ToolRun(arguments: parsedArguments, problem: problem)
+			return ToolRun(
+				arguments: parsedArguments,
+				problem: problem,
+				_arguments: arguments,
+				_output: output,
+			)
 		}
 	}
 
@@ -91,15 +104,29 @@ package extension ResolvableTool {
 		let parsedArguments = try partialArguments(from: arguments)
 
 		guard let output else {
-			return PartialToolRun(arguments: parsedArguments)
+			return PartialToolRun(
+				arguments: parsedArguments,
+				_arguments: arguments,
+				_output: output,
+			)
 		}
 
 		do {
-			return try PartialToolRun(arguments: parsedArguments, output: self.output(from: output))
+			return try PartialToolRun(
+				arguments: parsedArguments,
+				output: self.output(from: output),
+				_arguments: arguments,
+				_output: output,
+			)
 		} catch {
 			guard let problem = problem(from: output) else { throw error }
 
-			return PartialToolRun(arguments: parsedArguments, problem: problem)
+			return PartialToolRun(
+				arguments: parsedArguments,
+				problem: problem,
+				_arguments: arguments,
+				_output: output,
+			)
 		}
 	}
 
@@ -130,7 +157,7 @@ package extension ResolvableTool {
 		return ToolRun<Self>.Problem(
 			reason: problemReport.reason,
 			json: generatedContent.jsonString,
-			details: ProblemReportDetailsExtractor.values(from: generatedContent)
+			details: ProblemReportDetailsExtractor.values(from: generatedContent),
 		)
 	}
 }
