@@ -147,9 +147,9 @@ public struct ToolResolver<Provider: LanguageModelProvider> {
 		}
 	}
 
-	public func resolvePartially(
+	public func resolveStreaming(
 		_ call: ToolCall,
-	) throws(TranscriptResolutionError.ToolRunResolution) -> Provider.PartiallyResolvedToolRun {
+	) throws(TranscriptResolutionError.ToolRunResolution) -> Provider.StreamingToolRun {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
 			let error = TranscriptResolutionError.ToolRunResolution.unknownTool(name: call.toolName)
@@ -163,7 +163,7 @@ public struct ToolResolver<Provider: LanguageModelProvider> {
 		let output = findOutput(for: call)
 
 		do {
-			return try tool.resolvePartially(arguments: call.arguments, output: output)
+			return try tool.resolveStreaming(arguments: call.arguments, output: output)
 		} catch {
 			AgentLog.error(error, context: "Tool resolution for '\(call.toolName)'")
 			throw TranscriptResolutionError.ToolRunResolution.resolutionFailed(description: error.localizedDescription)

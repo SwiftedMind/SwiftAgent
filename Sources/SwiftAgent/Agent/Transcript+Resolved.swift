@@ -150,6 +150,8 @@ public extension Transcript {
 
 			/// The tool resolution.
 			public let resolution: Provider.ResolvedToolRun?
+
+			/// The error that occurred during resolution.
 			public let error: TranscriptResolutionError.ToolRunResolution?
 
 			/// The tool name captured within the original call, convenient for switching logic.

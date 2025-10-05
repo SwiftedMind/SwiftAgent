@@ -8,13 +8,13 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
 	/// The transcript type for this session, containing the conversation history.
 	typealias Transcript = SwiftAgent.Transcript
 	typealias ResolvedTranscript = Transcript.Resolved<Self>
-	typealias PartiallyResolvedTranscript = Transcript.PartiallyResolved<Self>
+	typealias StreamingTranscript = Transcript.Streaming<Self>
 	typealias Response<Content: Generable> = AgentResponse<Content, Self>
 	typealias Snapshot<Content: Generable> = AgentSnapshot<Content, Self>
 
 	associatedtype Adapter: SwiftAgent.Adapter & SendableMetatype
 	associatedtype ResolvedToolRun: Equatable & Sendable
-	associatedtype PartiallyResolvedToolRun: Equatable & Sendable
+	associatedtype StreamingToolRun: Equatable & Sendable
 	associatedtype GroundingSource: GroundingRepresentable
 	nonisolated var tools: [any ResolvableTool<Self>] { get }
 
@@ -200,24 +200,24 @@ package extension LanguageModelProvider {
 					switch update {
 					case let .transcript(entry):
 						generatedTranscript.upsert(entry)
-						let partiallyResolvedTranscript = generatedTranscript.partiallyResolved(in: self)
+						let partiallyResolvedTranscript = generatedTranscript.streaming(in: self)
 						continuation.yield(
 							Snapshot(
 								content: nil,
 								transcript: generatedTranscript,
-								resolvedTranscript: partiallyResolvedTranscript,
+								streamingTranscript: partiallyResolvedTranscript,
 								tokenUsage: generatedUsage,
 							),
 						)
 
 					case let .tokenUsage(usage):
 						generatedUsage.merge(usage)
-						let partiallyResolvedTranscript = generatedTranscript.partiallyResolved(in: self)
+						let partiallyResolvedTranscript = generatedTranscript.streaming(in: self)
 						continuation.yield(
 							Snapshot(
 								content: nil,
 								transcript: generatedTranscript,
-								resolvedTranscript: partiallyResolvedTranscript,
+								streamingTranscript: partiallyResolvedTranscript,
 								tokenUsage: generatedUsage,
 							),
 						)
@@ -229,12 +229,12 @@ package extension LanguageModelProvider {
 				await mergeTokenUsage(generatedUsage)
 
 				// TODO: Send the final, parsed content, if type != String.self
-				let partiallyResolvedTranscript = generatedTranscript.partiallyResolved(in: self)
+				let partiallyResolvedTranscript = generatedTranscript.streaming(in: self)
 				continuation.yield(
 					Snapshot(
 						content: nil,
 						transcript: generatedTranscript,
-						resolvedTranscript: partiallyResolvedTranscript,
+						streamingTranscript: partiallyResolvedTranscript,
 						tokenUsage: generatedUsage,
 					),
 				)

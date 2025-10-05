@@ -24,10 +24,10 @@ public struct Transcript: Sendable, Equatable {
 		Transcript.Resolved(transcript: self, session: session)
 	}
 
-	public func partiallyResolved<Provider: LanguageModelProvider>(
+	public func streaming<Provider: LanguageModelProvider>(
 		in session: Provider,
-	) -> Provider.PartiallyResolvedTranscript {
-		Transcript.PartiallyResolved(transcript: self, session: session)
+	) -> Provider.StreamingTranscript {
+		Transcript.Streaming(transcript: self, session: session)
 	}
 }
 

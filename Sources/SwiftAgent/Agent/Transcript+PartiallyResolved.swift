@@ -13,7 +13,7 @@ public extension Transcript {
 	/// An immutable **projection** of a transcript with tool runs resolved.
 	///
 	/// You can obtain instances via ``Transcript/resolved(using:)``.
-	struct PartiallyResolved<Provider: LanguageModelProvider>: Equatable, Sendable {
+	struct Streaming<Provider: LanguageModelProvider>: Equatable, Sendable {
 		public let unresolvedTranscript: Transcript
 		/// All transcript entries with resolved tool runs attached where available.
 		public package(set) var entries: [Entry]
@@ -35,7 +35,7 @@ public extension Transcript {
 						promptError = .groundingDecodingFailed(description: error.localizedDescription)
 					}
 
-					entries.append(.prompt(PartiallyResolved.Prompt(
+					entries.append(.prompt(Streaming.Prompt(
 						id: prompt.id,
 						input: prompt.input,
 						sources: decodedSources,
@@ -48,11 +48,11 @@ public extension Transcript {
 					entries.append(.response(response))
 				case let .toolCalls(toolCalls):
 					for call in toolCalls {
-						var resolvedRun: Provider.PartiallyResolvedToolRun?
+						var resolvedRun: Provider.StreamingToolRun?
 						var toolRunError: TranscriptResolutionError.ToolRunResolution?
 
 						do {
-							resolvedRun = try resolver.resolvePartially(call)
+							resolvedRun = try resolver.resolveStreaming(call)
 						} catch {
 							toolRunError = error
 						}
@@ -117,7 +117,7 @@ public extension Transcript {
 			public var id: String { call.id }
 
 			/// The tool resolution.
-			public let resolution: Provider.PartiallyResolvedToolRun?
+			public let resolution: Provider.StreamingToolRun?
 			public let error: TranscriptResolutionError.ToolRunResolution?
 
 			/// The tool name captured within the original call, convenient for switching logic.
@@ -125,7 +125,7 @@ public extension Transcript {
 
 			init(
 				call: Transcript.ToolCall,
-				resolution: Provider.PartiallyResolvedToolRun?,
+				resolution: Provider.StreamingToolRun?,
 				error: TranscriptResolutionError.ToolRunResolution?,
 			) {
 				self.call = call
@@ -136,7 +136,7 @@ public extension Transcript {
 	}
 }
 
-extension Transcript.PartiallyResolved: RandomAccessCollection, RangeReplaceableCollection {
+extension Transcript.Streaming: RandomAccessCollection, RangeReplaceableCollection {
 	public var startIndex: Int { entries.startIndex }
 	public var endIndex: Int { entries.endIndex }
 

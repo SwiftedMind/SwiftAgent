@@ -8,9 +8,9 @@ import SwiftUI
 
 struct ConversationalAgentExampleView: View {
 	@State private var userInput = "Compute 234 + 6 using the tool!"
-	@State private var generatingTranscript: OpenAISession.PartiallyResolvedTranscript = .init()
+	@State private var streamingTranscript: OpenAISession.StreamingTranscript = .init()
 	@State private var session: OpenAISession?
-	
+
 	// MARK: - Body
 
 	var body: some View {
@@ -38,7 +38,7 @@ struct ConversationalAgentExampleView: View {
 					}
 				}
 			}
-			ForEach(generatingTranscript) { entry in
+			ForEach(streamingTranscript) { entry in
 				switch entry {
 				case let .prompt(prompt):
 					Text(prompt.input)
@@ -73,7 +73,7 @@ struct ConversationalAgentExampleView: View {
 			print("ABCCC")
 		}
 		.listStyle(.plain)
-		.animation(.default, value: generatingTranscript)
+		.animation(.default, value: streamingTranscript)
 		.onAppear(perform: setupAgent)
 		.safeAreaBar(edge: .bottom) {
 			GlassEffectContainer {
@@ -144,10 +144,10 @@ struct ConversationalAgentExampleView: View {
 			}
 
 			for try await snapshot in stream {
-				generatingTranscript = snapshot.resolvedTranscript
+				streamingTranscript = snapshot.streamingTranscript
 			}
 
-			generatingTranscript = .init([])
+			streamingTranscript = .init([])
 		} catch {
 			print("Error", error.localizedDescription)
 		}

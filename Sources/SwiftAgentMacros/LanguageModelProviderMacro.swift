@@ -125,7 +125,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		members.append(generateGroundingSourceEnum(for: groundingProperties))
 
 		members.append(generateResolvedToolRunEnum(for: toolProperties))
-		members.append(generatePartiallyResolvedToolRunEnum(for: toolProperties))
+		members.append(generateStreamingToolRunEnum(for: toolProperties))
 		members.append(contentsOf: toolProperties.map(Self.generateResolvableWrapper))
 
 		return members
@@ -460,8 +460,8 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			"""
 	}
 
-	/// Produces the `PartiallyResolvedToolRun` enum mapping each tool wrapper to a case.
-	private static func generatePartiallyResolvedToolRunEnum(for tools: [ToolProperty]) -> DeclSyntax {
+	/// Produces the `StreamingToolRun` enum mapping each tool wrapper to a case.
+	private static func generateStreamingToolRunEnum(for tools: [ToolProperty]) -> DeclSyntax {
 		let cases = tools.map { tool -> String in
 			let wrapperName = "Resolvable\(tool.identifier.text.capitalizedFirstLetter())Tool"
 			return "    case \(tool.identifier.text)(PartialToolRun<\(wrapperName)>)"
@@ -470,7 +470,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
 		return
 			"""
-			enum PartiallyResolvedToolRun: Equatable {
+			enum StreamingToolRun: Equatable {
 			\(raw: cases)
 			}
 			"""
@@ -554,9 +554,9 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			    .\(raw: tool.identifier.text)(run)
 			  }
 
-			  func resolvePartially(
+			  func resolveStreaming(
 			    _ run: PartialToolRun<\(raw: wrapperName)>
-			  ) -> Provider.PartiallyResolvedToolRun {
+			  ) -> Provider.StreamingToolRun {
 			    .\(raw: tool.identifier.text)(run)
 			  }
 			}

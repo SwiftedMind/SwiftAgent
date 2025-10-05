@@ -21,7 +21,7 @@ public protocol ResolvableTool<Provider>: SwiftAgentTool {
 	/// - Returns: A resolved representation of the tool execution
 	func resolve(_ run: ToolRun<Self>) -> Provider.ResolvedToolRun
 
-	func resolvePartially(_ run: PartialToolRun<Self>) -> Provider.PartiallyResolvedToolRun
+	func resolveStreaming(_ run: PartialToolRun<Self>) -> Provider.StreamingToolRun
 }
 
 public extension ResolvableTool {
@@ -42,12 +42,12 @@ public extension ResolvableTool {
 		try resolve(run(for: arguments, output: output))
 	}
 
-	func resolvePartially(
+	func resolveStreaming(
 		arguments: GeneratedContent,
 		output: GeneratedContent?,
-	) throws -> Provider.PartiallyResolvedToolRun {
+	) throws -> Provider.StreamingToolRun {
 		let partialRun = try partialRun(for: arguments, output: output)
-		return resolvePartially(partialRun)
+		return resolveStreaming(partialRun)
 	}
 }
 
