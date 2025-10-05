@@ -59,7 +59,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		members.append(
 			"""
 			@propertyWrapper
-			struct Tool<ToolType: SwiftAgentTool> {
+			struct Tool<ToolType: FoundationModels.Tool> where ToolType.Arguments: Generable, ToolType.Output: Generable {
 			  var wrappedValue: ToolType
 			  init(wrappedValue: ToolType) { self.wrappedValue = wrappedValue }
 			}
@@ -265,6 +265,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		else {
 			throw MacroError.missingProvider(node: Syntax(attribute)).asDiagnosticsError()
 		}
+
 		if let label = providerArgument.label, label.text != "for" {
 			throw MacroError.invalidProvider(node: Syntax(providerArgument)).asDiagnosticsError()
 		}

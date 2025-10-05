@@ -36,5 +36,4 @@ import Internal
 ///   }
 /// }
 /// ```
-public protocol SwiftAgentTool: FoundationModels.Tool, Encodable, Equatable where Arguments: Generable,
-  Output: Generable {}
+public protocol SwiftAgentTool: FoundationModels.Tool where Arguments: Generable, Output: Generable {}

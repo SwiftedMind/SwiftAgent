@@ -4,7 +4,7 @@ import Foundation
 import FoundationModels
 import Internal
 
-public protocol ResolvableTool<Session>: Equatable where Self: SwiftAgentTool {
+public protocol ResolvableTool<Session>: SwiftAgentTool {
 	/// The type returned when this tool is resolved.
 	///
 	/// Defaults to `Void` for tools that don't need custom resolution logic.

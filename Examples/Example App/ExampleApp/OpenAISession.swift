@@ -12,7 +12,7 @@ final class OpenAISession {
 	@Grounding(Date.self) var currentDate
 }
 
-struct CalculatorTool: Tool, SwiftAgentTool {
+struct CalculatorTool: Tool {
 	let name = "calculator"
 	let description = "Performs basic mathematical calculations"
 
@@ -59,7 +59,7 @@ struct CalculatorTool: Tool, SwiftAgentTool {
 	}
 }
 
-struct WeatherTool: Tool, SwiftAgentTool {
+struct WeatherTool: Tool {
 	let name = "get_weather"
 	let description = "Gets current weather information for a location"
 
