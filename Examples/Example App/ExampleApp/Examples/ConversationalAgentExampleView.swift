@@ -188,28 +188,32 @@ private struct ToolRunEntryView: View {
 	let toolRun: OpenAISession.ResolvedTranscript.ToolRunKind
 
 	var body: some View {
-		switch toolRun.resolution {
-		case let .inProgress(inProgressRun):
-			switch inProgressRun {
-			case let .calculator(calculatorRun):
-				Text(
-					"Calculator Run: \(calculatorRun.arguments.firstNumber ?? 0) \(calculatorRun.arguments.operation ?? "?") \(calculatorRun.arguments.secondNumber ?? 0)",
-				)
-			default:
-				Text("Weather Run: \(toolRun.toolName)")
-			}
-		case let .completed(completedRun):
-			switch completedRun {
-			case let .calculator(calculatorRun):
-				Text(
-					"Calculator Run: \(calculatorRun.arguments.firstNumber) \(calculatorRun.arguments.operation) \(calculatorRun.arguments.secondNumber)",
-				)
-			default:
-				Text("Weather Run: \(toolRun.toolName)")
-			}
-		case let .failed(failedRun):
-			Text("Failed Run: \(String(describing: failedRun))")
-		}
+		Text("TODO")
+		// switch toolRun.resolution {
+		// case let .inProgress(inProgressRun):
+		// 	switch inProgressRun {
+		// 	case let .calculator(calculatorRun):
+		// 		Text(
+		// 			"Calculator Run: \(calculatorRun.arguments.firstNumber ?? 0) \(calculatorRun.arguments.operation ?? "?")
+		// 			\(calculatorRun.arguments.secondNumber ?? 0)",
+		// 		)
+		// 	default:
+		// 		Text("Weather Run: \(toolRun.toolName)")
+		// 	}
+		// case let .completed(completedRun):
+		// 	switch completedRun {
+		// 	case let .calculator(calculatorRun):
+		// 		Text("TODO")
+		// 	// Text(
+		// 	// 	"Calculator Run: \(calculatorRun.arguments.firstNumber) \(calculatorRun.arguments.operation)
+		// 	// 	\(calculatorRun.arguments.secondNumber)",
+		// 	// )
+		// 	default:
+		// 		Text("Weather Run: \(toolRun.toolName)")
+		// 	}
+		// case let .failed(failedRun):
+		// 	Text("Failed Run: \(String(describing: failedRun))")
+		// }
 	}
 }
 

@@ -40,22 +40,7 @@ public extension Transcript {
 					entries.append(.response(response))
 				case let .toolCalls(toolCalls):
 					for call in toolCalls {
-						var resolution: ToolRunKind.Resolution
-
-						do {
-							switch call.status {
-							case .inProgress:
-								resolution = try .inProgress(resolver.resolveStreaming(call))
-							case .completed:
-								resolution = try .completed(resolver.resolve(call))
-							default:
-								resolution = .failed(.resolutionFailed(description: "TODO"))
-							}
-						} catch {
-							resolution = .failed(error)
-						}
-
-						entries.append(.toolRun(.init(call: call, resolution: resolution)))
+						entries.append(.toolRun(.init(call: call, resolution: resolver.resolve(call))))
 					}
 				case .toolOutput:
 					// Handled already by the .toolCalls cases
@@ -131,24 +116,18 @@ public extension Transcript {
 
 		/// A resolved tool run.
 		public struct ToolRunKind: Identifiable, Equatable, Sendable {
-			public enum Resolution: Equatable, Sendable {
-				case inProgress(Provider.ResolvedStreamingToolRun)
-				case completed(Provider.ResolvedToolRun)
-				case failed(TranscriptResolutionError.ToolRunResolution)
-			}
-
 			/// The identifier of this run.
 			public var id: String
 
 			/// The tool resolution.
-			public let resolution: Resolution
+			public let resolution: Provider.ResolvedToolRun
 
 			/// The tool name captured within the original call, convenient for switching logic.
 			public var toolName: String
 
 			init(
 				call: Transcript.ToolCall,
-				resolution: Resolution,
+				resolution: Provider.ResolvedToolRun,
 			) {
 				id = call.id
 				toolName = call.toolName

@@ -5,26 +5,11 @@ import FoundationModels
 import Internal
 
 public protocol ResolvableTool<Provider>: SwiftAgentTool {
-	/// The type returned when this tool is resolved.
-	///
-	/// Defaults to `Void` for tools that don't need custom resolution logic.
-	/// Override to return domain-specific types that represent the resolved tool execution.
 	associatedtype Provider: LanguageModelProvider
-
-	/// Resolves a tool run into a domain-specific result.
-	///
-	/// This method is called after the tool's arguments have been parsed and any output
-	/// has been matched from the conversation transcript. Use this to transform the
-	/// raw tool call data into meaningful domain objects.
-	///
-	/// - Parameter run: The tool run containing typed arguments and optional output
-	/// - Returns: A resolved representation of the tool execution
 	func resolve(_ run: ToolRun<Self>) -> Provider.ResolvedToolRun
-
-	func resolveStreaming(_ run: StreamingToolRun<Self>) -> Provider.ResolvedStreamingToolRun
 }
 
-public extension ResolvableTool {
+package extension ResolvableTool {
 	/// Resolves a tool with raw GeneratedContent arguments and output.
 	///
 	/// This is the internal bridge method that converts between Apple's FoundationModels
@@ -35,19 +20,43 @@ public extension ResolvableTool {
 	///   - output: The raw output content, if available
 	/// - Returns: The resolved tool result
 	/// - Throws: Conversion or resolution errors
-	func resolve(
-		arguments: GeneratedContent,
-		output: GeneratedContent?,
+	func resolveCompleted(
+		argumentsContent: GeneratedContent,
+		outputContent: GeneratedContent?,
 	) throws -> Provider.ResolvedToolRun {
-		try resolve(run(for: arguments, output: output))
+		let arguments = try Arguments(argumentsContent)
+		let toolRun = try toolRun(
+			.completed(arguments),
+			argumentsContent: argumentsContent,
+			outputContent: outputContent,
+		)
+		return resolve(toolRun)
 	}
 
-	func resolveStreaming(
-		arguments: GeneratedContent,
-		output: GeneratedContent?,
-	) throws -> Provider.ResolvedStreamingToolRun {
-		let streamingToolRun = try partialRun(for: arguments, output: output)
-		return resolveStreaming(streamingToolRun)
+	func resolveInProgress(
+		argumentsContent: GeneratedContent,
+		outputContent: GeneratedContent?,
+	) throws -> Provider.ResolvedToolRun {
+		let arguments = try Arguments.PartiallyGenerated(argumentsContent)
+		let toolRun = try toolRun(
+			.inProgress(arguments),
+			argumentsContent: argumentsContent,
+			outputContent: outputContent,
+		)
+		return resolve(toolRun)
+	}
+
+	func resolveFailed(
+		error: TranscriptResolutionError.ToolRunResolution,
+		argumentsContent: GeneratedContent,
+		outputContent: GeneratedContent?,
+	) throws -> Provider.ResolvedToolRun {
+		let toolRun = try toolRun(
+			.failed(error),
+			argumentsContent: argumentsContent,
+			outputContent: outputContent,
+		)
+		return resolve(toolRun)
 	}
 }
 
@@ -59,17 +68,16 @@ package extension ResolvableTool {
 	///   - output: Optional raw output content
 	/// - Returns: A typed ToolRun instance
 	/// - Throws: Conversion errors if content cannot be parsed
-	private func run(
-		for argumentsContent: GeneratedContent,
-		output outputContent: GeneratedContent?,
+	func toolRun(
+		_ arguments: ToolRun<Self>.Arguments,
+		argumentsContent: GeneratedContent,
+		outputContent: GeneratedContent?,
 	) throws -> ToolRun<Self> {
-		let arguments = try Arguments(argumentsContent)
-
 		guard let outputContent else {
 			return ToolRun(
 				arguments: arguments,
-				_arguments: argumentsContent,
-				_output: outputContent,
+				argumentsContent: argumentsContent,
+				outputContent: outputContent,
 			)
 		}
 
@@ -77,8 +85,8 @@ package extension ResolvableTool {
 			return try ToolRun(
 				arguments: arguments,
 				output: Output(outputContent),
-				_arguments: argumentsContent,
-				_output: outputContent,
+				argumentsContent: argumentsContent,
+				outputContent: outputContent,
 			)
 		} catch {
 			guard let problem = problem(from: outputContent) else {
@@ -88,46 +96,13 @@ package extension ResolvableTool {
 			return ToolRun(
 				arguments: arguments,
 				problem: problem,
-				_arguments: argumentsContent,
-				_output: outputContent,
+				argumentsContent: argumentsContent,
+				outputContent: outputContent,
 			)
 		}
 	}
 
-	private func partialRun(
-		for argumentsContent: GeneratedContent,
-		output outputContent: GeneratedContent?,
-	) throws -> StreamingToolRun<Self> {
-		let arguments = try Arguments.PartiallyGenerated(argumentsContent)
-
-		guard let outputContent else {
-			return StreamingToolRun(
-				arguments: arguments,
-				_arguments: argumentsContent,
-				_output: outputContent,
-			)
-		}
-
-		do {
-			return try StreamingToolRun(
-				arguments: arguments,
-				output: Output(outputContent),
-				_arguments: argumentsContent,
-				_output: outputContent,
-			)
-		} catch {
-			guard let problem = problem(from: outputContent) else { throw error }
-
-			return StreamingToolRun(
-				arguments: arguments,
-				problem: problem,
-				_arguments: argumentsContent,
-				_output: outputContent,
-			)
-		}
-	}
-
-	private func problem(from generatedContent: GeneratedContent) -> ToolRun<Self>.Problem? {
+	func problem(from generatedContent: GeneratedContent) -> ToolRun<Self>.Problem? {
 		guard
 			let problemReport = try? ProblemReport(generatedContent),
 			problemReport.error else {

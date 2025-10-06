@@ -9,17 +9,19 @@ public protocol StructuredOutput<Output> {
 	var name: String { get }
 }
 
+public protocol ResolvedToolRun: Equatable & Sendable {
+	static func unknownToolRun(error: TranscriptResolutionError.ToolRunResolution) -> Self
+}
+
 public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
 	/// The transcript type for this session, containing the conversation history.
 	typealias Transcript = SwiftAgent.Transcript
 	typealias ResolvedTranscript = Transcript.Resolved<Self>
-	typealias StreamingTranscript = Transcript.Streaming<Self>
 	typealias Response<Content: Generable> = AgentResponse<Content, Self>
 	typealias Snapshot<Content: Generable> = AgentSnapshot<Content, Self>
 
 	associatedtype Adapter: SwiftAgent.Adapter & SendableMetatype
-	associatedtype ResolvedToolRun: Equatable & Sendable
-	associatedtype ResolvedStreamingToolRun: Equatable & Sendable
+	associatedtype ResolvedToolRun: SwiftAgent.ResolvedToolRun
 	associatedtype ResolvedResponseSegment: Sendable
 	associatedtype GroundingSource: GroundingRepresentable
 	nonisolated var tools: [any ResolvableTool<Self>] { get }

@@ -136,7 +136,6 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		members.append(generateGroundingSourceEnum(for: groundingProperties))
 
 		members.append(generateResolvedToolRunEnum(for: toolProperties))
-		members.append(generateResolvedStreamingToolRunEnum(for: toolProperties))
 		members.append(contentsOf: toolProperties.map(Self.generateResolvableWrapper))
 
 		// Structured Output typing support
@@ -505,24 +504,13 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
 		return
 			"""
-			enum ResolvedToolRun: Equatable {
+			enum ResolvedToolRun: SwiftAgent.ResolvedToolRun {
 			\(raw: cases)
+			case unknown(error: SwiftAgent.TranscriptResolutionError.ToolRunResolution)
+
+			static func unknownToolRun(error: SwiftAgent.TranscriptResolutionError.ToolRunResolution) -> Self {
+				.unknown(error: error)
 			}
-			"""
-	}
-
-	/// Produces the `ResolvedStreamingToolRun` enum mapping each tool wrapper to a case.
-	private static func generateResolvedStreamingToolRunEnum(for tools: [ToolProperty]) -> DeclSyntax {
-		let cases = tools.map { tool -> String in
-			let wrapperName = "Resolvable\(tool.identifier.text.capitalizedFirstLetter())Tool"
-			return "    case \(tool.identifier.text)(StreamingToolRun<\(wrapperName)>)"
-		}
-		.joined(separator: "\n")
-
-		return
-			"""
-			enum ResolvedStreamingToolRun: Equatable {
-			\(raw: cases)
 			}
 			"""
 	}
@@ -602,12 +590,6 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			  func resolve(
 			    _ run: ToolRun<\(raw: wrapperName)>
 			  ) -> Provider.ResolvedToolRun {
-			    .\(raw: tool.identifier.text)(run)
-			  }
-
-			  func resolveStreaming(
-			    _ run: StreamingToolRun<\(raw: wrapperName)>
-			  ) -> Provider.ResolvedStreamingToolRun {
 			    .\(raw: tool.identifier.text)(run)
 			  }
 			}

@@ -23,12 +23,6 @@ public struct Transcript: Sendable, Equatable {
 	) -> Provider.ResolvedTranscript {
 		Transcript.Resolved(transcript: self, session: session)
 	}
-
-	public func streaming<Provider: LanguageModelProvider>(
-		in session: Provider,
-	) -> Provider.StreamingTranscript {
-		Transcript.Streaming(transcript: self, session: session)
-	}
 }
 
 // MARK: - RandomAccessCollection Conformance

@@ -124,9 +124,7 @@ public struct ToolResolver<Provider: LanguageModelProvider> {
 	/// - Throws: ``AgentToolRunKindError/unknownTool(name:)`` if the tool is not found,
 	///           or conversion/resolution errors from the underlying tool
 	///
-	public func resolve(
-		_ call: ToolCall,
-	) throws(TranscriptResolutionError.ToolRunResolution) -> Provider.ResolvedToolRun {
+	public func resolve(_ call: ToolCall) -> Provider.ResolvedToolRun {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
 			let error = TranscriptResolutionError.ToolRunResolution.unknownTool(name: call.toolName)
@@ -134,39 +132,23 @@ public struct ToolResolver<Provider: LanguageModelProvider> {
 				error,
 				context: "Tool resolution failed. Available tools: \(availableTools)",
 			)
-			throw error
+			return Provider.ResolvedToolRun.unknownToolRun(error: error)
 		}
 
-		let output = findOutput(for: call)
+		let outputContent = findOutput(for: call)
 
 		do {
-			return try tool.resolve(arguments: call.arguments, output: output)
+			switch call.status {
+			case .inProgress:
+				return try tool.resolveInProgress(argumentsContent: call.arguments, outputContent: outputContent)
+			case .completed:
+				return try tool.resolveCompleted(argumentsContent: call.arguments, outputContent: outputContent)
+			default:
+				return Provider.ResolvedToolRun.unknownToolRun(error: .resolutionFailed(description: "TODO"))
+			}
 		} catch {
 			AgentLog.error(error, context: "Tool resolution for '\(call.toolName)'")
-			throw TranscriptResolutionError.ToolRunResolution.resolutionFailed(description: error.localizedDescription)
-		}
-	}
-
-	public func resolveStreaming(
-		_ call: ToolCall,
-	) throws(TranscriptResolutionError.ToolRunResolution) -> Provider.ResolvedStreamingToolRun {
-		guard let tool = toolsByName[call.toolName] else {
-			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
-			let error = TranscriptResolutionError.ToolRunResolution.unknownTool(name: call.toolName)
-			AgentLog.error(
-				error,
-				context: "Tool partial resolution failed. Available tools: \(availableTools)",
-			)
-			throw error
-		}
-
-		let output = findOutput(for: call)
-
-		do {
-			return try tool.resolveStreaming(arguments: call.arguments, output: output)
-		} catch {
-			AgentLog.error(error, context: "Tool resolution for '\(call.toolName)'")
-			throw TranscriptResolutionError.ToolRunResolution.resolutionFailed(description: error.localizedDescription)
+			return Provider.ResolvedToolRun.unknownToolRun(error: .resolutionFailed(description: error.localizedDescription))
 		}
 	}
 
