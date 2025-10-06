@@ -48,7 +48,7 @@ public extension Transcript {
 					entries.append(.response(response))
 				case let .toolCalls(toolCalls):
 					for call in toolCalls {
-						var resolvedRun: Provider.StreamingToolRun?
+						var resolvedRun: Provider.ResolvedStreamingToolRun?
 						var toolRunError: TranscriptResolutionError.ToolRunResolution?
 
 						do {
@@ -117,7 +117,7 @@ public extension Transcript {
 			public var id: String { call.id }
 
 			/// The tool resolution.
-			public let resolution: Provider.StreamingToolRun?
+			public let resolution: Provider.ResolvedStreamingToolRun?
 			public let error: TranscriptResolutionError.ToolRunResolution?
 
 			/// The tool name captured within the original call, convenient for switching logic.
@@ -125,7 +125,7 @@ public extension Transcript {
 
 			init(
 				call: Transcript.ToolCall,
-				resolution: Provider.StreamingToolRun?,
+				resolution: Provider.ResolvedStreamingToolRun?,
 				error: TranscriptResolutionError.ToolRunResolution?,
 			) {
 				self.call = call

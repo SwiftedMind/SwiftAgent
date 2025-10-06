@@ -276,13 +276,13 @@ public extension Transcript {
 		public var typeName: String
 		public var content: GeneratedContent
 
-		public init(id: String = UUID().uuidString, typeName: String, content: GeneratedContent) {
+		public init(id: String = UUID().uuidString, typeName: String = "", content: GeneratedContent) {
 			self.id = id
 			self.typeName = typeName
 			self.content = content
 		}
 
-		public init(id: String = UUID().uuidString, typeName: String, content: some ConvertibleToGeneratedContent) {
+		public init(id: String = UUID().uuidString, typeName: String = "", content: some ConvertibleToGeneratedContent) {
 			self.id = id
 			self.typeName = typeName
 			self.content = content.generatedContent

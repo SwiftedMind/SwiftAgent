@@ -88,7 +88,7 @@ public struct ToolRun<Tool: SwiftAgentTool> {
 	}
 }
 
-public struct PartialToolRun<Tool: SwiftAgentTool> {
+public struct StreamingToolRun<Tool: SwiftAgentTool> {
 	private let _arguments: GeneratedContent
 	private let _output: GeneratedContent?
 
@@ -182,11 +182,11 @@ extension ToolRun: Equatable {
 
 // extension ToolRun: Hashable where Tool.Arguments: Hashable, Tool.Output: Hashable {}
 
-extension PartialToolRun: Sendable where Tool.Arguments.PartiallyGenerated: Sendable, Tool.Output: Sendable {}
-extension PartialToolRun: Equatable {
-	public static func == (lhs: PartialToolRun<Tool>, rhs: PartialToolRun<Tool>) -> Bool {
+extension StreamingToolRun: Sendable where Tool.Arguments.PartiallyGenerated: Sendable, Tool.Output: Sendable {}
+extension StreamingToolRun: Equatable {
+	public static func == (lhs: StreamingToolRun<Tool>, rhs: StreamingToolRun<Tool>) -> Bool {
 		lhs._arguments == rhs._arguments && lhs._output == rhs._output
 	}
 }
 
-// extension PartialToolRun: Hashable where Tool.Arguments.PartiallyGenerated: Hashable, Tool.Output: Hashable {}
+// extension StreamingToolRun: Hashable where Tool.Arguments.PartiallyGenerated: Hashable, Tool.Output: Hashable {}

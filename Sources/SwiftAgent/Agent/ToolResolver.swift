@@ -80,8 +80,8 @@ public struct ToolResolver<Provider: LanguageModelProvider> {
 	/// - Parameters:
 	///   - tools: The tools that can be resolved, all sharing the same `Resolution` type
 	///   - transcript: The conversation transcript containing tool calls and outputs
-	init(for session: Provider, transcript: Transcript) {
-		toolsByName = Dictionary(uniqueKeysWithValues: session.tools.map { ($0.name, $0) })
+	init(for provider: Provider, transcript: Transcript) {
+		toolsByName = Dictionary(uniqueKeysWithValues: provider.tools.map { ($0.name, $0) })
 		transcriptToolOutputs = transcript.compactMap { entry in
 			switch entry {
 			case let .toolOutput(toolOutput):
@@ -149,7 +149,7 @@ public struct ToolResolver<Provider: LanguageModelProvider> {
 
 	public func resolveStreaming(
 		_ call: ToolCall,
-	) throws(TranscriptResolutionError.ToolRunResolution) -> Provider.StreamingToolRun {
+	) throws(TranscriptResolutionError.ToolRunResolution) -> Provider.ResolvedStreamingToolRun {
 		guard let tool = toolsByName[call.toolName] else {
 			let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
 			let error = TranscriptResolutionError.ToolRunResolution.unknownTool(name: call.toolName)

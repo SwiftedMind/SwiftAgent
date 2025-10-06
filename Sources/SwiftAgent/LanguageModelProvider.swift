@@ -4,6 +4,11 @@ import Foundation
 import FoundationModels
 import Internal
 
+public protocol StructuredOutput<Output> {
+	associatedtype Output: Generable
+	var name: String { get }
+}
+
 public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
 	/// The transcript type for this session, containing the conversation history.
 	typealias Transcript = SwiftAgent.Transcript
@@ -14,7 +19,8 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
 
 	associatedtype Adapter: SwiftAgent.Adapter & SendableMetatype
 	associatedtype ResolvedToolRun: Equatable & Sendable
-	associatedtype StreamingToolRun: Equatable & Sendable
+	associatedtype ResolvedStreamingToolRun: Equatable & Sendable
+	associatedtype ResolvedResponseSegment: Sendable
 	associatedtype GroundingSource: GroundingRepresentable
 	nonisolated var tools: [any ResolvableTool<Self>] { get }
 

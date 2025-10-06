@@ -21,7 +21,7 @@ public protocol ResolvableTool<Provider>: SwiftAgentTool {
 	/// - Returns: A resolved representation of the tool execution
 	func resolve(_ run: ToolRun<Self>) -> Provider.ResolvedToolRun
 
-	func resolveStreaming(_ run: PartialToolRun<Self>) -> Provider.StreamingToolRun
+	func resolveStreaming(_ run: StreamingToolRun<Self>) -> Provider.ResolvedStreamingToolRun
 }
 
 public extension ResolvableTool {
@@ -45,9 +45,9 @@ public extension ResolvableTool {
 	func resolveStreaming(
 		arguments: GeneratedContent,
 		output: GeneratedContent?,
-	) throws -> Provider.StreamingToolRun {
-		let partialRun = try partialRun(for: arguments, output: output)
-		return resolveStreaming(partialRun)
+	) throws -> Provider.ResolvedStreamingToolRun {
+		let streamingToolRun = try partialRun(for: arguments, output: output)
+		return resolveStreaming(streamingToolRun)
 	}
 }
 
@@ -59,92 +59,72 @@ package extension ResolvableTool {
 	///   - output: Optional raw output content
 	/// - Returns: A typed ToolRun instance
 	/// - Throws: Conversion errors if content cannot be parsed
-	private func run(for arguments: GeneratedContent, output: GeneratedContent?) throws -> ToolRun<Self> {
-		let parsedArguments = try self.arguments(from: arguments)
+	private func run(
+		for argumentsContent: GeneratedContent,
+		output outputContent: GeneratedContent?,
+	) throws -> ToolRun<Self> {
+		let arguments = try Arguments(argumentsContent)
 
-		guard let output else {
+		guard let outputContent else {
 			return ToolRun(
-				arguments: parsedArguments,
-				_arguments: arguments,
-				_output: output,
+				arguments: arguments,
+				_arguments: argumentsContent,
+				_output: outputContent,
 			)
 		}
 
 		do {
 			return try ToolRun(
-				arguments: parsedArguments,
-				output: self.output(from: output),
-				_arguments: arguments,
-				_output: output,
+				arguments: arguments,
+				output: Output(outputContent),
+				_arguments: argumentsContent,
+				_output: outputContent,
 			)
 		} catch {
-			guard let problem = problem(from: output) else {
+			guard let problem = problem(from: outputContent) else {
 				throw error
 			}
 
 			return ToolRun(
-				arguments: parsedArguments,
+				arguments: arguments,
 				problem: problem,
-				_arguments: arguments,
-				_output: output,
+				_arguments: argumentsContent,
+				_output: outputContent,
 			)
 		}
 	}
 
-	/// Converts raw GeneratedContent to strongly typed Arguments.
-	///
-	/// - Parameter generatedContent: The raw content to convert
-	/// - Returns: Typed arguments instance
-	/// - Throws: Conversion errors
-	private func arguments(from generatedContent: GeneratedContent) throws -> Arguments {
-		try Arguments(generatedContent)
-	}
+	private func partialRun(
+		for argumentsContent: GeneratedContent,
+		output outputContent: GeneratedContent?,
+	) throws -> StreamingToolRun<Self> {
+		let arguments = try Arguments.PartiallyGenerated(argumentsContent)
 
-	private func partialRun(for arguments: GeneratedContent, output: GeneratedContent?) throws -> PartialToolRun<Self> {
-		let parsedArguments = try partialArguments(from: arguments)
-
-		guard let output else {
-			return PartialToolRun(
-				arguments: parsedArguments,
-				_arguments: arguments,
-				_output: output,
+		guard let outputContent else {
+			return StreamingToolRun(
+				arguments: arguments,
+				_arguments: argumentsContent,
+				_output: outputContent,
 			)
 		}
 
 		do {
-			return try PartialToolRun(
-				arguments: parsedArguments,
-				output: self.output(from: output),
-				_arguments: arguments,
-				_output: output,
+			return try StreamingToolRun(
+				arguments: arguments,
+				output: Output(outputContent),
+				_arguments: argumentsContent,
+				_output: outputContent,
 			)
 		} catch {
-			guard let problem = problem(from: output) else { throw error }
+			guard let problem = problem(from: outputContent) else { throw error }
 
-			return PartialToolRun(
-				arguments: parsedArguments,
+			return StreamingToolRun(
+				arguments: arguments,
 				problem: problem,
-				_arguments: arguments,
-				_output: output,
+				_arguments: argumentsContent,
+				_output: outputContent,
 			)
 		}
-	}
-
-	private func partialArguments(from generatedContent: GeneratedContent) throws -> Arguments.PartiallyGenerated {
-		try Arguments.PartiallyGenerated(generatedContent)
-	}
-
-	/// Converts optional raw GeneratedContent to strongly typed Output.
-	///
-	/// - Parameter generatedContent: The optional raw content to convert
-	/// - Returns: Typed output instance, or nil if no content provided
-	/// - Throws: Conversion errors
-	private func output(from generatedContent: GeneratedContent?) throws -> Output? {
-		guard let generatedContent else {
-			return nil
-		}
-
-		return try Output(generatedContent)
 	}
 
 	private func problem(from generatedContent: GeneratedContent) -> ToolRun<Self>.Problem? {

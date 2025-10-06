@@ -132,7 +132,7 @@ public extension Transcript {
 		/// A resolved tool run.
 		public struct ToolRunKind: Identifiable, Equatable, Sendable {
 			public enum Resolution: Equatable, Sendable {
-				case inProgress(Provider.StreamingToolRun)
+				case inProgress(Provider.ResolvedStreamingToolRun)
 				case completed(Provider.ResolvedToolRun)
 				case failed(TranscriptResolutionError.ToolRunResolution)
 			}

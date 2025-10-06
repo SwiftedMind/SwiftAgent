@@ -52,16 +52,27 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		// Gather the declared tools and grounding sources up front so generation can reference them.
 		let toolProperties = try extractToolProperties(from: classDeclaration)
 		let groundingProperties = try extractGroundingProperties(from: classDeclaration)
+		let structuredOutputProperties = try extractStructuredOutputProperties(from: classDeclaration)
 
 		var members: [DeclSyntax] = []
 
-		// Property wrappers copied onto the session type so user code can declare tools/groundings.
+		// Property wrappers copied onto the session type so user code can declare tools/groundings/structured outputs.
 		members.append(
 			"""
 			@propertyWrapper
 			struct Tool<ToolType: FoundationModels.Tool> where ToolType.Arguments: Generable, ToolType.Output: Generable {
 			  var wrappedValue: ToolType
 			  init(wrappedValue: ToolType) { self.wrappedValue = wrappedValue }
+			}
+			""",
+		)
+
+		members.append(
+			"""
+			@propertyWrapper
+			struct StructuredOutput<Output: SwiftAgent.StructuredOutput> {
+			  var wrappedValue: Output.Type
+			  init(_ wrappedValue: Output.Type) { self.wrappedValue = wrappedValue }
 			}
 			""",
 		)
@@ -125,8 +136,13 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		members.append(generateGroundingSourceEnum(for: groundingProperties))
 
 		members.append(generateResolvedToolRunEnum(for: toolProperties))
-		members.append(generateStreamingToolRunEnum(for: toolProperties))
+		members.append(generateResolvedStreamingToolRunEnum(for: toolProperties))
 		members.append(contentsOf: toolProperties.map(Self.generateResolvableWrapper))
+
+		// Structured Output typing support
+		members.append(generateStructuredOutputKindEnum(for: structuredOutputProperties))
+		members.append(generateResolvedResponseSegmentEnum(for: structuredOutputProperties))
+		members.append(generateStructuredOutputResolver(for: structuredOutputProperties))
 
 		return members
 	}
@@ -162,6 +178,12 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
 	/// Captures information about a `@Grounding` property declared on the session type.
 	private struct GroundingProperty {
+		let identifier: TokenSyntax
+		let typeName: String
+	}
+
+	/// Captures information about a `@StructuredOutput` property declared on the session type.
+	private struct StructuredOutputProperty {
 		let identifier: TokenSyntax
 		let typeName: String
 	}
@@ -252,6 +274,35 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			let typeName = try extractGroundingTypeName(from: groundingAttribute)
 
 			return GroundingProperty(
+				identifier: identifierPattern.identifier,
+				typeName: typeName,
+			)
+		}
+	}
+
+	/// Collects `@StructuredOutput` declarations to drive typed response synthesis.
+	private static func extractStructuredOutputProperties(from classDeclaration: ClassDeclSyntax) throws
+		-> [StructuredOutputProperty] {
+		try classDeclaration.memberBlock.members.compactMap { member in
+			guard let variableDecl = member.decl.as(VariableDeclSyntax.self) else {
+				return nil
+			}
+			guard let structuredOutputAttribute = attribute(named: "StructuredOutput", in: variableDecl.attributes) else {
+				return nil
+			}
+			guard variableDecl.bindingSpecifier.tokenKind == .keyword(.var) else {
+				throw MacroError.mustBeVar(node: Syntax(variableDecl.bindingSpecifier)).asDiagnosticsError()
+			}
+			guard let binding = variableDecl.bindings.first else {
+				throw MacroError.noBinding(node: Syntax(variableDecl)).asDiagnosticsError()
+			}
+			guard let identifierPattern = binding.pattern.as(IdentifierPatternSyntax.self) else {
+				throw MacroError.invalidPattern(node: Syntax(binding.pattern)).asDiagnosticsError()
+			}
+
+			let typeName = try extractGroundingTypeName(from: structuredOutputAttribute)
+
+			return StructuredOutputProperty(
 				identifier: identifierPattern.identifier,
 				typeName: typeName,
 			)
@@ -460,17 +511,17 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			"""
 	}
 
-	/// Produces the `StreamingToolRun` enum mapping each tool wrapper to a case.
-	private static func generateStreamingToolRunEnum(for tools: [ToolProperty]) -> DeclSyntax {
+	/// Produces the `ResolvedStreamingToolRun` enum mapping each tool wrapper to a case.
+	private static func generateResolvedStreamingToolRunEnum(for tools: [ToolProperty]) -> DeclSyntax {
 		let cases = tools.map { tool -> String in
 			let wrapperName = "Resolvable\(tool.identifier.text.capitalizedFirstLetter())Tool"
-			return "    case \(tool.identifier.text)(PartialToolRun<\(wrapperName)>)"
+			return "    case \(tool.identifier.text)(StreamingToolRun<\(wrapperName)>)"
 		}
 		.joined(separator: "\n")
 
 		return
 			"""
-			enum StreamingToolRun: Equatable {
+			enum ResolvedStreamingToolRun: Equatable {
 			\(raw: cases)
 			}
 			"""
@@ -555,8 +606,8 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			  }
 
 			  func resolveStreaming(
-			    _ run: PartialToolRun<\(raw: wrapperName)>
-			  ) -> Provider.StreamingToolRun {
+			    _ run: StreamingToolRun<\(raw: wrapperName)>
+			  ) -> Provider.ResolvedStreamingToolRun {
 			    .\(raw: tool.identifier.text)(run)
 			  }
 			}
@@ -684,5 +735,85 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			}
 			""",
 		]
+	}
+
+	// MARK: - Structured Output generation
+
+	/// Emits the `StructuredOutputKind` enum for decoding.
+	private static func generateStructuredOutputKindEnum(for outputs: [StructuredOutputProperty]) -> DeclSyntax {
+		guard !outputs.isEmpty else {
+			return """
+			enum StructuredOutputKind {}
+			"""
+		}
+
+		let cases = outputs.map { output -> String in
+			let caseName = output.identifier.text
+			let raw = output.typeName
+			return "    case \(caseName) = \"\(raw)\""
+		}.joined(separator: "\n")
+
+		return """
+		enum StructuredOutputKind: String {
+		\(raw: cases)
+		}
+		"""
+	}
+
+	/// Produces the `ResolvedResponseSegment` enum mapping structured outputs to typed cases.
+	private static func generateResolvedResponseSegmentEnum(for outputs: [StructuredOutputProperty]) -> DeclSyntax {
+		let typedCases = outputs.map { output -> String in
+			"    case \(output.identifier.text)(\(output.typeName).Output)"
+		}.joined(separator: "\n")
+
+		return """
+		enum ResolvedResponseSegment: Sendable {
+		  case text(String)
+		\(raw: typedCases.isEmpty ? "" : "\n" + typedCases)
+		  case unknown(GeneratedContent)
+		}
+		"""
+	}
+
+	/// Emits a resolver function that maps transcript segments into typed `ResolvedResponseSegment` values.
+	private static func generateStructuredOutputResolver(for outputs: [StructuredOutputProperty]) -> DeclSyntax {
+		let structuredOutputCases = outputs.map { output -> String in
+			"""
+			      case StructuredOutputKind.\(output.identifier.text).rawValue:
+			        let output = try \(output.typeName).Output(structuredSegment.content)
+			        return .\(output.identifier.text)(output)
+			"""
+		}.joined(separator: "\n")
+
+		let throwsKeyword = outputs.isEmpty ? "" : " throws"
+		let mapPrefix = outputs.isEmpty ? "" : "try "
+
+		var structuredOutputSwitchBody = ""
+		if !structuredOutputCases.isEmpty {
+			structuredOutputSwitchBody.append(structuredOutputCases)
+			structuredOutputSwitchBody.append("\n")
+		}
+		structuredOutputSwitchBody.append(
+			"""
+			      default:
+			        return .unknown(structuredSegment.content)
+			""",
+		)
+
+		return
+			"""
+			func resolvedSegments(from response: SwiftAgent.Transcript.Response)\(raw: throwsKeyword) -> [ResolvedResponseSegment] {
+			  \(raw: mapPrefix)response.segments.map { segment in
+			    switch segment {
+			    case let .text(textSegment):
+			      return .text(textSegment.content)
+			    case let .structure(structuredSegment):
+			      switch structuredSegment.typeName {
+			      \(raw: structuredOutputSwitchBody)
+			      }
+			    }
+			  }
+			}
+			"""
 	}
 }
