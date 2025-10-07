@@ -21,11 +21,13 @@ package extension ResolvableTool {
 	/// - Returns: The resolved tool result
 	/// - Throws: Conversion or resolution errors
 	func resolveCompleted(
+		id: String,
 		argumentsContent: GeneratedContent,
 		outputContent: GeneratedContent?,
 	) throws -> Provider.ResolvedToolRun {
 		let arguments = try Arguments(argumentsContent)
 		let toolRun = try toolRun(
+			id: id,
 			.completed(arguments),
 			argumentsContent: argumentsContent,
 			outputContent: outputContent,
@@ -34,11 +36,13 @@ package extension ResolvableTool {
 	}
 
 	func resolveInProgress(
+		id: String,
 		argumentsContent: GeneratedContent,
 		outputContent: GeneratedContent?,
 	) throws -> Provider.ResolvedToolRun {
 		let arguments = try Arguments.PartiallyGenerated(argumentsContent)
 		let toolRun = try toolRun(
+			id: id,
 			.inProgress(arguments),
 			argumentsContent: argumentsContent,
 			outputContent: outputContent,
@@ -47,11 +51,13 @@ package extension ResolvableTool {
 	}
 
 	func resolveFailed(
+		id: String,
 		error: TranscriptResolutionError.ToolRunResolution,
 		argumentsContent: GeneratedContent,
 		outputContent: GeneratedContent?,
 	) throws -> Provider.ResolvedToolRun {
 		let toolRun = try toolRun(
+			id: id,
 			.failed(error),
 			argumentsContent: argumentsContent,
 			outputContent: outputContent,
@@ -69,12 +75,14 @@ package extension ResolvableTool {
 	/// - Returns: A typed ToolRun instance
 	/// - Throws: Conversion errors if content cannot be parsed
 	func toolRun(
+		id: String,
 		_ arguments: ToolRun<Self>.Arguments,
 		argumentsContent: GeneratedContent,
 		outputContent: GeneratedContent?,
 	) throws -> ToolRun<Self> {
 		guard let outputContent else {
 			return ToolRun(
+				id: id,
 				arguments: arguments,
 				argumentsContent: argumentsContent,
 				outputContent: outputContent,
@@ -83,6 +91,7 @@ package extension ResolvableTool {
 
 		do {
 			return try ToolRun(
+				id: id,
 				arguments: arguments,
 				output: Output(outputContent),
 				argumentsContent: argumentsContent,
@@ -94,6 +103,7 @@ package extension ResolvableTool {
 			}
 
 			return ToolRun(
+				id: id,
 				arguments: arguments,
 				problem: problem,
 				argumentsContent: argumentsContent,

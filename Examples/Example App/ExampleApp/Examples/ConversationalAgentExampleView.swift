@@ -185,7 +185,7 @@ private struct ReasoningEntryView: View {
 }
 
 private struct ToolRunEntryView: View {
-	let toolRun: OpenAISession.ResolvedTranscript.ToolRunKind
+	let toolRun: OpenAISession.ResolvedToolRun
 
 	var body: some View {
 		Text("TODO")

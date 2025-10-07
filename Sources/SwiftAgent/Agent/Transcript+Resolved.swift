@@ -40,7 +40,8 @@ public extension Transcript {
 					entries.append(.response(response))
 				case let .toolCalls(toolCalls):
 					for call in toolCalls {
-						entries.append(.toolRun(.init(call: call, resolution: resolver.resolve(call))))
+						let resolvedToolRun = resolver.resolve(call)
+						entries.append(.toolRun(resolvedToolRun))
 					}
 				case .toolOutput:
 					// Handled already by the .toolCalls cases
@@ -53,7 +54,7 @@ public extension Transcript {
 		public enum Entry: Identifiable, Equatable, Sendable {
 			case prompt(Prompt)
 			case reasoning(Reasoning)
-			case toolRun(ToolRunKind)
+			case toolRun(Provider.ResolvedToolRun)
 			case response(Transcript.Response)
 
 			public var id: String {
@@ -111,27 +112,6 @@ public extension Transcript {
 			) {
 				self.id = id
 				self.summary = summary
-			}
-		}
-
-		/// A resolved tool run.
-		public struct ToolRunKind: Identifiable, Equatable, Sendable {
-			/// The identifier of this run.
-			public var id: String
-
-			/// The tool resolution.
-			public let resolution: Provider.ResolvedToolRun
-
-			/// The tool name captured within the original call, convenient for switching logic.
-			public var toolName: String
-
-			init(
-				call: Transcript.ToolCall,
-				resolution: Provider.ResolvedToolRun,
-			) {
-				id = call.id
-				toolName = call.toolName
-				self.resolution = resolution
 			}
 		}
 	}

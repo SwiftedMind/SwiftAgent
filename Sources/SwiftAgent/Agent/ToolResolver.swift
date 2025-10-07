@@ -132,7 +132,7 @@ public struct ToolResolver<Provider: LanguageModelProvider> {
 				error,
 				context: "Tool resolution failed. Available tools: \(availableTools)",
 			)
-			return Provider.ResolvedToolRun.unknownToolRun(error: error)
+			return Provider.ResolvedToolRun.makeUnknown(toolCall: call)
 		}
 
 		let outputContent = findOutput(for: call)
@@ -140,15 +140,15 @@ public struct ToolResolver<Provider: LanguageModelProvider> {
 		do {
 			switch call.status {
 			case .inProgress:
-				return try tool.resolveInProgress(argumentsContent: call.arguments, outputContent: outputContent)
+				return try tool.resolveInProgress(id: call.id, argumentsContent: call.arguments, outputContent: outputContent)
 			case .completed:
-				return try tool.resolveCompleted(argumentsContent: call.arguments, outputContent: outputContent)
+				return try tool.resolveCompleted(id: call.id, argumentsContent: call.arguments, outputContent: outputContent)
 			default:
-				return Provider.ResolvedToolRun.unknownToolRun(error: .resolutionFailed(description: "TODO"))
+				return Provider.ResolvedToolRun.makeUnknown(toolCall: call)
 			}
 		} catch {
 			AgentLog.error(error, context: "Tool resolution for '\(call.toolName)'")
-			return Provider.ResolvedToolRun.unknownToolRun(error: .resolutionFailed(description: error.localizedDescription))
+			return Provider.ResolvedToolRun.makeUnknown(toolCall: call)
 		}
 	}
 

@@ -4,13 +4,20 @@ import Foundation
 import FoundationModels
 import Internal
 
-public protocol StructuredOutput<Output> {
-	associatedtype Output: Generable
-	var name: String { get }
+public protocol ResolvableStructuredOutput<Provider>: Sendable, Equatable {
+	associatedtype Schema: Generable
+	associatedtype Provider: LanguageModelProvider
+	static var name: String { get }
+	static func resolve(_ structuredOutput: StructuredOutput<Self>) -> Provider.ResolvedStructuredOutput
 }
 
-public protocol ResolvedToolRun: Equatable & Sendable {
-	static func unknownToolRun(error: TranscriptResolutionError.ToolRunResolution) -> Self
+public protocol ResolvedStructuredOutput: Sendable {
+	static func makeUnknown(segment: Transcript.StructuredSegment) -> Self
+}
+
+public protocol ResolvedToolRun: Identifiable, Equatable, Sendable where ID == String {
+	var id: String { get }
+	static func makeUnknown(toolCall: Transcript.ToolCall) -> Self
 }
 
 public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
@@ -22,8 +29,9 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
 
 	associatedtype Adapter: SwiftAgent.Adapter & SendableMetatype
 	associatedtype ResolvedToolRun: SwiftAgent.ResolvedToolRun
-	associatedtype ResolvedResponseSegment: Sendable
+	associatedtype ResolvedStructuredOutput: SwiftAgent.ResolvedStructuredOutput
 	associatedtype GroundingSource: GroundingRepresentable
+	nonisolated var structuredOutputs: [any (SwiftAgent.ResolvableStructuredOutput).Type] { get }
 	nonisolated var tools: [any ResolvableTool<Self>] { get }
 
 	var adapter: Adapter { get }

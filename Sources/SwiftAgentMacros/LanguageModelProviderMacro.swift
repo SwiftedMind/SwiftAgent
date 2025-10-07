@@ -70,9 +70,9 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		members.append(
 			"""
 			@propertyWrapper
-			struct StructuredOutput<Output: SwiftAgent.StructuredOutput> {
-			  var wrappedValue: Output.Type
-			  init(_ wrappedValue: Output.Type) { self.wrappedValue = wrappedValue }
+			struct StructuredOutput<Schema: Generable> {
+			  var wrappedValue: Schema.Type
+			  init(_ wrappedValue: Schema.Type) { self.wrappedValue = wrappedValue }
 			}
 			""",
 		)
@@ -124,6 +124,10 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			""",
 		)
 
+		members.append(
+			generateStructuredOutputsProperty(for: structuredOutputProperties),
+		)
+
 		members.append(contentsOf: generateObservationSupportMembers())
 
 		// Emit initializers, grounding source types, and tool wrappers derived from the user's declarations.
@@ -139,9 +143,9 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		members.append(contentsOf: toolProperties.map(Self.generateResolvableWrapper))
 
 		// Structured Output typing support
+		members.append(generateResolvedStructuredOutputEnum(for: structuredOutputProperties))
+		members.append(contentsOf: generateResolvableStructuredOutputTypes(for: structuredOutputProperties))
 		members.append(generateStructuredOutputKindEnum(for: structuredOutputProperties))
-		members.append(generateResolvedResponseSegmentEnum(for: structuredOutputProperties))
-		members.append(generateStructuredOutputResolver(for: structuredOutputProperties))
 
 		return members
 	}
@@ -502,14 +506,27 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		}
 		.joined(separator: "\n")
 
+		let idSwitchCases = tools.map { tool -> String in
+			return "        case let .\(tool.identifier.text)(run):\n            run.id"
+		}
+		.joined(separator: "\n")
+
 		return
 			"""
 			enum ResolvedToolRun: SwiftAgent.ResolvedToolRun {
 			\(raw: cases)
-			case unknown(error: SwiftAgent.TranscriptResolutionError.ToolRunResolution)
+			case unknown(toolCall: SwiftAgent.Transcript.ToolCall)
 
-			static func unknownToolRun(error: SwiftAgent.TranscriptResolutionError.ToolRunResolution) -> Self {
-				.unknown(error: error)
+			static func makeUnknown(toolCall: SwiftAgent.Transcript.ToolCall) -> Self {
+				.unknown(toolCall: toolCall)
+			}
+
+			var id: String {
+				switch self {
+			\(raw: idSwitchCases)
+				case let .unknown(toolCall):
+					toolCall.id
+				}
 			}
 			}
 			"""
@@ -721,6 +738,83 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
 	// MARK: - Structured Output generation
 
+	private static func generateStructuredOutputsProperty(
+		for outputs: [StructuredOutputProperty],
+	) -> DeclSyntax {
+		guard !outputs.isEmpty else {
+			return """
+			let structuredOutputs: [any (SwiftAgent.ResolvableStructuredOutput).Type] = []
+			"""
+		}
+
+		let entries = outputs
+			.map { output in
+				"    \(resolvableStructuredOutputTypeName(for: output)).self"
+			}
+			.joined(separator: "\n")
+
+		return """
+		let structuredOutputs: [any (SwiftAgent.ResolvableStructuredOutput).Type] = [
+		\(raw: entries)
+		]
+		"""
+	}
+
+	private static func generateResolvedStructuredOutputEnum(
+		for outputs: [StructuredOutputProperty],
+	) -> DeclSyntax {
+		var sections: [String] = []
+
+		if !outputs.isEmpty {
+			let cases = outputs
+				.map { output in
+					let caseName = output.identifier.text
+					let resolvableTypeName = resolvableStructuredOutputTypeName(for: output)
+					return "    case \(caseName)(SwiftAgent.StructuredOutput<\(resolvableTypeName)>)"
+				}
+				.joined(separator: "\n")
+			sections.append(cases)
+		}
+
+		sections.append("    case unknown(SwiftAgent.Transcript.StructuredSegment)")
+		sections.append("")
+		sections.append("    static func makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {")
+		sections.append("        .unknown(segment)")
+		sections.append("    }")
+
+		let body = sections.joined(separator: "\n")
+
+		return """
+		enum ResolvedStructuredOutput: SwiftAgent.ResolvedStructuredOutput {
+		\(raw: body)
+		}
+		"""
+	}
+
+	private static func generateResolvableStructuredOutputTypes(
+		for outputs: [StructuredOutputProperty],
+	) -> [DeclSyntax] {
+		outputs.map { output in
+			let resolvableName = resolvableStructuredOutputTypeName(for: output)
+			let schemaType = output.typeName
+			let caseName = output.identifier.text
+
+			return """
+			struct \(raw: resolvableName): SwiftAgent.ResolvableStructuredOutput {
+			  typealias Schema = \(raw: schemaType)
+			  typealias Provider = ProviderType
+			  static let name = "\(raw: caseName)"
+
+			  static func resolve(
+			    _ structuredOutput: SwiftAgent.StructuredOutput<\(raw: resolvableName)>
+			  ) -> ResolvedStructuredOutput {
+			    .\(raw: caseName)(structuredOutput)
+			  }
+			}
+			"""
+		}
+	}
+
 	/// Emits the `StructuredOutputKind` enum for decoding.
 	private static func generateStructuredOutputKindEnum(for outputs: [StructuredOutputProperty]) -> DeclSyntax {
 		guard !outputs.isEmpty else {
@@ -742,60 +836,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 		"""
 	}
 
-	/// Produces the `ResolvedResponseSegment` enum mapping structured outputs to typed cases.
-	private static func generateResolvedResponseSegmentEnum(for outputs: [StructuredOutputProperty]) -> DeclSyntax {
-		let typedCases = outputs.map { output -> String in
-			"    case \(output.identifier.text)(\(output.typeName).Output)"
-		}.joined(separator: "\n")
-
-		return """
-		enum ResolvedResponseSegment: Sendable {
-		  case text(String)
-		\(raw: typedCases.isEmpty ? "" : "\n" + typedCases)
-		  case unknown(GeneratedContent)
-		}
-		"""
-	}
-
-	/// Emits a resolver function that maps transcript segments into typed `ResolvedResponseSegment` values.
-	private static func generateStructuredOutputResolver(for outputs: [StructuredOutputProperty]) -> DeclSyntax {
-		let structuredOutputCases = outputs.map { output -> String in
-			"""
-			      case StructuredOutputKind.\(output.identifier.text).rawValue:
-			        let output = try \(output.typeName).Output(structuredSegment.content)
-			        return .\(output.identifier.text)(output)
-			"""
-		}.joined(separator: "\n")
-
-		let throwsKeyword = outputs.isEmpty ? "" : " throws"
-		let mapPrefix = outputs.isEmpty ? "" : "try "
-
-		var structuredOutputSwitchBody = ""
-		if !structuredOutputCases.isEmpty {
-			structuredOutputSwitchBody.append(structuredOutputCases)
-			structuredOutputSwitchBody.append("\n")
-		}
-		structuredOutputSwitchBody.append(
-			"""
-			      default:
-			        return .unknown(structuredSegment.content)
-			""",
-		)
-
-		return
-			"""
-			func resolvedSegments(from response: SwiftAgent.Transcript.Response)\(raw: throwsKeyword) -> [ResolvedResponseSegment] {
-			  \(raw: mapPrefix)response.segments.map { segment in
-			    switch segment {
-			    case let .text(textSegment):
-			      return .text(textSegment.content)
-			    case let .structure(structuredSegment):
-			      switch structuredSegment.typeName {
-			      \(raw: structuredOutputSwitchBody)
-			      }
-			    }
-			  }
-			}
-			"""
+	private static func resolvableStructuredOutputTypeName(for output: StructuredOutputProperty) -> String {
+		"Resolvable\(output.identifier.text.capitalizedFirstLetter())"
 	}
 }

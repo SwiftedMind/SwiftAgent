@@ -4,7 +4,7 @@ import Foundation
 import FoundationModels
 import Internal
 
-public struct ToolRun<Tool: SwiftAgentTool> {
+public struct ToolRun<Tool: SwiftAgentTool>: Identifiable {
 	private let argumentsContent: GeneratedContent
 	private let outputContent: GeneratedContent?
 
@@ -14,7 +14,9 @@ public struct ToolRun<Tool: SwiftAgentTool> {
 		case failed(TranscriptResolutionError.ToolRunResolution)
 	}
 
-	public let arguments: Arguments
+	public var id: String
+
+	public var arguments: Arguments
 
 	/// The tool's output, if available.
 	///
@@ -52,12 +54,14 @@ public struct ToolRun<Tool: SwiftAgentTool> {
 	///   - output: The tool's output, if available
 	///   - problem: The problem payload provided when `Tool.Output` decoding fails
 	package init(
+		id: String,
 		arguments: Arguments,
 		output: Tool.Output? = nil,
 		problem: Problem? = nil,
 		argumentsContent: GeneratedContent,
 		outputContent: GeneratedContent? = nil,
 	) {
+		self.id = id
 		self.arguments = arguments
 		self.output = output
 		self.problem = problem

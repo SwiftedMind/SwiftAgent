@@ -6,6 +6,7 @@ import Observation
 import OpenAISession
 
 // TODO: Add support for a partially generated variant of the ResolvedResponseSegment somehow
+// Could the output enum itself have a partiallyGenerated case?
 
 @LanguageModelProvider(.openAI)
 final class OpenAISession {
@@ -15,15 +16,11 @@ final class OpenAISession {
 	@StructuredOutput(WeatherReport.self) var weatherReport
 }
 
-struct WeatherReport: StructuredOutput {
-	let name = "weather_report"
-
-	@Generable
-	struct Output {
-		let temperature: Double
-		let condition: String
-		let humidity: Int
-	}
+@Generable
+struct WeatherReport {
+	let temperature: Double
+	let condition: String
+	let humidity: Int
 }
 
 struct CalculatorTool: Tool {
