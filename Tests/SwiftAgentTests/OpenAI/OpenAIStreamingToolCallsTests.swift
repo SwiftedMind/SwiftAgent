@@ -137,9 +137,16 @@ struct OpenAIAdapterStreamingToolCallsTests {
 	}
 
 	private func validateTranscript(generatedTranscript: Transcript) throws {
-		#expect(generatedTranscript.count == 4)
+		#expect(generatedTranscript.count == 5)
 
-		guard case let .reasoning(reasoning) = generatedTranscript[0] else {
+		guard case let .prompt(prompt) = generatedTranscript[0] else {
+			Issue.record("First transcript entry is not .prompt")
+			return
+		}
+
+		#expect(prompt.input == "What is the weather in New York City, USA?")
+
+		guard case let .reasoning(reasoning) = generatedTranscript[1] else {
 			Issue.record("First transcript entry is not .reasoning")
 			return
 		}
@@ -147,7 +154,7 @@ struct OpenAIAdapterStreamingToolCallsTests {
 		#expect(reasoning.id == "rs_68d9303e94ac819ead3d9e066f405eae03aa6e5a972b3b23")
 		#expect(reasoning.summary == [])
 
-		guard case let .toolCalls(toolCalls) = generatedTranscript[1] else {
+		guard case let .toolCalls(toolCalls) = generatedTranscript[2] else {
 			Issue.record("Second transcript entry is not .toolCalls")
 			return
 		}
@@ -159,7 +166,7 @@ struct OpenAIAdapterStreamingToolCallsTests {
 		let expectedArguments = try GeneratedContent(json: #"{ "location": "New York City, USA" }"#)
 		#expect(toolCalls.calls[0].arguments.jsonString == expectedArguments.jsonString)
 
-		guard case let .toolOutput(toolOutput) = generatedTranscript[2] else {
+		guard case let .toolOutput(toolOutput) = generatedTranscript[3] else {
 			Issue.record("Third transcript entry is not .toolOutput")
 			return
 		}
@@ -175,7 +182,7 @@ struct OpenAIAdapterStreamingToolCallsTests {
 
 		#expect(structuredSegment.content.generatedContent.kind == .string("Sunny"))
 
-		guard case let .response(response) = generatedTranscript[3] else {
+		guard case let .response(response) = generatedTranscript[4] else {
 			Issue.record("Fourth transcript entry is not .response")
 			return
 		}

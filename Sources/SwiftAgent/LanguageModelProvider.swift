@@ -4,22 +4,6 @@ import Foundation
 import FoundationModels
 import Internal
 
-public protocol ResolvableStructuredOutput<Provider>: Sendable, Equatable {
-	associatedtype Schema: Generable
-	associatedtype Provider: LanguageModelProvider
-	static var name: String { get }
-	static func resolve(_ structuredOutput: StructuredOutput<Self>) -> Provider.ResolvedStructuredOutput
-}
-
-public protocol ResolvedStructuredOutput: Sendable {
-	static func makeUnknown(segment: Transcript.StructuredSegment) -> Self
-}
-
-public protocol ResolvedToolRun: Identifiable, Equatable, Sendable where ID == String {
-	var id: String { get }
-	static func makeUnknown(toolCall: Transcript.ToolCall) -> Self
-}
-
 public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
 	/// The transcript type for this session, containing the conversation history.
 	typealias Transcript = SwiftAgent.Transcript
@@ -31,7 +15,7 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
 	associatedtype ResolvedToolRun: SwiftAgent.ResolvedToolRun
 	associatedtype ResolvedStructuredOutput: SwiftAgent.ResolvedStructuredOutput
 	associatedtype GroundingSource: GroundingRepresentable
-	nonisolated var structuredOutputs: [any (SwiftAgent.ResolvableStructuredOutput).Type] { get }
+	nonisolated static var structuredOutputs: [any (SwiftAgent.ResolvableStructuredOutput<Self>).Type] { get }
 	nonisolated var tools: [any ResolvableTool<Self>] { get }
 
 	var adapter: Adapter { get }
@@ -42,7 +26,7 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
 	nonisolated func decodeGrounding(from data: Data) throws -> [GroundingSource]
 
 	@MainActor func resetTokenUsage()
-	@MainActor func toolResolver() -> ToolResolver<Self>
+	@MainActor func resolver() -> TranscriptResolver<Self>
 
 	@discardableResult
 	func withAuthorization<T>(
@@ -51,6 +35,17 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
 		perform: () async throws -> T,
 	) async rethrows -> T
 }
+
+public protocol ResolvedStructuredOutput: Sendable, Equatable {
+	static func makeUnknown(segment: Transcript.StructuredSegment) -> Self
+}
+
+public protocol ResolvedToolRun: Identifiable, Equatable, Sendable where ID == String {
+	var id: String { get }
+	static func makeUnknown(toolCall: Transcript.ToolCall) -> Self
+}
+
+// MARK: - Default Implementations
 
 public extension LanguageModelProvider {
 	@MainActor var resolvedTranscript: ResolvedTranscript {
@@ -213,6 +208,7 @@ package extension LanguageModelProvider {
 				var generatedTranscript = Transcript(entries: [promptEntry])
 				var generatedUsage: TokenUsage = .zero
 
+				// TODO: Make throttle configurable
 				// Throttle-latest: emit at most once per interval with the freshest state
 				let clock = ContinuousClock()
 				let throttleInterval: Duration = .seconds(0.1)
@@ -239,6 +235,11 @@ package extension LanguageModelProvider {
 								tokenUsage: generatedUsage,
 							),
 						)
+
+						// Update the provider's transcript and token usage when the stream is finished
+						await appendTranscript(generatedTranscript.entries)
+						await mergeTokenUsage(generatedUsage)
+
 						nextEmitDeadline = now.advanced(by: throttleInterval)
 					}
 				}
@@ -248,12 +249,12 @@ package extension LanguageModelProvider {
 				await mergeTokenUsage(generatedUsage)
 
 				// TODO: Send the final, parsed content, if type != String.self
-				let partiallyResolvedTranscript = generatedTranscript.resolved(in: self)
+				let streamingTranscript = generatedTranscript.resolved(in: self)
 				continuation.yield(
 					Snapshot(
 						content: nil,
 						transcript: generatedTranscript,
-						streamingTranscript: partiallyResolvedTranscript,
+						streamingTranscript: streamingTranscript,
 						tokenUsage: generatedUsage,
 					),
 				)
@@ -369,8 +370,8 @@ public extension LanguageModelProvider {
 		tokenUsage = TokenUsage()
 	}
 
-	@MainActor func toolResolver() -> ToolResolver<Self> {
-		ToolResolver(for: self, transcript: transcript)
+	@MainActor func resolver() -> TranscriptResolver<Self> {
+		TranscriptResolver(for: self, transcript: transcript)
 	}
 }
 

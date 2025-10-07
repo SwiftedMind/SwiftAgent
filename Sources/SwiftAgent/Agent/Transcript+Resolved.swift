@@ -9,7 +9,7 @@ public extension Transcript {
 		public package(set) var entries: [Entry]
 
 		init(transcript: Transcript, session: Provider) {
-			let resolver = ToolResolver(for: session, transcript: transcript)
+			let resolver = TranscriptResolver(for: session, transcript: transcript)
 			entries = []
 
 			for entry in transcript.entries {
@@ -37,7 +37,30 @@ public extension Transcript {
 						summary: reasoning.summary,
 					)))
 				case let .response(response):
-					entries.append(.response(response))
+					var segments: [Segment] = []
+
+					for segment in response.segments {
+						switch segment {
+						case let .text(text):
+							segments.append(.text(Resolved.TextSegment(
+								id: text.id,
+								content: text.content,
+							)))
+						case let .structure(structure):
+							let content = resolver.resolve(structure, status: response.status)
+							segments.append(.structure(Resolved.StructuredSegment(
+								id: structure.id,
+								typeName: structure.typeName,
+								content: content,
+							)))
+						}
+					}
+
+					entries.append(.response(Resolved.Response(
+						id: response.id,
+						segments: segments,
+						status: response.status,
+					)))
 				case let .toolCalls(toolCalls):
 					for call in toolCalls {
 						let resolvedToolRun = resolver.resolve(call)
@@ -55,7 +78,7 @@ public extension Transcript {
 			case prompt(Prompt)
 			case reasoning(Reasoning)
 			case toolRun(Provider.ResolvedToolRun)
-			case response(Transcript.Response)
+			case response(Response)
 
 			public var id: String {
 				switch self {
@@ -112,6 +135,74 @@ public extension Transcript {
 			) {
 				self.id = id
 				self.summary = summary
+			}
+		}
+
+		public struct Response: Sendable, Identifiable, Equatable {
+			public var id: String
+			public var segments: [Segment]
+			public var status: Status
+
+			public init(
+				id: String,
+				segments: [Segment],
+				status: Status,
+			) {
+				self.id = id
+				self.segments = segments
+				self.status = status
+			}
+
+			public var text: String? {
+				var components: [String] = []
+				for segment in segments {
+					switch segment {
+					case let .text(textSegment):
+						components.append(textSegment.content)
+					case .structure:
+						return nil
+					}
+				}
+
+				guard !components.isEmpty else { return nil }
+
+				return components.joined(separator: "\n")
+			}
+		}
+
+		public enum Segment: Sendable, Identifiable, Equatable {
+			case text(TextSegment)
+			case structure(StructuredSegment)
+
+			public var id: String {
+				switch self {
+				case let .text(textSegment):
+					textSegment.id
+				case let .structure(structuredSegment):
+					structuredSegment.id
+				}
+			}
+		}
+
+		public struct TextSegment: Sendable, Identifiable, Equatable {
+			public var id: String
+			public var content: String
+
+			public init(id: String, content: String) {
+				self.id = id
+				self.content = content
+			}
+		}
+
+		public struct StructuredSegment: Sendable, Identifiable, Equatable {
+			public var id: String
+			public var typeName: String
+			public var content: Provider.ResolvedStructuredOutput
+
+			public init(id: String, typeName: String = "", content: Provider.ResolvedStructuredOutput) {
+				self.id = id
+				self.typeName = typeName
+				self.content = content
 			}
 		}
 	}

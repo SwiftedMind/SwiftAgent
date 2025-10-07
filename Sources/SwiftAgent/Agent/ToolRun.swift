@@ -5,8 +5,8 @@ import FoundationModels
 import Internal
 
 public struct ToolRun<Tool: SwiftAgentTool>: Identifiable {
-	private let argumentsContent: GeneratedContent
-	private let outputContent: GeneratedContent?
+	private let rawContent: GeneratedContent
+	private let rawOutput: GeneratedContent?
 
 	public enum Arguments {
 		case inProgress(Tool.Arguments.PartiallyGenerated)
@@ -58,15 +58,15 @@ public struct ToolRun<Tool: SwiftAgentTool>: Identifiable {
 		arguments: Arguments,
 		output: Tool.Output? = nil,
 		problem: Problem? = nil,
-		argumentsContent: GeneratedContent,
-		outputContent: GeneratedContent? = nil,
+		rawContent: GeneratedContent,
+		rawOutput: GeneratedContent? = nil,
 	) {
 		self.id = id
 		self.arguments = arguments
 		self.output = output
 		self.problem = problem
-		self.argumentsContent = argumentsContent
-		self.outputContent = outputContent
+		self.rawContent = rawContent
+		self.rawOutput = rawOutput
 	}
 }
 
@@ -101,6 +101,6 @@ extension ToolRun: Sendable where Tool.Arguments: Sendable, Tool.Arguments.Parti
 	Tool.Output: Sendable {}
 extension ToolRun: Equatable {
 	public static func == (lhs: ToolRun<Tool>, rhs: ToolRun<Tool>) -> Bool {
-		lhs.argumentsContent == rhs.argumentsContent && lhs.outputContent == rhs.outputContent
+		lhs.rawContent == rhs.rawContent && lhs.rawOutput == rhs.rawOutput
 	}
 }

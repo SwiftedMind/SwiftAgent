@@ -22,30 +22,30 @@ package extension ResolvableTool {
 	/// - Throws: Conversion or resolution errors
 	func resolveCompleted(
 		id: String,
-		argumentsContent: GeneratedContent,
-		outputContent: GeneratedContent?,
+		rawContent: GeneratedContent,
+		rawOutput: GeneratedContent?,
 	) throws -> Provider.ResolvedToolRun {
-		let arguments = try Arguments(argumentsContent)
+		let arguments = try Arguments(rawContent)
 		let toolRun = try toolRun(
 			id: id,
 			.completed(arguments),
-			argumentsContent: argumentsContent,
-			outputContent: outputContent,
+			rawContent: rawContent,
+			rawOutput: rawOutput,
 		)
 		return resolve(toolRun)
 	}
 
 	func resolveInProgress(
 		id: String,
-		argumentsContent: GeneratedContent,
-		outputContent: GeneratedContent?,
+		rawContent: GeneratedContent,
+		rawOutput: GeneratedContent?,
 	) throws -> Provider.ResolvedToolRun {
-		let arguments = try Arguments.PartiallyGenerated(argumentsContent)
+		let arguments = try Arguments.PartiallyGenerated(rawContent)
 		let toolRun = try toolRun(
 			id: id,
 			.inProgress(arguments),
-			argumentsContent: argumentsContent,
-			outputContent: outputContent,
+			rawContent: rawContent,
+			rawOutput: rawOutput,
 		)
 		return resolve(toolRun)
 	}
@@ -53,14 +53,14 @@ package extension ResolvableTool {
 	func resolveFailed(
 		id: String,
 		error: TranscriptResolutionError.ToolRunResolution,
-		argumentsContent: GeneratedContent,
-		outputContent: GeneratedContent?,
+		rawContent: GeneratedContent,
+		rawOutput: GeneratedContent?,
 	) throws -> Provider.ResolvedToolRun {
 		let toolRun = try toolRun(
 			id: id,
 			.failed(error),
-			argumentsContent: argumentsContent,
-			outputContent: outputContent,
+			rawContent: rawContent,
+			rawOutput: rawOutput,
 		)
 		return resolve(toolRun)
 	}
@@ -77,15 +77,15 @@ package extension ResolvableTool {
 	func toolRun(
 		id: String,
 		_ arguments: ToolRun<Self>.Arguments,
-		argumentsContent: GeneratedContent,
-		outputContent: GeneratedContent?,
+		rawContent: GeneratedContent,
+		rawOutput: GeneratedContent?,
 	) throws -> ToolRun<Self> {
-		guard let outputContent else {
+		guard let rawOutput else {
 			return ToolRun(
 				id: id,
 				arguments: arguments,
-				argumentsContent: argumentsContent,
-				outputContent: outputContent,
+				rawContent: rawContent,
+				rawOutput: rawOutput,
 			)
 		}
 
@@ -93,12 +93,12 @@ package extension ResolvableTool {
 			return try ToolRun(
 				id: id,
 				arguments: arguments,
-				output: Output(outputContent),
-				argumentsContent: argumentsContent,
-				outputContent: outputContent,
+				output: Output(rawOutput),
+				rawContent: rawContent,
+				rawOutput: rawOutput,
 			)
 		} catch {
-			guard let problem = problem(from: outputContent) else {
+			guard let problem = problem(from: rawOutput) else {
 				throw error
 			}
 
@@ -106,8 +106,8 @@ package extension ResolvableTool {
 				id: id,
 				arguments: arguments,
 				problem: problem,
-				argumentsContent: argumentsContent,
-				outputContent: outputContent,
+				rawContent: rawContent,
+				rawOutput: rawOutput,
 			)
 		}
 	}

@@ -40,7 +40,7 @@
 --hex-literal-case uppercase
 --ifdef no-indent
 --import-grouping alpha
---indent tab
+--indent 2
 --indent-case false
 --indent-strings false
 --inferred-types always

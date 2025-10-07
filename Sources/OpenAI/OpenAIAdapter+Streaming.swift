@@ -534,8 +534,8 @@ extension OpenAIAdapter {
 			guard case var .toolCalls(toolCalls) = entry else { return }
 			guard let callIndex = toolCalls.calls.firstIndex(where: { $0.id == state.callIdentifier }) else { return }
 
-			let argumentsContent = try GeneratedContent(json: event.arguments)
-			toolCalls.calls[callIndex].arguments = argumentsContent
+			let rawContent = try GeneratedContent(json: event.arguments)
+			toolCalls.calls[callIndex].arguments = rawContent
 			entry = .toolCalls(toolCalls)
 		}
 	}
@@ -569,8 +569,8 @@ extension OpenAIAdapter {
 			)
 
 			do {
-				let argumentsContent = try GeneratedContent(json: state.argumentsBuffer)
-				let output = try await callTool(tool, with: argumentsContent)
+				let rawContent = try GeneratedContent(json: state.argumentsBuffer)
+				let output = try await callTool(tool, with: rawContent)
 				let toolOutputEntry = Transcript.ToolOutput(
 					id: state.callIdentifier,
 					callId: state.callId,
