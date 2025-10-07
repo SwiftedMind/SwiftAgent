@@ -5,9 +5,6 @@ import FoundationModels
 import Observation
 import OpenAISession
 
-// TODO: Add support for a partially generated variant of the ResolvedResponseSegment somehow
-// Could the output enum itself have a partiallyGenerated case?
-
 @LanguageModelProvider(.openAI)
 final class OpenAISession {
 	@Tool var calculator = CalculatorTool()

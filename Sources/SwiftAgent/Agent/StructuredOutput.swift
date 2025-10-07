@@ -28,5 +28,8 @@ extension StructuredOutput.State: Equatable where ResolvableOutput.Schema: Equat
   ResolvableOutput.Schema.PartiallyGenerated: Equatable {}
 extension StructuredOutput: Sendable where ResolvableOutput.Schema: Sendable,
   ResolvableOutput.Schema.PartiallyGenerated: Sendable {}
-extension StructuredOutput: Equatable where ResolvableOutput.Schema: Equatable,
-  ResolvableOutput.Schema.PartiallyGenerated: Equatable {}
+extension StructuredOutput: Equatable {
+  public static func == (lhs: StructuredOutput<ResolvableOutput>, rhs: StructuredOutput<ResolvableOutput>) -> Bool {
+    lhs.id == rhs.id && lhs.raw == rhs.raw
+  }
+}

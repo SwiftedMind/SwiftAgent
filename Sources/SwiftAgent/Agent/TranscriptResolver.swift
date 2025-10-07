@@ -7,7 +7,7 @@ import OSLog
 
 /// A type-safe resolver for converting raw tool calls into strongly typed tool runs.
 ///
-/// ``ToolResolver`` bridges the gap between AI model tool calls and your application's
+/// ``TranscriptResolver`` bridges the gap between AI model tool calls and your application's
 /// domain logic by providing type-safe resolution of tool invocations. It matches tool calls
 /// with their outputs from the conversation transcript and converts them into strongly typed
 /// instances of ``Tool/Resolution``.
@@ -65,7 +65,7 @@ import OSLog
 ///
 /// By using a shared `ToolRunKind` type across all your tools, the resolver ensures
 /// compile-time safety when handling different tool types in a unified way.
-public struct ToolResolver<Provider: LanguageModelProvider> {
+public struct TranscriptResolver<Provider: LanguageModelProvider> {
 	/// The tool call type from the associated transcript.
 	public typealias ToolCall = Transcript.ToolCall
 
@@ -170,5 +170,49 @@ public struct ToolResolver<Provider: LanguageModelProvider> {
 		case let .structure(structure):
 			return structure.content
 		}
+	}
+
+	// MARK: - Structured Outputs
+
+	public func resolve(
+		_ structuredSegment: Transcript.StructuredSegment,
+		status: Transcript.Status,
+	) -> Provider
+		.ResolvedStructuredOutput {
+		let structuredOutputs = Provider.structuredOutputs
+		guard let structuredOutput = structuredOutputs.first(where: { $0.name == structuredSegment.typeName }) else {
+			return Provider.ResolvedStructuredOutput.makeUnknown(segment: structuredSegment)
+		}
+
+		return resolve(structuredSegment, status: status, with: structuredOutput)
+	}
+
+	private func resolve<ResolvableType: ResolvableStructuredOutput>(
+		_ structuredSegment: Transcript.StructuredSegment,
+		status: Transcript.Status,
+		with resolvableType: ResolvableType.Type,
+	) -> Provider.ResolvedStructuredOutput where ResolvableType.Provider == Provider {
+		var resolvedContent: StructuredOutput<ResolvableType>.State
+
+		do {
+			switch status {
+			case .completed:
+				resolvedContent = try .completed(resolvableType.Schema(structuredSegment.content))
+			case .inProgress:
+				resolvedContent = try .inProgress(resolvableType.Schema.PartiallyGenerated(structuredSegment.content))
+			default:
+				resolvedContent = .failed(structuredSegment.content)
+			}
+		} catch {
+			resolvedContent = .failed(structuredSegment.content)
+		}
+
+		let structuredOutput = StructuredOutput<ResolvableType>(
+			id: structuredSegment.id,
+			state: resolvedContent,
+			raw: structuredSegment.content,
+		)
+
+		return ResolvableType.resolve(structuredOutput)
 	}
 }

@@ -743,7 +743,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 	) -> DeclSyntax {
 		guard !outputs.isEmpty else {
 			return """
-			let structuredOutputs: [any (SwiftAgent.ResolvableStructuredOutput).Type] = []
+			static let structuredOutputs: [any (SwiftAgent.ResolvableStructuredOutput<ProviderType>).Type] = []
 			"""
 		}
 
@@ -754,7 +754,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 			.joined(separator: "\n")
 
 		return """
-		let structuredOutputs: [any (SwiftAgent.ResolvableStructuredOutput).Type] = [
+		static let structuredOutputs: [any (SwiftAgent.ResolvableStructuredOutput<ProviderType>).Type] = [
 		\(raw: entries)
 		]
 		"""

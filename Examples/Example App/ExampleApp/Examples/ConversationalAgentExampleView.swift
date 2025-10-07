@@ -108,6 +108,17 @@ struct ConversationalAgentExampleView: View {
 		}
 	}
 
+	private func setupAgent() {
+		session = OpenAISession(
+			instructions: """
+			You are a helpful assistant with access to several tools.
+			Use the available tools when appropriate to help answer questions.
+			Be concise but informative in your responses.
+			""",
+			configuration: .direct(apiKey: Secret.OpenAI.apiKey),
+		)
+	}
+
 	// MARK: - Actions
 
 	private func sendMessage() async {
@@ -151,17 +162,6 @@ struct ConversationalAgentExampleView: View {
 		} catch {
 			print("Error", error.localizedDescription)
 		}
-	}
-
-	private func setupAgent() {
-		session = OpenAISession(
-			instructions: """
-			You are a helpful assistant with access to several tools.
-			Use the available tools when appropriate to help answer questions.
-			Be concise but informative in your responses.
-			""",
-			configuration: .direct(apiKey: Secret.OpenAI.apiKey),
-		)
 	}
 }
 
@@ -218,7 +218,7 @@ private struct ToolRunEntryView: View {
 }
 
 private struct ResponseEntryView: View {
-	let response: SwiftAgent.Transcript.Response
+	let response: OpenAISession.ResolvedTranscript.Response
 
 	var body: some View {
 		if let text = response.text {
