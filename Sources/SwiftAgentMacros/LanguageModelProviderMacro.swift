@@ -146,8 +146,6 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     members.append(generateResolvedStructuredOutputEnum(for: structuredOutputProperties))
     members.append(contentsOf: generateResolvableStructuredOutputTypes(for: structuredOutputProperties))
 
-    members.append(generateStructuredOutputRepresentationStruct(for: structuredOutputProperties))
-
     return members
   }
 
@@ -160,11 +158,13 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     in context: some MacroExpansionContext,
   ) throws -> [ExtensionDeclSyntax] {
     var conformances = ["LanguageModelProvider", "@unchecked Sendable", "nonisolated Observation.Observable"]
+    var structuredOutputProperties: [StructuredOutputProperty] = []
 
-    if
-      let classDeclaration = declaration.as(ClassDeclSyntax.self),
-      try !extractStructuredOutputProperties(from: classDeclaration).isEmpty {
-      conformances.append("SupportsStructuredOutputs")
+    if let classDeclaration = declaration.as(ClassDeclSyntax.self) {
+      structuredOutputProperties = try extractStructuredOutputProperties(from: classDeclaration)
+      if !structuredOutputProperties.isEmpty {
+        conformances.append("SupportsStructuredOutputs")
+      }
     }
 
     let extensionDecl: DeclSyntax =
@@ -172,11 +172,22 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
       extension \(type.trimmed): \(raw: conformances.joined(separator: ", ")) {}
       """
 
-    guard let extensionDeclSyntax = extensionDecl.as(ExtensionDeclSyntax.self) else {
+    guard let baseExtensionDecl = extensionDecl.as(ExtensionDeclSyntax.self) else {
       return []
     }
 
-    return [extensionDeclSyntax]
+    var extensions: [ExtensionDeclSyntax] = [baseExtensionDecl]
+
+    if let classDeclaration = declaration.as(ClassDeclSyntax.self) {
+      extensions.append(
+        contentsOf: generateStructuredOutputRepresentationExtensions(
+          for: classDeclaration.name.text,
+          outputs: structuredOutputProperties,
+        ),
+      )
+    }
+
+    return extensions
   }
 
   /// Captures information about a `@Tool` property declared on the session type.
@@ -822,28 +833,27 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     }
   }
 
-  /// Emits the `StructuredOutputRepresentation` struct for decoding.
-  private static func generateStructuredOutputRepresentationStruct(for outputs: [StructuredOutputProperty])
-    -> DeclSyntax {
-    let propertyAccessors = outputs.map { output -> String in
-      let caseName = output.identifier.text
+  /// Provides strongly-typed accessors for each structured output scoped to the provider.
+  private static func generateStructuredOutputRepresentationExtensions(
+    for providerTypeName: String,
+    outputs: [StructuredOutputProperty],
+  ) -> [ExtensionDeclSyntax] {
+    outputs.compactMap { output in
       let schemaType = output.typeName
-      let resolvableTypeName = resolvableStructuredOutputTypeName(for: output)
-      return """
+      let caseName = output.identifier.text
+      let providerScopedResolvableName =
+        "\(providerTypeName).\(resolvableStructuredOutputTypeName(for: output))"
 
-        static var \(caseName): StructuredOutputRepresentation<\(schemaType)> {
-          StructuredOutputRepresentation<\(schemaType)>(\(resolvableTypeName).name)
+      let extensionDecl: DeclSyntax =
+        """
+        extension SwiftAgent.StructuredOutputRepresentation where Provider == \(raw: providerTypeName),
+          Schema == \(raw: schemaType) {
+          static var \(raw: caseName): Self { .init(\(raw: providerScopedResolvableName).name) }
         }
-      """
-    }.joined()
+        """
 
-    return """
-    struct StructuredOutputRepresentation<Schema: Generable>: Sendable, Equatable, SwiftAgent.StructuredOutputRepresentable {
-      typealias Provider = ProviderType
-      let name: String
-      private init(_ name: String) { self.name = name }\(raw: propertyAccessors)
+      return extensionDecl.as(ExtensionDeclSyntax.self)
     }
-    """
   }
 
   private static func resolvableStructuredOutputTypeName(for output: StructuredOutputProperty) -> String {

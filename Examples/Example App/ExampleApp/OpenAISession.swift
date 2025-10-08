@@ -5,11 +5,6 @@ import FoundationModels
 import Observation
 import OpenAISession
 
-// TODO: Way for a default value for the structured output to hide the "generating" method overloads?
-
-@LanguageModelProvider(.openAI)
-private final class OpenAISessionTwo {}
-
 final class OpenAISession {
   @Tool var calculator = CalculatorTool()
   @Tool var weather = WeatherTool()
@@ -306,24 +301,17 @@ final class OpenAISession {
       .weatherReport(structuredOutput)
     }
   }
-
-  struct StructuredOutputRepresentation<Schema: Generable>: Sendable, Equatable,
-    SwiftAgent.StructuredOutputRepresentable {
-    typealias Provider = ProviderType
-    let name: String
-    private init(_ name: String) {
-      self.name = name
-    }
-
-    static var weatherReport: StructuredOutputRepresentation<WeatherReport> {
-      StructuredOutputRepresentation<WeatherReport>(ResolvableWeatherReport.name)
-    }
-  }
 }
-
 
 extension OpenAISession: LanguageModelProvider, @unchecked Sendable, nonisolated Observation.Observable,
   SupportsStructuredOutputs {}
+
+extension SwiftAgent.StructuredOutputRepresentation where Provider == OpenAISession,
+  Schema == WeatherReport {
+  static var weatherReport: Self {
+    .init(OpenAISession.ResolvableWeatherReport.name)
+  }
+}
 
 @Generable
 struct WeatherReport {

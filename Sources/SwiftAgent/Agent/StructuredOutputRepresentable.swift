@@ -9,3 +9,13 @@ public protocol StructuredOutputRepresentable: Sendable, Equatable {
   associatedtype Schema: Generable
   var name: String { get }
 }
+
+public struct StructuredOutputRepresentation<
+  Provider: LanguageModelProvider,
+  Schema: Generable,
+>: StructuredOutputRepresentable {
+  public typealias Provider = Provider
+  public typealias Schema = Schema
+  public let name: String
+  public init(_ name: String) { self.name = name }
+}
