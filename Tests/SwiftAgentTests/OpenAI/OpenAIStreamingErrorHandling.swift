@@ -13,102 +13,102 @@ private final class ExampleSession {}
 
 @Suite("OpenAIAdapter - Streaming - Error Handling")
 struct OpenAIAdapterStreamingErrorTests {
-	typealias Transcript = SwiftAgent.Transcript
+  typealias Transcript = SwiftAgent.Transcript
 
-	@Test("'CancellationError' is thrown")
-	func cancellationError() async throws {
-		let mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(
-			recordedResponse: .init(body: "", statusCode: 200, delay: .milliseconds(10)),
-		)
-		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
-		let session = ExampleSession(instructions: "", configuration: configuration)
+  @Test("'CancellationError' is thrown")
+  func cancellationError() async throws {
+    let mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(
+      recordedResponse: .init(body: "", statusCode: 200, delay: .milliseconds(10)),
+    )
+    let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
+    let session = ExampleSession(instructions: "", configuration: configuration)
 
-		do {
-			let task = Task {
-				let stream = try session.streamResponse(
-					to: "prompt",
-					using: .gpt5,
-					options: .init(include: [.reasoning_encryptedContent]),
-				)
-				for try await _ in stream {
-					Issue.record("Expected the stream to finish because of the cancellation")
-				}
+    do {
+      let task = Task {
+        let stream = try session.streamResponse(
+          to: "prompt",
+          using: .gpt5,
+          options: .init(include: [.reasoning_encryptedContent]),
+        )
+        for try await _ in stream {
+          Issue.record("Expected the stream to finish because of the cancellation")
+        }
 
-				// When a task is cancelled, the stream should finish
-				#expect(Task.isCancelled)
-			}
-			task.cancel()
-			try await task.value
-		} catch {
-			Issue.record("Expected CancellationError but received \(error)")
-		}
-	}
+        // When a task is cancelled, the stream should finish
+        #expect(Task.isCancelled)
+      }
+      task.cancel()
+      try await task.value
+    } catch {
+      Issue.record("Expected CancellationError but received \(error)")
+    }
+  }
 
-	@Test("Error event surfaces a failure")
-	func errorEventSurfacesFailure() async throws {
-		let mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(
-			recordedResponse: .init(body: insufficientQuotaErrorResponse, statusCode: 200),
-		)
-		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
-		let session = ExampleSession(instructions: "", configuration: configuration)
+  @Test("Error event surfaces a failure")
+  func errorEventSurfacesFailure() async throws {
+    let mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(
+      recordedResponse: .init(body: insufficientQuotaErrorResponse, statusCode: 200),
+    )
+    let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
+    let session = ExampleSession(instructions: "", configuration: configuration)
 
-		let stream = try session.streamResponse(
-			to: "prompt",
-			using: .gpt5,
-			options: .init(include: [.reasoning_encryptedContent]),
-		)
+    let stream = try session.streamResponse(
+      to: "prompt",
+      using: .gpt5,
+      options: .init(include: [.reasoning_encryptedContent]),
+    )
 
-		do {
-			for try await _ in stream {}
-			Issue.record("Expected streamResponse to throw when an error event is received")
-			return
-		} catch {
-			guard let generationError = error as? GenerationError else {
-				Issue.record("Expected GenerationError but received \(error)")
-				return
-			}
+    do {
+      for try await _ in stream {}
+      Issue.record("Expected streamResponse to throw when an error event is received")
+      return
+    } catch {
+      guard let generationError = error as? GenerationError else {
+        Issue.record("Expected GenerationError but received \(error)")
+        return
+      }
 
-			switch generationError {
-			case let .providerError(context):
-				#expect(context.code == "insufficient_quota")
-			default:
-				Issue.record("Unexpected error thrown: \(generationError)")
-			}
-		}
-	}
+      switch generationError {
+      case let .providerError(context):
+        #expect(context.code == "insufficient_quota")
+      default:
+        Issue.record("Unexpected error thrown: \(generationError)")
+      }
+    }
+  }
 
-	@Test("'invalid_api_key' is thrown even when streaming")
-	func invalidAPIKeyError() async throws {
-		let mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(
-			recordedResponse: .init(body: missingAPIKeyErrorResponse, statusCode: 401),
-		)
-		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
-		let session = ExampleSession(instructions: "", configuration: configuration)
+  @Test("'invalid_api_key' is thrown even when streaming")
+  func invalidAPIKeyError() async throws {
+    let mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(
+      recordedResponse: .init(body: missingAPIKeyErrorResponse, statusCode: 401),
+    )
+    let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
+    let session = ExampleSession(instructions: "", configuration: configuration)
 
-		do {
-			let stream = try session.streamResponse(
-				to: "prompt",
-				using: .gpt5,
-				options: .init(include: [.reasoning_encryptedContent]),
-			)
-			for try await _ in stream {
-				Issue.record("Expected streamResponse to throw when an error event is received")
-				return
-			}
-		} catch {
-			guard let generationError = error as? GenerationError else {
-				Issue.record("Expected GenerationError but received \(error)")
-				return
-			}
+    do {
+      let stream = try session.streamResponse(
+        to: "prompt",
+        using: .gpt5,
+        options: .init(include: [.reasoning_encryptedContent]),
+      )
+      for try await _ in stream {
+        Issue.record("Expected streamResponse to throw when an error event is received")
+        return
+      }
+    } catch {
+      guard let generationError = error as? GenerationError else {
+        Issue.record("Expected GenerationError but received \(error)")
+        return
+      }
 
-			switch generationError {
-			case let .providerError(context):
-				#expect(context.code == "invalid_api_key")
-			default:
-				Issue.record("Unexpected error thrown: \(generationError)")
-			}
-		}
-	}
+      switch generationError {
+      case let .providerError(context):
+        #expect(context.code == "invalid_api_key")
+      default:
+        Issue.record("Unexpected error thrown: \(generationError)")
+      }
+    }
+  }
 }
 
 // MARK: - Mock Responses

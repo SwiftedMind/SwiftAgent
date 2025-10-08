@@ -12,17 +12,17 @@
 /// If a request returns `401 Unauthorized` and a `refreshToken` closure is available, the
 /// adapter may invoke it to obtain a new token and retry once.
 package actor AuthorizationContext {
-	@TaskLocal package static var current: AuthorizationContext?
+  @TaskLocal package static var current: AuthorizationContext?
 
-	package var bearerToken: String
-	package let refreshToken: (@Sendable () async throws -> String)?
+  package var bearerToken: String
+  package let refreshToken: (@Sendable () async throws -> String)?
 
-	package init(bearerToken: String, refreshToken: (@Sendable () async throws -> String)? = nil) {
-		self.bearerToken = bearerToken
-		self.refreshToken = refreshToken
-	}
+  package init(bearerToken: String, refreshToken: (@Sendable () async throws -> String)? = nil) {
+    self.bearerToken = bearerToken
+    self.refreshToken = refreshToken
+  }
 
-	package func setBearerToken(_ token: String) {
-		bearerToken = token
-	}
+  package func setBearerToken(_ token: String) {
+    bearerToken = token
+  }
 }

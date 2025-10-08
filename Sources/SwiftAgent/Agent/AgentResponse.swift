@@ -26,40 +26,40 @@ import Internal
 /// print("Added \(response.transcript.count) transcript entries")
 /// ```
 public struct AgentResponse<Content: Generable, Provider: LanguageModelProvider> {
-	/// The generated content from the AI model.
-	///
-	/// For text responses, this will be a `String`. For structured responses,
-	/// this will be an instance of the requested `@Generable` type.
-	public var content: Content
+  /// The generated content from the AI model.
+  ///
+  /// For text responses, this will be a `String`. For structured responses,
+  /// this will be an instance of the requested `@Generable` type.
+  public var content: Content
 
-	/// The transcript of the generation.
-	///
-	/// This includes all the entries that were added during the generation,
-	/// including reasoning steps, tool calls, and the final response.
-	public var transcript: Transcript
+  /// The transcript of the generation.
+  ///
+  /// This includes all the entries that were added during the generation,
+  /// including reasoning steps, tool calls, and the final response.
+  public var transcript: Transcript
 
-	/// The resolved transcript projection for the session.
-	///
-	/// This provides resolved tool runs corresponding to the generated transcript entries.
-	public let resolvedTranscript: Provider.ResolvedTranscript
+  /// The resolved transcript projection for the session.
+  ///
+  /// This provides resolved tool runs corresponding to the generated transcript entries.
+  public let resolvedTranscript: Provider.ResolvedTranscript
 
-	/// Token usage statistics aggregated across all internal generation steps.
-	///
-	/// Provides information about input tokens, output tokens, cached tokens, and reasoning tokens
-	/// used during the generation. May be `nil` if the adapter doesn't provide token usage information.
-	public var tokenUsage: TokenUsage?
+  /// Token usage statistics aggregated across all internal generation steps.
+  ///
+  /// Provides information about input tokens, output tokens, cached tokens, and reasoning tokens
+  /// used during the generation. May be `nil` if the adapter doesn't provide token usage information.
+  public var tokenUsage: TokenUsage?
 
-	package init(
-		content: Content,
-		transcript: Transcript,
-		resolvedTranscript: Provider.ResolvedTranscript,
-		tokenUsage: TokenUsage?,
-	) {
-		self.content = content
-		self.transcript = transcript
-		self.resolvedTranscript = resolvedTranscript
-		self.tokenUsage = tokenUsage
-	}
+  package init(
+    content: Content,
+    transcript: Transcript,
+    resolvedTranscript: Provider.ResolvedTranscript,
+    tokenUsage: TokenUsage?,
+  ) {
+    self.content = content
+    self.transcript = transcript
+    self.resolvedTranscript = resolvedTranscript
+    self.tokenUsage = tokenUsage
+  }
 }
 
 extension AgentResponse: Sendable where Content: Sendable {}

@@ -10,209 +10,209 @@ import Testing
 
 @LanguageModelProvider(.openAI)
 private final class ExampleSession {
-	@Tool var weather = WeatherTool()
+  @Tool var weather = WeatherTool()
 }
 
 @Suite("OpenAIAdapter - Streaming - Tool Calls")
 struct OpenAIAdapterStreamingToolCallsTests {
-	typealias Transcript = SwiftAgent.Transcript
+  typealias Transcript = SwiftAgent.Transcript
 
-	// MARK: - Properties
+  // MARK: - Properties
 
-	private let session: ExampleSession
-	private let mockHTTPClient: ReplayHTTPClient<CreateModelResponseQuery>
+  private let session: ExampleSession
+  private let mockHTTPClient: ReplayHTTPClient<CreateModelResponseQuery>
 
-	// MARK: - Initialization
+  // MARK: - Initialization
 
-	init() async {
-		mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(
-			recordedResponses: [
-				.init(body: response1),
-				.init(body: response2),
-			],
-		)
-		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
-		session = ExampleSession(instructions: "", configuration: configuration)
-	}
+  init() async {
+    mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(
+      recordedResponses: [
+        .init(body: response1),
+        .init(body: response2),
+      ],
+    )
+    let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
+    session = ExampleSession(instructions: "", configuration: configuration)
+  }
 
-	@Test("Single Tool Call (2 responses)")
-	func singleToolCall() async throws {
-		let generatedTranscript = try await processStreamResponse()
+  @Test("Single Tool Call (2 responses)")
+  func singleToolCall() async throws {
+    let generatedTranscript = try await processStreamResponse()
 
-		await validateHTTPRequests()
-		try validateTranscript(generatedTranscript: generatedTranscript)
-	}
+    await validateHTTPRequests()
+    try validateTranscript(generatedTranscript: generatedTranscript)
+  }
 
-	// MARK: - Private Test Helper Methods
+  // MARK: - Private Test Helper Methods
 
-	private func processStreamResponse() async throws -> Transcript {
-		let userPrompt = "What is the weather in New York City, USA?"
+  private func processStreamResponse() async throws -> Transcript {
+    let userPrompt = "What is the weather in New York City, USA?"
 
-		let stream = try session.streamResponse(
-			to: userPrompt,
-			generating: String.self,
-			options: .init(include: [.reasoning_encryptedContent]),
-		)
+    let stream = try session.streamResponse(
+      to: userPrompt,
+      generating: String.self,
+      options: .init(include: [.reasoning_encryptedContent]),
+    )
 
-		var generatedTranscript = Transcript()
+    var generatedTranscript = Transcript()
 
-		for try await snapshot in stream {
-			generatedTranscript = snapshot.transcript
-		}
+    for try await snapshot in stream {
+      generatedTranscript = snapshot.transcript
+    }
 
-		return generatedTranscript
-	}
+    return generatedTranscript
+  }
 
-	private func validateHTTPRequests() async {
-		let recordedRequests = await mockHTTPClient.recordedRequests()
-		#expect(recordedRequests.count == 2)
+  private func validateHTTPRequests() async {
+    let recordedRequests = await mockHTTPClient.recordedRequests()
+    #expect(recordedRequests.count == 2)
 
-		// Validate first request
-		guard case let .inputItemList(items) = recordedRequests[0].body.input else {
-			Issue.record("Recorded request body input is not .inputItemList")
-			return
-		}
+    // Validate first request
+    guard case let .inputItemList(items) = recordedRequests[0].body.input else {
+      Issue.record("Recorded request body input is not .inputItemList")
+      return
+    }
 
-		#expect(items.count == 1)
+    #expect(items.count == 1)
 
-		guard case let .inputMessage(message) = items[0] else {
-			Issue.record("Recorded request body input item is not .inputMessage")
-			return
-		}
-		guard case let .textInput(text) = message.content else {
-			Issue.record("Expected message content to be text input")
-			return
-		}
+    guard case let .inputMessage(message) = items[0] else {
+      Issue.record("Recorded request body input item is not .inputMessage")
+      return
+    }
+    guard case let .textInput(text) = message.content else {
+      Issue.record("Expected message content to be text input")
+      return
+    }
 
-		#expect(text == "What is the weather in New York City, USA?")
+    #expect(text == "What is the weather in New York City, USA?")
 
-		// Validate second request
-		guard case let .inputItemList(secondItems) = recordedRequests[1].body.input else {
-			Issue.record("Second recorded request body input is not .inputItemList")
-			return
-		}
+    // Validate second request
+    guard case let .inputItemList(secondItems) = recordedRequests[1].body.input else {
+      Issue.record("Second recorded request body input is not .inputItemList")
+      return
+    }
 
-		#expect(secondItems.count == 4)
+    #expect(secondItems.count == 4)
 
-		// Validate first item (input message)
-		guard case let .inputMessage(secondMessage) = secondItems[0] else {
-			Issue.record("Second request first item is not .inputMessage")
-			return
-		}
-		guard case let .textInput(secondText) = secondMessage.content else {
-			Issue.record("Expected second message content to be text input")
-			return
-		}
+    // Validate first item (input message)
+    guard case let .inputMessage(secondMessage) = secondItems[0] else {
+      Issue.record("Second request first item is not .inputMessage")
+      return
+    }
+    guard case let .textInput(secondText) = secondMessage.content else {
+      Issue.record("Expected second message content to be text input")
+      return
+    }
 
-		#expect(secondText == "What is the weather in New York City, USA?")
+    #expect(secondText == "What is the weather in New York City, USA?")
 
-		// Validate second item (reasoning item)
-		guard case let .item(.reasoningItem(reasoningItem)) = secondItems[1] else {
-			Issue.record("Second request second item is not .reasoningItem")
-			return
-		}
+    // Validate second item (reasoning item)
+    guard case let .item(.reasoningItem(reasoningItem)) = secondItems[1] else {
+      Issue.record("Second request second item is not .reasoningItem")
+      return
+    }
 
-		#expect(reasoningItem.id == "rs_68d9303e94ac819ead3d9e066f405eae03aa6e5a972b3b23")
-		#expect(reasoningItem.summary == [])
+    #expect(reasoningItem.id == "rs_68d9303e94ac819ead3d9e066f405eae03aa6e5a972b3b23")
+    #expect(reasoningItem.summary == [])
 
-		// Validate third item (function tool call)
-		guard case let .item(.functionToolCall(functionCall)) = secondItems[2] else {
-			Issue.record("Second request third item is not .functionToolCall")
-			return
-		}
+    // Validate third item (function tool call)
+    guard case let .item(.functionToolCall(functionCall)) = secondItems[2] else {
+      Issue.record("Second request third item is not .functionToolCall")
+      return
+    }
 
-		#expect(functionCall.id == "fc_68d9303fe7fc819ea999bda43617404203aa6e5a972b3b23")
-		#expect(functionCall.callId == "call_5dp5Uj0Loqn1YcyIpqSq6sLX")
-		#expect(functionCall.name == "get_weather")
-		#expect(functionCall.arguments == #"{"location": "New York City, USA"}"#)
+    #expect(functionCall.id == "fc_68d9303fe7fc819ea999bda43617404203aa6e5a972b3b23")
+    #expect(functionCall.callId == "call_5dp5Uj0Loqn1YcyIpqSq6sLX")
+    #expect(functionCall.name == "get_weather")
+    #expect(functionCall.arguments == #"{"location": "New York City, USA"}"#)
 
-		// Validate fourth item (function call output)
-		guard case let .item(.functionCallOutputItemParam(functionOutput)) = secondItems[3] else {
-			Issue.record("Second request fourth item is not .functionCallOutputItemParam")
-			return
-		}
+    // Validate fourth item (function call output)
+    guard case let .item(.functionCallOutputItemParam(functionOutput)) = secondItems[3] else {
+      Issue.record("Second request fourth item is not .functionCallOutputItemParam")
+      return
+    }
 
-		#expect(functionOutput.callId == "call_5dp5Uj0Loqn1YcyIpqSq6sLX")
-		#expect(functionOutput.output == "\"Sunny\"")
-	}
+    #expect(functionOutput.callId == "call_5dp5Uj0Loqn1YcyIpqSq6sLX")
+    #expect(functionOutput.output == "\"Sunny\"")
+  }
 
-	private func validateTranscript(generatedTranscript: Transcript) throws {
-		#expect(generatedTranscript.count == 5)
+  private func validateTranscript(generatedTranscript: Transcript) throws {
+    #expect(generatedTranscript.count == 5)
 
-		guard case let .prompt(prompt) = generatedTranscript[0] else {
-			Issue.record("First transcript entry is not .prompt")
-			return
-		}
+    guard case let .prompt(prompt) = generatedTranscript[0] else {
+      Issue.record("First transcript entry is not .prompt")
+      return
+    }
 
-		#expect(prompt.input == "What is the weather in New York City, USA?")
+    #expect(prompt.input == "What is the weather in New York City, USA?")
 
-		guard case let .reasoning(reasoning) = generatedTranscript[1] else {
-			Issue.record("First transcript entry is not .reasoning")
-			return
-		}
+    guard case let .reasoning(reasoning) = generatedTranscript[1] else {
+      Issue.record("First transcript entry is not .reasoning")
+      return
+    }
 
-		#expect(reasoning.id == "rs_68d9303e94ac819ead3d9e066f405eae03aa6e5a972b3b23")
-		#expect(reasoning.summary == [])
+    #expect(reasoning.id == "rs_68d9303e94ac819ead3d9e066f405eae03aa6e5a972b3b23")
+    #expect(reasoning.summary == [])
 
-		guard case let .toolCalls(toolCalls) = generatedTranscript[2] else {
-			Issue.record("Second transcript entry is not .toolCalls")
-			return
-		}
+    guard case let .toolCalls(toolCalls) = generatedTranscript[2] else {
+      Issue.record("Second transcript entry is not .toolCalls")
+      return
+    }
 
-		#expect(toolCalls.calls.count == 1)
-		#expect(toolCalls.calls[0].id == "fc_68d9303fe7fc819ea999bda43617404203aa6e5a972b3b23")
-		#expect(toolCalls.calls[0].callId == "call_5dp5Uj0Loqn1YcyIpqSq6sLX")
-		#expect(toolCalls.calls[0].toolName == "get_weather")
-		let expectedArguments = try GeneratedContent(json: #"{ "location": "New York City, USA" }"#)
-		#expect(toolCalls.calls[0].arguments.jsonString == expectedArguments.jsonString)
+    #expect(toolCalls.calls.count == 1)
+    #expect(toolCalls.calls[0].id == "fc_68d9303fe7fc819ea999bda43617404203aa6e5a972b3b23")
+    #expect(toolCalls.calls[0].callId == "call_5dp5Uj0Loqn1YcyIpqSq6sLX")
+    #expect(toolCalls.calls[0].toolName == "get_weather")
+    let expectedArguments = try GeneratedContent(json: #"{ "location": "New York City, USA" }"#)
+    #expect(toolCalls.calls[0].arguments.jsonString == expectedArguments.jsonString)
 
-		guard case let .toolOutput(toolOutput) = generatedTranscript[3] else {
-			Issue.record("Third transcript entry is not .toolOutput")
-			return
-		}
+    guard case let .toolOutput(toolOutput) = generatedTranscript[3] else {
+      Issue.record("Third transcript entry is not .toolOutput")
+      return
+    }
 
-		#expect(toolOutput.id == "fc_68d9303fe7fc819ea999bda43617404203aa6e5a972b3b23")
-		#expect(toolOutput.callId == "call_5dp5Uj0Loqn1YcyIpqSq6sLX")
-		#expect(toolOutput.toolName == "get_weather")
+    #expect(toolOutput.id == "fc_68d9303fe7fc819ea999bda43617404203aa6e5a972b3b23")
+    #expect(toolOutput.callId == "call_5dp5Uj0Loqn1YcyIpqSq6sLX")
+    #expect(toolOutput.toolName == "get_weather")
 
-		guard case let .structure(structuredSegment) = toolOutput.segment else {
-			Issue.record("Tool output segment is not .text")
-			return
-		}
+    guard case let .structure(structuredSegment) = toolOutput.segment else {
+      Issue.record("Tool output segment is not .text")
+      return
+    }
 
-		#expect(structuredSegment.content.generatedContent.kind == .string("Sunny"))
+    #expect(structuredSegment.content.generatedContent.kind == .string("Sunny"))
 
-		guard case let .response(response) = generatedTranscript[4] else {
-			Issue.record("Fourth transcript entry is not .response")
-			return
-		}
+    guard case let .response(response) = generatedTranscript[4] else {
+      Issue.record("Fourth transcript entry is not .response")
+      return
+    }
 
-		#expect(response.id == "msg_68d930427844819ebda216a5dcfbec4603aa6e5a972b3b23")
-		#expect(response.segments.count == 1)
+    #expect(response.id == "msg_68d930427844819ebda216a5dcfbec4603aa6e5a972b3b23")
+    #expect(response.segments.count == 1)
 
-		guard case let .text(textSegment) = response.segments[0] else {
-			Issue.record("Response segment is not .text")
-			return
-		}
+    guard case let .text(textSegment) = response.segments[0] else {
+      Issue.record("Response segment is not .text")
+      return
+    }
 
-		#expect(textSegment.content == "Current weather in New York City, USA: Sunny.")
-	}
+    #expect(textSegment.content == "Current weather in New York City, USA: Sunny.")
+  }
 }
 
 // MARK: - Tools
 
 private struct WeatherTool: SwiftAgentTool {
-	var name: String = "get_weather"
-	var description: String = "Get current temperature for a given location."
+  var name: String = "get_weather"
+  var description: String = "Get current temperature for a given location."
 
-	@Generable
-	struct Arguments: Equatable {
-		var location: String
-	}
+  @Generable
+  struct Arguments: Equatable {
+    var location: String
+  }
 
-	func call(arguments: Arguments) async throws -> String {
-		"Sunny"
-	}
+  func call(arguments: Arguments) async throws -> String {
+    "Sunny"
+  }
 }
 
 // MARK: - Mock Responses

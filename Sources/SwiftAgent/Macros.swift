@@ -28,11 +28,11 @@ import Observation
 @attached(member, names: arbitrary)
 @attached(extension, conformances: LanguageModelProvider, Sendable, Observation.Observable)
 public macro LanguageModelProvider(_ provider: Provider) = #externalMacro(
-	module: "SwiftAgentMacros",
-	type: "LanguageModelProviderMacro",
+  module: "SwiftAgentMacros",
+  type: "LanguageModelProviderMacro",
 )
 
 /// Provider types supported by `@LanguageModelProvider`.
 public enum Provider {
-	case openAI
+  case openAI
 }

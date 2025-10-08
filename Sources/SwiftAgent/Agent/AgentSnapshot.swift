@@ -24,47 +24,47 @@ import Internal
 /// }
 /// ```
 public struct AgentSnapshot<Content: Generable, Provider: LanguageModelProvider> {
-	/// The generated content from the AI model.
-	///
-	/// This will be `nil` if the content is not available yet.
-	///
-	/// For text responses, this will be a `String`. For structured responses,
-	/// this will be an instance of the requested `@Generable` type.
-	public var content: Content?
-	/// The current conversation transcript.
-	///
-	/// This includes all entries that have been added during the current generation,
-	/// including reasoning steps, tool calls, and partial responses. Tool calls are partially resolved
-	/// for the observing session so that UI code can render tool output without additional resolution work.
-	public let transcript: Transcript
+  /// The generated content from the AI model.
+  ///
+  /// This will be `nil` if the content is not available yet.
+  ///
+  /// For text responses, this will be a `String`. For structured responses,
+  /// this will be an instance of the requested `@Generable` type.
+  public var content: Content?
+  /// The current conversation transcript.
+  ///
+  /// This includes all entries that have been added during the current generation,
+  /// including reasoning steps, tool calls, and partial responses. Tool calls are partially resolved
+  /// for the observing session so that UI code can render tool output without additional resolution work.
+  public let transcript: Transcript
 
-	/// The raw transcript before resolution, kept for consumers that still need direct access to the
-	/// untransformed entries.
-	public let streamingTranscript: Provider.ResolvedTranscript
+  /// The raw transcript before resolution, kept for consumers that still need direct access to the
+  /// untransformed entries.
+  public let streamingTranscript: Provider.ResolvedTranscript
 
-	/// Current token usage statistics.
-	///
-	/// Provides information about input tokens, output tokens, cached tokens, and reasoning tokens
-	/// used so far during the generation. May be `nil` if the adapter doesn't provide token usage
-	/// information or if no usage data has been received yet.
-	public let tokenUsage: TokenUsage?
+  /// Current token usage statistics.
+  ///
+  /// Provides information about input tokens, output tokens, cached tokens, and reasoning tokens
+  /// used so far during the generation. May be `nil` if the adapter doesn't provide token usage
+  /// information or if no usage data has been received yet.
+  public let tokenUsage: TokenUsage?
 
-	/// Creates a new agent snapshot with the specified transcript and token usage.
-	///
-	/// - Parameters:
-	///   - transcript: The current conversation transcript
-	///   - tokenUsage: Current token usage statistics, if available
-	public init(
-		content: Content? = nil,
-		transcript: Transcript,
-		streamingTranscript: Provider.ResolvedTranscript,
-		tokenUsage: TokenUsage? = nil,
-	) {
-		self.content = content
-		self.transcript = transcript
-		self.streamingTranscript = streamingTranscript
-		self.tokenUsage = tokenUsage
-	}
+  /// Creates a new agent snapshot with the specified transcript and token usage.
+  ///
+  /// - Parameters:
+  ///   - transcript: The current conversation transcript
+  ///   - tokenUsage: Current token usage statistics, if available
+  public init(
+    content: Content? = nil,
+    transcript: Transcript,
+    streamingTranscript: Provider.ResolvedTranscript,
+    tokenUsage: TokenUsage? = nil,
+  ) {
+    self.content = content
+    self.transcript = transcript
+    self.streamingTranscript = streamingTranscript
+    self.tokenUsage = tokenUsage
+  }
 }
 
 extension AgentSnapshot: Sendable where Content: Sendable {}

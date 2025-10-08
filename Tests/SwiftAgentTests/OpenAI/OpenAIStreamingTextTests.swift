@@ -13,96 +13,96 @@ private final class ExampleSession {}
 
 @Suite("OpenAIAdapter - Streaming - Text")
 struct OpenAIAdapterStreamingTextTests {
-	typealias Transcript = SwiftAgent.Transcript
+  typealias Transcript = SwiftAgent.Transcript
 
-	// MARK: - Properties
+  // MARK: - Properties
 
-	private let session: ExampleSession
-	private let mockHTTPClient: ReplayHTTPClient<CreateModelResponseQuery>
+  private let session: ExampleSession
+  private let mockHTTPClient: ReplayHTTPClient<CreateModelResponseQuery>
 
-	// MARK: - Initialization
+  // MARK: - Initialization
 
-	init() async {
-		mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(
-			recordedResponse: .init(body: helloWorldResponse),
-		)
-		let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
-		session = ExampleSession(instructions: "", configuration: configuration)
-	}
+  init() async {
+    mockHTTPClient = ReplayHTTPClient<CreateModelResponseQuery>(
+      recordedResponse: .init(body: helloWorldResponse),
+    )
+    let configuration = OpenAIConfiguration(httpClient: mockHTTPClient)
+    session = ExampleSession(instructions: "", configuration: configuration)
+  }
 
-	@Test("Single response")
-	func singleResponse() async throws {
-		let generatedTranscript = try await processStreamResponse()
-		await validateHTTPRequests()
-		try validateTranscript(generatedTranscript: generatedTranscript)
-	}
+  @Test("Single response")
+  func singleResponse() async throws {
+    let generatedTranscript = try await processStreamResponse()
+    await validateHTTPRequests()
+    try validateTranscript(generatedTranscript: generatedTranscript)
+  }
 
-	// MARK: - Private Test Helper Methods
+  // MARK: - Private Test Helper Methods
 
-	private func processStreamResponse() async throws -> Transcript {
-		let stream = try session.streamResponse(
-			to: "prompt",
-			using: .gpt5,
-			options: .init(include: [.reasoning_encryptedContent]),
-		)
+  private func processStreamResponse() async throws -> Transcript {
+    let stream = try session.streamResponse(
+      to: "prompt",
+      using: .gpt5,
+      options: .init(include: [.reasoning_encryptedContent]),
+    )
 
-		var generatedTranscript = Transcript()
+    var generatedTranscript = Transcript()
 
-		for try await snapshot in stream {
-			generatedTranscript = snapshot.transcript
-		}
+    for try await snapshot in stream {
+      generatedTranscript = snapshot.transcript
+    }
 
-		return generatedTranscript
-	}
+    return generatedTranscript
+  }
 
-	private func validateHTTPRequests() async {
-		let recordedRequests = await mockHTTPClient.recordedRequests()
-		#expect(recordedRequests.count == 1)
+  private func validateHTTPRequests() async {
+    let recordedRequests = await mockHTTPClient.recordedRequests()
+    #expect(recordedRequests.count == 1)
 
-		guard case let .inputItemList(items) = recordedRequests[0].body.input else {
-			Issue.record("Recorded request body input is not .inputItemList")
-			return
-		}
+    guard case let .inputItemList(items) = recordedRequests[0].body.input else {
+      Issue.record("Recorded request body input is not .inputItemList")
+      return
+    }
 
-		#expect(items.count == 1)
+    #expect(items.count == 1)
 
-		guard case let .inputMessage(message)? = items.first else {
-			Issue.record("Recorded request body input item is not .inputMessage")
-			return
-		}
-		guard case let .textInput(text) = message.content else {
-			Issue.record("Expected message content to be text input")
-			return
-		}
+    guard case let .inputMessage(message)? = items.first else {
+      Issue.record("Recorded request body input item is not .inputMessage")
+      return
+    }
+    guard case let .textInput(text) = message.content else {
+      Issue.record("Expected message content to be text input")
+      return
+    }
 
-		#expect(text == "prompt")
-	}
+    #expect(text == "prompt")
+  }
 
-	private func validateTranscript(generatedTranscript: Transcript) throws {
-		#expect(generatedTranscript.count == 2)
+  private func validateTranscript(generatedTranscript: Transcript) throws {
+    #expect(generatedTranscript.count == 2)
 
-		guard case let .reasoning(reasoning) = generatedTranscript[0] else {
-			Issue.record("First transcript entry is not .reasoning")
-			return
-		}
+    guard case let .reasoning(reasoning) = generatedTranscript[0] else {
+      Issue.record("First transcript entry is not .reasoning")
+      return
+    }
 
-		#expect(reasoning.id == "rs_68d7eff985648196883d78673232885e07152cb8c6ac9072")
-		#expect(reasoning.summary == [])
+    #expect(reasoning.id == "rs_68d7eff985648196883d78673232885e07152cb8c6ac9072")
+    #expect(reasoning.summary == [])
 
-		guard case let .response(response) = generatedTranscript[1] else {
-			Issue.record("Second transcript entry is not .response")
-			return
-		}
+    guard case let .response(response) = generatedTranscript[1] else {
+      Issue.record("Second transcript entry is not .response")
+      return
+    }
 
-		#expect(response.id == "msg_68d7eff9c3b8819683eb04cbeb3775d507152cb8c6ac9072")
-		#expect(response.segments.count == 1)
-		guard case let .text(textSegment) = response.segments.first else {
-			Issue.record("Second transcript entry is not .text")
-			return
-		}
+    #expect(response.id == "msg_68d7eff9c3b8819683eb04cbeb3775d507152cb8c6ac9072")
+    #expect(response.segments.count == 1)
+    guard case let .text(textSegment) = response.segments.first else {
+      Issue.record("Second transcript entry is not .text")
+      return
+    }
 
-		#expect(textSegment.content == "Hello, World!")
-	}
+    #expect(textSegment.content == "Hello, World!")
+  }
 }
 
 // MARK: - Mock Responses

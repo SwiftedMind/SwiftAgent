@@ -25,9 +25,9 @@ extension Double: PromptRepresentable {}
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
 extension UUID: PromptRepresentable {
-	public var promptRepresentation: Prompt {
-		uuidString
-	}
+  public var promptRepresentation: Prompt {
+    uuidString
+  }
 }
 
 /// URLs render using their absolute string representation.
@@ -35,9 +35,9 @@ extension UUID: PromptRepresentable {
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
 extension URL: PromptRepresentable {
-	public var promptRepresentation: Prompt {
-		absoluteString
-	}
+  public var promptRepresentation: Prompt {
+    absoluteString
+  }
 }
 
 /// Dates render in ISO‑8601 format using modern `Foundation` formatting.
@@ -45,8 +45,8 @@ extension URL: PromptRepresentable {
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
 extension Date: PromptRepresentable {
-	public var promptRepresentation: Prompt {
-		// Use modern Foundation formatting for a deterministic ISO 8601 output.
-		formatted(.iso8601)
-	}
+  public var promptRepresentation: Prompt {
+    // Use modern Foundation formatting for a deterministic ISO 8601 output.
+    formatted(.iso8601)
+  }
 }

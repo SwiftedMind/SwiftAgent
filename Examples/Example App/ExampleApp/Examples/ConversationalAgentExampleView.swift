@@ -49,194 +49,194 @@ import UIKit
  */
 
 struct ConversationalAgentExampleView: View {
-	@State private var userInput = "Compute 234 + 6 using the tool! And write a 10 paragraph story about the result. Just write the story!"
-	@State private var streamingTranscript: OpenAISession.ResolvedTranscript = .init()
-	@State private var session: OpenAISession?
+  @State private var userInput = "Compute 234 + 6 using the tool! And write a 10 paragraph story about the result. Just write the story!"
+  @State private var streamingTranscript: OpenAISession.ResolvedTranscript = .init()
+  @State private var session: OpenAISession?
 
-	// MARK: - Body
+  // MARK: - Body
 
-	var body: some View {
-		ScrollView {
-			VStack(alignment: .leading) {
-				if let session {
-					content(session: session)
-				}
-			}
-			.padding(.horizontal)
-			.frame(maxWidth: .infinity, alignment: .leading)
-		}
-		.defaultScrollAnchor(.bottom)
-		.animation(.default, value: streamingTranscript)
-		.onAppear(perform: setupAgent)
-		.safeAreaBar(edge: .bottom) {
-			GlassEffectContainer {
-				HStack(alignment: .bottom) {
-					TextField("Message", text: $userInput, axis: .vertical)
-						.padding(.horizontal)
-						.padding(.vertical, 10)
-						.frame(maxWidth: .infinity, alignment: .leading)
-						.frame(minHeight: 45)
-						.glassEffect(.regular.interactive(), in: .rect(cornerRadius: 45 / 2))
-					Button {
-						Task {
-							await sendMessage()
-						}
-					} label: {
-						Image(systemName: "arrow.up")
-							.frame(width: 45, height: 45)
-					}
-					.glassEffect(.regular.interactive())
-				}
-			}
-			.padding()
-		}
-	}
+  var body: some View {
+    ScrollView {
+      VStack(alignment: .leading) {
+        if let session {
+          content(session: session)
+        }
+      }
+      .padding(.horizontal)
+      .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .defaultScrollAnchor(.bottom)
+    .animation(.default, value: streamingTranscript)
+    .onAppear(perform: setupAgent)
+    .safeAreaBar(edge: .bottom) {
+      GlassEffectContainer {
+        HStack(alignment: .bottom) {
+          TextField("Message", text: $userInput, axis: .vertical)
+            .padding(.horizontal)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(minHeight: 45)
+            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 45 / 2))
+          Button {
+            Task {
+              await sendMessage()
+            }
+          } label: {
+            Image(systemName: "arrow.up")
+              .frame(width: 45, height: 45)
+          }
+          .glassEffect(.regular.interactive())
+        }
+      }
+      .padding()
+    }
+  }
 
-	@ViewBuilder
-	private func content(session: OpenAISession) -> some View {
-		ForEach(streamingTranscript) { entry in
-			switch entry {
-			case let .prompt(prompt):
-				PromptEntryView(prompt: prompt)
-			case let .reasoning(reasoning):
-				ReasoningEntryView(reasoning: reasoning)
-			case let .toolRun(toolRun):
-				ToolRunEntryView(toolRun: toolRun)
-			case let .response(response):
-				ResponseEntryView(response: response)
-			}
-		}
-	}
+  @ViewBuilder
+  private func content(session: OpenAISession) -> some View {
+    ForEach(streamingTranscript) { entry in
+      switch entry {
+      case let .prompt(prompt):
+        PromptEntryView(prompt: prompt)
+      case let .reasoning(reasoning):
+        ReasoningEntryView(reasoning: reasoning)
+      case let .toolRun(toolRun):
+        ToolRunEntryView(toolRun: toolRun)
+      case let .response(response):
+        ResponseEntryView(response: response)
+      }
+    }
+  }
 
-	private func setupAgent() {
-		session = OpenAISession(
-			instructions: """
-			You are a helpful assistant with access to several tools.
-			Use the available tools when appropriate to help answer questions.
-			Be concise but informative in your responses.
-			""",
-			configuration: .direct(apiKey: Secret.OpenAI.apiKey),
-		)
-	}
+  private func setupAgent() {
+    session = OpenAISession(
+      instructions: """
+      You are a helpful assistant with access to several tools.
+      Use the available tools when appropriate to help answer questions.
+      Be concise but informative in your responses.
+      """,
+      configuration: .direct(apiKey: Secret.OpenAI.apiKey),
+    )
+  }
 
-	// MARK: - Actions
+  // MARK: - Actions
 
-	private func sendMessage() async {
-		guard let session, userInput.isEmpty == false else { return }
+  private func sendMessage() async {
+    guard let session, userInput.isEmpty == false else { return }
 
-		let userInput = userInput
-		self.userInput = ""
+    let userInput = userInput
+    self.userInput = ""
 
-		do {
-			let options = OpenAIGenerationOptions(
-				include: [.reasoning_encryptedContent],
-				reasoning: .init(effort: .minimal, summary: .auto),
-			)
+    do {
+      let options = OpenAIGenerationOptions(
+        include: [.reasoning_encryptedContent],
+        reasoning: .init(effort: .minimal, summary: .auto),
+      )
 
-			let stream = try session.streamResponse(
-				to: userInput,
-				generating: String.self,
-				groundingWith: [.currentDate(Date())],
-				using: OpenAIModel.gpt5_nano,
-				options: options,
-			) { input, sources in
-				PromptTag("context") {
-					for source in sources {
-						switch source {
-						case let .currentDate(date):
-							PromptTag("current-date") { date }
-						}
-					}
-				}
+      let stream = try session.streamResponse(
+        to: userInput,
+        generating: String.self,
+        groundingWith: [.currentDate(Date())],
+        using: OpenAIModel.gpt5_nano,
+        options: options,
+      ) { input, sources in
+        PromptTag("context") {
+          for source in sources {
+            switch source {
+            case let .currentDate(date):
+              PromptTag("current-date") { date }
+            }
+          }
+        }
 
-				PromptTag("input") {
-					input
-				}
-			}
+        PromptTag("input") {
+          input
+        }
+      }
 
-			for try await snapshot in stream {
-				streamingTranscript = snapshot.streamingTranscript
-			}
+      for try await snapshot in stream {
+        streamingTranscript = snapshot.streamingTranscript
+      }
 
-//			streamingTranscript = .init()
-		} catch {
-			print("Error", error.localizedDescription)
-		}
-	}
+      //			streamingTranscript = .init()
+    } catch {
+      print("Error", error.localizedDescription)
+    }
+  }
 }
 
 // MARK: - Entry Views
 
 private struct PromptEntryView: View {
-	let prompt: OpenAISession.ResolvedTranscript.Prompt
+  let prompt: OpenAISession.ResolvedTranscript.Prompt
 
-	var body: some View {
-		Text(prompt.input)
-	}
+  var body: some View {
+    Text(prompt.input)
+  }
 }
 
 private struct ReasoningEntryView: View {
-	let reasoning: OpenAISession.ResolvedTranscript.Reasoning
+  let reasoning: OpenAISession.ResolvedTranscript.Reasoning
 
-	var body: some View {
-		Text(reasoning.summary.joined(separator: ", "))
-			.foregroundStyle(.secondary)
-	}
+  var body: some View {
+    Text(reasoning.summary.joined(separator: ", "))
+      .foregroundStyle(.secondary)
+  }
 }
 
 private struct ToolRunEntryView: View {
-	let toolRun: OpenAISession.ResolvedToolRun
+  let toolRun: OpenAISession.ResolvedToolRun
 
-	var body: some View {
-		Text("TODO")
-		// switch toolRun.resolution {
-		// case let .inProgress(inProgressRun):
-		// 	switch inProgressRun {
-		// 	case let .calculator(calculatorRun):
-		// 		Text(
-		// 			"Calculator Run: \(calculatorRun.arguments.firstNumber ?? 0) \(calculatorRun.arguments.operation ?? "?")
-		// 			\(calculatorRun.arguments.secondNumber ?? 0)",
-		// 		)
-		// 	default:
-		// 		Text("Weather Run: \(toolRun.toolName)")
-		// 	}
-		// case let .completed(completedRun):
-		// 	switch completedRun {
-		// 	case let .calculator(calculatorRun):
-		// 		Text("TODO")
-		// 	// Text(
-		// 	// 	"Calculator Run: \(calculatorRun.arguments.firstNumber) \(calculatorRun.arguments.operation)
-		// 	// 	\(calculatorRun.arguments.secondNumber)",
-		// 	// )
-		// 	default:
-		// 		Text("Weather Run: \(toolRun.toolName)")
-		// 	}
-		// case let .failed(failedRun):
-		// 	Text("Failed Run: \(String(describing: failedRun))")
-		// }
-	}
+  var body: some View {
+    Text("TODO")
+    // switch toolRun.resolution {
+    // case let .inProgress(inProgressRun):
+    // 	switch inProgressRun {
+    // 	case let .calculator(calculatorRun):
+    // 		Text(
+    // 			"Calculator Run: \(calculatorRun.arguments.firstNumber ?? 0) \(calculatorRun.arguments.operation ?? "?")
+    // 			\(calculatorRun.arguments.secondNumber ?? 0)",
+    // 		)
+    // 	default:
+    // 		Text("Weather Run: \(toolRun.toolName)")
+    // 	}
+    // case let .completed(completedRun):
+    // 	switch completedRun {
+    // 	case let .calculator(calculatorRun):
+    // 		Text("TODO")
+    // 	// Text(
+    // 	// 	"Calculator Run: \(calculatorRun.arguments.firstNumber) \(calculatorRun.arguments.operation)
+    // 	// 	\(calculatorRun.arguments.secondNumber)",
+    // 	// )
+    // 	default:
+    // 		Text("Weather Run: \(toolRun.toolName)")
+    // 	}
+    // case let .failed(failedRun):
+    // 	Text("Failed Run: \(String(describing: failedRun))")
+    // }
+  }
 }
 
 private struct ResponseEntryView: View {
-	let response: OpenAISession.ResolvedTranscript.Response
+  let response: OpenAISession.ResolvedTranscript.Response
 
-	var body: some View {
-		if let text = response.text {
-			HorizontalGeometryReader { width in
-				UILabelView(
-					string: text,
-					preferredMaxLayoutWidth: width,
-				)
-			}
-		}
-	}
+  var body: some View {
+    if let text = response.text {
+      HorizontalGeometryReader { width in
+        UILabelView(
+          string: text,
+          preferredMaxLayoutWidth: width,
+        )
+      }
+    }
+  }
 }
 
 #Preview {
-	NavigationStack {
-		ConversationalAgentExampleView()
-			.navigationTitle("Agent Playground")
-			.navigationBarTitleDisplayMode(.inline)
-	}
-	.preferredColorScheme(.dark)
+  NavigationStack {
+    ConversationalAgentExampleView()
+      .navigationTitle("Agent Playground")
+      .navigationBarTitleDisplayMode(.inline)
+  }
+  .preferredColorScheme(.dark)
 }

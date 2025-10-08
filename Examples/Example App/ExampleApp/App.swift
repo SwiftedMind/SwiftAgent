@@ -6,15 +6,15 @@ import SwiftUI
 
 @main
 struct ExampleApp: App {
-	init() {
-		// Enable logging for development
-//		SwiftAgentConfiguration.setLoggingEnabled(true)
-//		SwiftAgentConfiguration.setNetworkLoggingEnabled(true)
-	}
+  init() {
+    // Enable logging for development
+    //		SwiftAgentConfiguration.setLoggingEnabled(true)
+    //		SwiftAgentConfiguration.setNetworkLoggingEnabled(true)
+  }
 
-	var body: some Scene {
-		WindowGroup {
-			ExampleListView()
-		}
-	}
+  var body: some Scene {
+    WindowGroup {
+      ExampleListView()
+    }
+  }
 }

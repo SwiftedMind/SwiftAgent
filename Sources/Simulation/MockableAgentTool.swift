@@ -33,40 +33,40 @@ import SwiftAgent
 /// }
 /// ```
 public protocol MockableAgentTool<Tool>: Sendable where Tool.Arguments: Encodable {
-	/// The associated agent tool type that this mock represents.
-	///
-	/// This type must conform to `Tool` and its `Arguments` type must be `Encodable`
-	/// to support JSON serialization in the simulation system.
-	associatedtype Tool: SwiftAgentTool
+  /// The associated agent tool type that this mock represents.
+  ///
+  /// This type must conform to `Tool` and its `Arguments` type must be `Encodable`
+  /// to support JSON serialization in the simulation system.
+  associatedtype Tool: SwiftAgentTool
 
-	/// The actual tool instance that this mock wraps.
-	///
-	/// This property provides access to the underlying tool for metadata like
-	/// name, description, and schema information.
-	var tool: Tool { get }
+  /// The actual tool instance that this mock wraps.
+  ///
+  /// This property provides access to the underlying tool for metadata like
+  /// name, description, and schema information.
+  var tool: Tool { get }
 
-	/// Generates mock arguments for the associated tool.
-	///
-	/// This method should return valid arguments that the tool would accept
-	/// during normal operation. The returned arguments will be used by the
-	/// simulation system to test tool calling behavior.
-	///
-	/// - Returns: Mock arguments of type `Tool.Arguments` that are valid for the tool.
-	///
-	/// - Note: The arguments must be serializable to JSON, which is ensured by the
-	///   `Encodable` constraint on `Tool.Arguments`.
-	func mockArguments() -> Tool.Arguments
+  /// Generates mock arguments for the associated tool.
+  ///
+  /// This method should return valid arguments that the tool would accept
+  /// during normal operation. The returned arguments will be used by the
+  /// simulation system to test tool calling behavior.
+  ///
+  /// - Returns: Mock arguments of type `Tool.Arguments` that are valid for the tool.
+  ///
+  /// - Note: The arguments must be serializable to JSON, which is ensured by the
+  ///   `Encodable` constraint on `Tool.Arguments`.
+  func mockArguments() -> Tool.Arguments
 
-	/// Generates mock output for the associated tool.
-	///
-	/// This method should return the expected output that the tool would produce
-	/// when called with valid arguments. This allows testing of tool output handling
-	/// without executing the actual tool logic.
-	///
-	/// - Returns: Mock output of type `Tool.Output` representing a successful tool execution.
-	/// - Throws: Any errors that the real tool might throw during execution, allowing
-	///   testing of error handling scenarios.
-	func mockOutput() async throws -> Tool.Output
+  /// Generates mock output for the associated tool.
+  ///
+  /// This method should return the expected output that the tool would produce
+  /// when called with valid arguments. This allows testing of tool output handling
+  /// without executing the actual tool logic.
+  ///
+  /// - Returns: Mock output of type `Tool.Output` representing a successful tool execution.
+  /// - Throws: Any errors that the real tool might throw during execution, allowing
+  ///   testing of error handling scenarios.
+  func mockOutput() async throws -> Tool.Output
 }
 
 /// A protocol that extends `@Generable` types with the ability to provide mock content
@@ -102,19 +102,19 @@ public protocol MockableAgentTool<Tool>: Sendable where Tool.Arguments: Encodabl
 /// }
 /// ```
 public protocol MockableGenerable where Self: Generable {
-	/// The associated content type that can be generated.
-	///
-	/// This type must conform to `Generable` to be compatible with the
-	/// SwiftAgent generation system.
-	associatedtype Content: Generable
+  /// The associated content type that can be generated.
+  ///
+  /// This type must conform to `Generable` to be compatible with the
+  /// SwiftAgent generation system.
+  associatedtype Content: Generable
 
-	/// Provides mock content for testing and simulation.
-	///
-	/// This method should return a representative instance of the content type
-	/// that can be used in place of actual AI-generated content during testing.
-	///
-	/// - Returns: A mock instance of `Content` for testing purposes.
-	static func mockContent() -> Content
+  /// Provides mock content for testing and simulation.
+  ///
+  /// This method should return a representative instance of the content type
+  /// that can be used in place of actual AI-generated content during testing.
+  ///
+  /// - Returns: A mock instance of `Content` for testing purposes.
+  static func mockContent() -> Content
 }
 
 /// Provides a default `MockableGenerable` implementation for `String`.
@@ -123,15 +123,15 @@ public protocol MockableGenerable where Self: Generable {
 /// simulation system, though the actual implementation returns an empty string
 /// as it's not actively used by the current simulation adapter.
 extension String: MockableGenerable {
-	/// Returns mock content for `String` type.
-	///
-	/// - Returns: An empty string as mock content.
-	///
-	/// - Note: This implementation returns an empty string because it's not
-	///   currently utilized by the simulation adapter, but is provided for
-	///   protocol conformance completeness.
-	public static func mockContent() -> String {
-		// Is not used by the simulation adapter
-		""
-	}
+  /// Returns mock content for `String` type.
+  ///
+  /// - Returns: An empty string as mock content.
+  ///
+  /// - Note: This implementation returns an empty string because it's not
+  ///   currently utilized by the simulation adapter, but is provided for
+  ///   protocol conformance completeness.
+  public static func mockContent() -> String {
+    // Is not used by the simulation adapter
+    ""
+  }
 }
