@@ -5,13 +5,325 @@ import FoundationModels
 import Observation
 import OpenAISession
 
+// TODO: Way for a default value for the structured output to hide the "generating" method overloads?
+
 @LanguageModelProvider(.openAI)
+private final class OpenAISessionTwo {}
+
 final class OpenAISession {
   @Tool var calculator = CalculatorTool()
   @Tool var weather = WeatherTool()
   @Grounding(Date.self) var currentDate
   @StructuredOutput(WeatherReport.self) var weatherReport
+
+  @propertyWrapper
+  struct Tool<ToolType: FoundationModels.Tool> where ToolType.Arguments: Generable, ToolType.Output: Generable {
+    var wrappedValue: ToolType
+    init(wrappedValue: ToolType) {
+      self.wrappedValue = wrappedValue
+    }
+  }
+
+  @propertyWrapper
+  struct StructuredOutput<Schema: Generable> {
+    var wrappedValue: Schema.Type
+    init(_ wrappedValue: Schema.Type) {
+      self.wrappedValue = wrappedValue
+    }
+  }
+
+  @propertyWrapper
+  struct Grounding<Source: Codable & Sendable & Equatable> {
+    var wrappedValue: Source.Type
+    init(_ wrappedValue: Source.Type) {
+      self.wrappedValue = wrappedValue
+    }
+  }
+
+  typealias Adapter = OpenAIAdapter
+
+  typealias ProviderType = OpenAISession
+
+  let adapter: OpenAIAdapter
+
+  @MainActor private var _transcript: SwiftAgent.Transcript = Transcript()
+
+  @MainActor var transcript: SwiftAgent.Transcript {
+    @storageRestrictions(initializes: _transcript)
+    init(initialValue) {
+      _transcript = initialValue
+    }
+    get {
+      access(keyPath: \.transcript)
+      return _transcript
+    }
+    set {
+      guard shouldNotifyObservers(_transcript, newValue) else {
+        _transcript = newValue
+        return
+      }
+
+      withMutation(keyPath: \.transcript) {
+        _transcript = newValue
+      }
+    }
+    _modify {
+      access(keyPath: \.transcript)
+      _$observationRegistrar.willSet(self, keyPath: \.transcript)
+      defer {
+        _$observationRegistrar.didSet(self, keyPath: \.transcript)
+      }
+      yield &_transcript
+    }
+  }
+
+  @MainActor private var _tokenUsage: TokenUsage = .init()
+
+  @MainActor var tokenUsage: TokenUsage {
+    @storageRestrictions(initializes: _tokenUsage)
+    init(initialValue) {
+      _tokenUsage = initialValue
+    }
+    get {
+      access(keyPath: \.tokenUsage)
+      return _tokenUsage
+    }
+    set {
+      guard shouldNotifyObservers(_tokenUsage, newValue) else {
+        _tokenUsage = newValue
+        return
+      }
+
+      withMutation(keyPath: \.tokenUsage) {
+        _tokenUsage = newValue
+      }
+    }
+    _modify {
+      access(keyPath: \.tokenUsage)
+      _$observationRegistrar.willSet(self, keyPath: \.tokenUsage)
+      defer {
+        _$observationRegistrar.didSet(self, keyPath: \.tokenUsage)
+      }
+      yield &_tokenUsage
+    }
+  }
+
+  let tools: [any ResolvableTool<ProviderType>]
+
+  static let structuredOutputs: [any (SwiftAgent.ResolvableStructuredOutput<ProviderType>).Type] = [
+    ResolvableWeatherReport.self,
+  ]
+
+  private let _$observationRegistrar = Observation.ObservationRegistrar()
+
+  nonisolated func access(
+    keyPath: KeyPath<ProviderType, some Any>,
+  ) {
+    _$observationRegistrar.access(self, keyPath: keyPath)
+  }
+
+  nonisolated func withMutation<A>(
+    keyPath: KeyPath<ProviderType, some Any>,
+    _ mutation: () throws -> A,
+  ) rethrows -> A {
+    try _$observationRegistrar.withMutation(of: self, keyPath: keyPath, mutation)
+  }
+
+  private nonisolated func shouldNotifyObservers<A>(
+    _ lhs: A,
+    _ rhs: A,
+  ) -> Bool {
+    true
+  }
+
+  private nonisolated func shouldNotifyObservers<A: Equatable>(
+    _ lhs: A,
+    _ rhs: A,
+  ) -> Bool {
+    lhs != rhs
+  }
+
+  private nonisolated func shouldNotifyObservers<A: AnyObject>(
+    _ lhs: A,
+    _ rhs: A,
+  ) -> Bool {
+    lhs !== rhs
+  }
+
+  private nonisolated func shouldNotifyObservers<A: Equatable & AnyObject>(
+    _ lhs: A,
+    _ rhs: A,
+  ) -> Bool {
+    lhs != rhs
+  }
+
+  init(
+    instructions: String,
+    apiKey: String,
+  ) {
+    let tools: [any ResolvableTool<ProviderType>] = [
+      ResolvableCalculatorTool(baseTool: _calculator.wrappedValue),
+      ResolvableWeatherTool(baseTool: _weather.wrappedValue),
+    ]
+    self.tools = tools
+
+    adapter = OpenAIAdapter(
+      tools: tools,
+      instructions: instructions,
+      configuration: .direct(apiKey: apiKey),
+    )
+  }
+
+  init(
+    instructions: String,
+    configuration: OpenAIConfiguration,
+  ) {
+    let tools: [any ResolvableTool<ProviderType>] = [
+      ResolvableCalculatorTool(baseTool: _calculator.wrappedValue),
+      ResolvableWeatherTool(baseTool: _weather.wrappedValue),
+    ]
+    self.tools = tools
+
+    adapter = OpenAIAdapter(
+      tools: tools,
+      instructions: instructions,
+      configuration: configuration,
+    )
+  }
+
+  enum GroundingRepresentation: GroundingRepresentable {
+    case currentDate(Date)
+  }
+
+  enum ResolvedToolRun: SwiftAgent.ResolvedToolRun {
+    case calculator(ToolRun<ResolvableCalculatorTool>)
+    case weather(ToolRun<ResolvableWeatherTool>)
+    case unknown(toolCall: SwiftAgent.Transcript.ToolCall)
+
+    static func makeUnknown(toolCall: SwiftAgent.Transcript.ToolCall) -> Self {
+      .unknown(toolCall: toolCall)
+    }
+
+    var id: String {
+      switch self {
+      case let .calculator(run):
+        run.id
+      case let .weather(run):
+        run.id
+      case let .unknown(toolCall):
+        toolCall.id
+      }
+    }
+  }
+
+  struct ResolvableCalculatorTool: ResolvableTool {
+    typealias Provider = ProviderType
+    typealias BaseTool = CalculatorTool
+    typealias Arguments = BaseTool.Arguments
+    typealias Output = BaseTool.Output
+
+    private let baseTool: BaseTool
+
+    init(baseTool: CalculatorTool) {
+      self.baseTool = baseTool
+    }
+
+    var name: String {
+      baseTool.name
+    }
+
+    var description: String {
+      baseTool.description
+    }
+
+    var parameters: GenerationSchema {
+      baseTool.parameters
+    }
+
+    func call(arguments: Arguments) async throws -> Output {
+      try await baseTool.call(arguments: arguments)
+    }
+
+    func resolve(
+      _ run: ToolRun<ResolvableCalculatorTool>,
+    ) -> Provider.ResolvedToolRun {
+      .calculator(run)
+    }
+  }
+
+  struct ResolvableWeatherTool: ResolvableTool {
+    typealias Provider = ProviderType
+    typealias BaseTool = WeatherTool
+    typealias Arguments = BaseTool.Arguments
+    typealias Output = BaseTool.Output
+
+    private let baseTool: BaseTool
+
+    init(baseTool: WeatherTool) {
+      self.baseTool = baseTool
+    }
+
+    var name: String {
+      baseTool.name
+    }
+
+    var description: String {
+      baseTool.description
+    }
+
+    var parameters: GenerationSchema {
+      baseTool.parameters
+    }
+
+    func call(arguments: Arguments) async throws -> Output {
+      try await baseTool.call(arguments: arguments)
+    }
+
+    func resolve(
+      _ run: ToolRun<ResolvableWeatherTool>,
+    ) -> Provider.ResolvedToolRun {
+      .weather(run)
+    }
+  }
+
+  enum ResolvedStructuredOutput: SwiftAgent.ResolvedStructuredOutput {
+    case weatherReport(SwiftAgent.StructuredOutput<ResolvableWeatherReport>)
+    case unknown(SwiftAgent.Transcript.StructuredSegment)
+
+    static func makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {
+      .unknown(segment)
+    }
+  }
+
+  struct ResolvableWeatherReport: SwiftAgent.ResolvableStructuredOutput {
+    typealias Schema = WeatherReport
+    typealias Provider = ProviderType
+    static let name = "weatherReport"
+
+    static func resolve(
+      _ structuredOutput: SwiftAgent.StructuredOutput<ResolvableWeatherReport>,
+    ) -> ResolvedStructuredOutput {
+      .weatherReport(structuredOutput)
+    }
+  }
+
+  struct StructuredOutputRepresentation<Schema: Generable>: Sendable, Equatable,
+    SwiftAgent.StructuredOutputRepresentable {
+    typealias Provider = ProviderType
+    let name: String
+    private init(_ name: String) {
+      self.name = name
+    }
+
+    static var weatherReport: StructuredOutputRepresentation<WeatherReport> {
+      StructuredOutputRepresentation<WeatherReport>(ResolvableWeatherReport.name)
+    }
+  }
 }
+
+
+extension OpenAISession: LanguageModelProvider, @unchecked Sendable, nonisolated Observation.Observable,
+  SupportsStructuredOutputs {}
 
 @Generable
 struct WeatherReport {

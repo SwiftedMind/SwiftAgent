@@ -4,6 +4,8 @@ import Foundation
 import FoundationModels
 import Internal
 
+public protocol SupportsStructuredOutputs {}
+
 public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
   /// The transcript type for this session, containing the conversation history.
   typealias Transcript = SwiftAgent.Transcript
@@ -14,7 +16,7 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
   associatedtype Adapter: SwiftAgent.Adapter & SendableMetatype
   associatedtype ResolvedToolRun: SwiftAgent.ResolvedToolRun
   associatedtype ResolvedStructuredOutput: SwiftAgent.ResolvedStructuredOutput
-  associatedtype GroundingSource: GroundingRepresentable
+  associatedtype GroundingRepresentation: GroundingRepresentable
   nonisolated static var structuredOutputs: [any (SwiftAgent.ResolvableStructuredOutput<Self>).Type] { get }
   nonisolated var tools: [any ResolvableTool<Self>] { get }
 
@@ -22,8 +24,8 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
   @MainActor var transcript: Transcript { get set }
   @MainActor var tokenUsage: TokenUsage { get set }
 
-  nonisolated func encodeGrounding(_ grounding: [GroundingSource]) throws -> Data
-  nonisolated func decodeGrounding(from data: Data) throws -> [GroundingSource]
+  nonisolated func encodeGrounding(_ grounding: [GroundingRepresentation]) throws -> Data
+  nonisolated func decodeGrounding(from data: Data) throws -> [GroundingRepresentation]
 
   @MainActor func resetTokenUsage()
   @MainActor func resolver() -> TranscriptResolver<Self>
@@ -52,12 +54,12 @@ public extension LanguageModelProvider {
     transcript.resolved(in: self)
   }
 
-  nonisolated func encodeGrounding(_ grounding: [GroundingSource]) throws -> Data {
+  nonisolated func encodeGrounding(_ grounding: [GroundingRepresentation]) throws -> Data {
     try JSONEncoder().encode(grounding)
   }
 
-  nonisolated func decodeGrounding(from data: Data) throws -> [GroundingSource] {
-    try JSONDecoder().decode([GroundingSource].self, from: data)
+  nonisolated func decodeGrounding(from data: Data) throws -> [GroundingRepresentation] {
+    try JSONDecoder().decode([GroundingRepresentation].self, from: data)
   }
 }
 

@@ -19,7 +19,7 @@ public extension LanguageModelProvider {
     generations: [SimulatedGeneration<String>],
     configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
   ) async throws -> AgentResponse<String, Self> {
-    let sourcesData = try encodeGrounding([GroundingSource]())
+    let sourcesData = try encodeGrounding([GroundingRepresentation]())
     let transcriptPrompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     let promptEntry = Transcript.Entry.prompt(transcriptPrompt)
     await appendTranscript(promptEntry)
@@ -75,7 +75,7 @@ public extension LanguageModelProvider {
     generations: [SimulatedGeneration<Content>],
     configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
   ) async throws -> AgentResponse<Content, Self> where Content: MockableGenerable {
-    let sourcesData = try encodeGrounding([GroundingSource]())
+    let sourcesData = try encodeGrounding([GroundingRepresentation]())
     let transcriptPrompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     let promptEntry = Transcript.Entry.prompt(transcriptPrompt)
     await appendTranscript(promptEntry)

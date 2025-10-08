@@ -137,7 +137,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
         provider: provider,
       ))
 
-    members.append(generateGroundingSourceEnum(for: groundingProperties))
+    members.append(generateGroundingRepresentationEnum(for: groundingProperties))
 
     members.append(generateResolvedToolRunEnum(for: toolProperties))
     members.append(contentsOf: toolProperties.map(Self.generateResolvableWrapper))
@@ -145,7 +145,8 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     // Structured Output typing support
     members.append(generateResolvedStructuredOutputEnum(for: structuredOutputProperties))
     members.append(contentsOf: generateResolvableStructuredOutputTypes(for: structuredOutputProperties))
-    members.append(generateStructuredOutputKindEnum(for: structuredOutputProperties))
+
+    members.append(generateStructuredOutputRepresentationStruct(for: structuredOutputProperties))
 
     return members
   }
@@ -158,7 +159,13 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     conformingTo protocols: [TypeSyntax],
     in context: some MacroExpansionContext,
   ) throws -> [ExtensionDeclSyntax] {
-    let conformances = ["LanguageModelProvider", "@unchecked Sendable", "nonisolated Observation.Observable"]
+    var conformances = ["LanguageModelProvider", "@unchecked Sendable", "nonisolated Observation.Observable"]
+
+    if
+      let classDeclaration = declaration.as(ClassDeclSyntax.self),
+      try !extractStructuredOutputProperties(from: classDeclaration).isEmpty {
+      conformances.append("SupportsStructuredOutputs")
+    }
 
     let extensionDecl: DeclSyntax =
       """
@@ -255,7 +262,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     }
   }
 
-  /// Collects `@Grounding` declarations to drive `GroundingSource` synthesis.
+  /// Collects `@Grounding` declarations to drive `GroundingRepresentation` synthesis.
   private static func extractGroundingProperties(from classDeclaration: ClassDeclSyntax) throws -> [GroundingProperty] {
     try classDeclaration.memberBlock.members.compactMap { member in
       guard let variableDecl = member.decl.as(VariableDeclSyntax.self) else {
@@ -532,16 +539,16 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
       """
   }
 
-  /// Emits the `GroundingSource` enum used to send and receive grounding payloads.
-  private static func generateGroundingSourceEnum(for groundings: [GroundingProperty]) -> DeclSyntax {
+  /// Emits the `GroundingRepresentation` enum used to send and receive grounding payloads.
+  private static func generateGroundingRepresentationEnum(for groundings: [GroundingProperty]) -> DeclSyntax {
     guard !groundings.isEmpty else {
       return
         """
-        enum GroundingSource: GroundingRepresentable {
+        enum GroundingRepresentation: GroundingRepresentable {
           init(from decoder: Decoder) throws {
             let context = DecodingError.Context(
               codingPath: decoder.codingPath,
-              debugDescription: "No @Grounding properties are defined, so no GroundingSource can be decoded."
+              debugDescription: "No @Grounding properties are defined, so no GroundingRepresentation can be decoded."
             )
             throw DecodingError.dataCorrupted(context)
           }
@@ -549,7 +556,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
           func encode(to encoder: Encoder) throws {
             let context = EncodingError.Context(
               codingPath: encoder.codingPath,
-              debugDescription: "No @Grounding properties are defined, so no GroundingSource can be encoded."
+              debugDescription: "No @Grounding properties are defined, so no GroundingRepresentation can be encoded."
             )
             throw EncodingError.invalidValue(self, context)
           }
@@ -564,7 +571,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
     return
       """
-      enum GroundingSource: GroundingRepresentable {
+      enum GroundingRepresentation: GroundingRepresentable {
       \(raw: cases)
       }
       """
@@ -815,23 +822,26 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     }
   }
 
-  /// Emits the `StructuredOutputKind` enum for decoding.
-  private static func generateStructuredOutputKindEnum(for outputs: [StructuredOutputProperty]) -> DeclSyntax {
-    guard !outputs.isEmpty else {
-      return """
-      enum StructuredOutputKind {}
-      """
-    }
-
-    let cases = outputs.map { output -> String in
+  /// Emits the `StructuredOutputRepresentation` struct for decoding.
+  private static func generateStructuredOutputRepresentationStruct(for outputs: [StructuredOutputProperty])
+    -> DeclSyntax {
+    let propertyAccessors = outputs.map { output -> String in
       let caseName = output.identifier.text
-      let raw = output.typeName
-      return "    case \(caseName) = \"\(raw)\""
-    }.joined(separator: "\n")
+      let schemaType = output.typeName
+      let resolvableTypeName = resolvableStructuredOutputTypeName(for: output)
+      return """
+
+        static var \(caseName): StructuredOutputRepresentation<\(schemaType)> {
+          StructuredOutputRepresentation<\(schemaType)>(\(resolvableTypeName).name)
+        }
+      """
+    }.joined()
 
     return """
-    enum StructuredOutputKind: String {
-    \(raw: cases)
+    struct StructuredOutputRepresentation<Schema: Generable>: Sendable, Equatable, SwiftAgent.StructuredOutputRepresentable {
+      typealias Provider = ProviderType
+      let name: String
+      private init(_ name: String) { self.name = name }\(raw: propertyAccessors)
     }
     """
   }
