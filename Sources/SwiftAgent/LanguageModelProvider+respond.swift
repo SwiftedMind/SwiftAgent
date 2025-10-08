@@ -37,7 +37,11 @@ public extension LanguageModelProvider {
     let sourcesData = try encodeGrounding([GroundingRepresentation]())
 
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
-    return try await processResponse(from: prompt, generating: String.self, using: model, options: options)
+    return try await processResponse(
+      from: prompt,
+      using: model,
+      options: options,
+    )
   }
 
   /// Generates a text response to a structured prompt.
@@ -145,7 +149,7 @@ public extension LanguageModelProvider {
   @discardableResult
   func respond<Content>(
     to prompt: String,
-    generating type: Content.Type = Content.self,
+    generating type: StructuredOutputRepresentation<Self, Content>,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) async throws -> Response<Content> where Content: Generable {
@@ -186,7 +190,7 @@ public extension LanguageModelProvider {
   @discardableResult
   func respond<Content>(
     to prompt: Prompt,
-    generating type: Content.Type = Content.self,
+    generating type: StructuredOutputRepresentation<Self, Content>,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) async throws -> Response<Content> where Content: Generable {
@@ -224,7 +228,7 @@ public extension LanguageModelProvider {
   /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
   @discardableResult
   func respond<Content>(
-    generating type: Content.Type = Content.self,
+    generating type: StructuredOutputRepresentation<Self, Content>,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder prompt: () throws -> Prompt,
@@ -293,7 +297,7 @@ public extension LanguageModelProvider {
       sources: sourcesData,
       prompt: prompt(input, sources).formatted(),
     )
-    return try await processResponse(from: prompt, generating: String.self, using: model, options: options)
+    return try await processResponse(from: prompt, using: model, options: options)
   }
 
   /// Generates a structured response with additional context while keeping user input separate.
@@ -340,7 +344,7 @@ public extension LanguageModelProvider {
   @discardableResult
   func respond<Content>(
     to input: String,
-    generating type: Content.Type = Content.self,
+    generating type: StructuredOutputRepresentation<Self, Content>,
     using model: Adapter.Model = .default,
     groundingWith sources: [GroundingRepresentation],
     options: Adapter.GenerationOptions? = nil,

@@ -133,30 +133,30 @@ struct ConversationalAgentExampleView: View {
         reasoning: .init(effort: .minimal, summary: .auto),
       )
 
-      let stream = try session.streamResponse(
-        to: userInput,
-        generating: String.self,
-        groundingWith: [.currentDate(Date())],
-        using: OpenAIModel.gpt5_nano,
-        options: options,
-      ) { input, sources in
-        PromptTag("context") {
-          for source in sources {
-            switch source {
-            case let .currentDate(date):
-              PromptTag("current-date") { date }
-            }
-          }
-        }
+      // let stream = try session.streamResponse(
+      //   to: userInput,
+      //   generating: String.self,
+      //   groundingWith: [.currentDate(Date())],
+      //   using: OpenAIModel.gpt5_nano,
+      //   options: options,
+      // ) { input, sources in
+      //   PromptTag("context") {
+      //     for source in sources {
+      //       switch source {
+      //       case let .currentDate(date):
+      //         PromptTag("current-date") { date }
+      //       }
+      //     }
+      //   }
 
-        PromptTag("input") {
-          input
-        }
-      }
+      //   PromptTag("input") {
+      //     input
+      //   }
+      // }
 
-      for try await snapshot in stream {
-        streamingTranscript = snapshot.streamingTranscript
-      }
+      // for try await snapshot in stream {
+      //   streamingTranscript = snapshot.streamingTranscript
+      // }
 
       //			streamingTranscript = .init()
     } catch {

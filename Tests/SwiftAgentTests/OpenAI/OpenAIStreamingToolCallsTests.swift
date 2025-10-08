@@ -50,7 +50,6 @@ struct OpenAIAdapterStreamingToolCallsTests {
 
     let stream = try session.streamResponse(
       to: userPrompt,
-      generating: String.self,
       options: .init(include: [.reasoning_encryptedContent]),
     )
 

@@ -29,7 +29,7 @@ public actor OpenAIAdapter: Adapter {
 
   public func respond(
     to prompt: Transcript.Prompt,
-    generating type: (some Generable).Type,
+    generating type: StructuredOutputRepresentation<some LanguageModelProvider, some Generable>?,
     using model: Model = .default,
     including transcript: Transcript,
     options: OpenAIGenerationOptions,
@@ -80,7 +80,7 @@ public actor OpenAIAdapter: Adapter {
 
   private func run(
     transcript: Transcript,
-    generating type: (some Generable).Type,
+    generating type: StructuredOutputRepresentation<some LanguageModelProvider, some Generable>?,
     using model: Model = .default,
     options: OpenAIGenerationOptions,
     continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
@@ -165,7 +165,7 @@ public actor OpenAIAdapter: Adapter {
 
   private func handleOutput(
     _ output: OutputItem,
-    type: (some Generable).Type,
+    type: StructuredOutputRepresentation<some LanguageModelProvider, some Generable>?,
     generatedTranscript: inout Transcript,
     continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
   ) async throws {
@@ -196,12 +196,11 @@ public actor OpenAIAdapter: Adapter {
 
   private func handleMessage(
     _ message: Components.Schemas.OutputMessage,
-    type: (some Generable).Type,
+    type: StructuredOutputRepresentation<some LanguageModelProvider, some Generable>?,
     generatedTranscript: inout Transcript,
     continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
   ) async throws {
-    let isString = (type == String.self)
-    let expectedTypeName = String(describing: type)
+    let expectedTypeName = type?.name ?? "String"
     let status: Transcript.Status = transcriptStatusFromOpenAIStatus(message.status)
 
     var fragments: [String] = []
@@ -239,16 +238,7 @@ public actor OpenAIAdapter: Adapter {
 
     let response: Transcript.Response
 
-    if isString {
-      let joinedText = fragments.joined(separator: "\n")
-      AgentLog.outputMessage(text: joinedText, status: String(describing: message.status))
-
-      response = Transcript.Response(
-        id: message.id,
-        segments: fragments.map { .text(.init(content: $0)) },
-        status: status,
-      )
-    } else {
+    if let type {
       let combinedJSON = fragments.joined()
       do {
         let generatedContent = try GeneratedContent(json: combinedJSON)
@@ -256,7 +246,7 @@ public actor OpenAIAdapter: Adapter {
 
         response = Transcript.Response(
           id: message.id,
-          segments: [.structure(.init(content: generatedContent))],
+          segments: [.structure(.init(typeName: type.name, content: generatedContent))],
           status: status,
         )
       } catch {
@@ -265,6 +255,15 @@ public actor OpenAIAdapter: Adapter {
           .init(rawContent: combinedJSON, underlyingError: error),
         )
       }
+    } else {
+      let joinedText = fragments.joined(separator: "\n")
+      AgentLog.outputMessage(text: joinedText, status: String(describing: message.status))
+
+      response = Transcript.Response(
+        id: message.id,
+        segments: fragments.map { .text(.init(content: $0)) },
+        status: status,
+      )
     }
 
     generatedTranscript.append(.response(response))
@@ -384,19 +383,19 @@ public actor OpenAIAdapter: Adapter {
 
   func responseQuery(
     including transcript: Transcript,
-    generating type: (some Generable).Type,
+    generating type: StructuredOutputRepresentation<some LanguageModelProvider, some Generable>?,
     using model: Model,
     options: OpenAIGenerationOptions,
     streamResponses: Bool = false,
   ) throws -> CreateModelResponseQuery {
     let textConfig: CreateModelResponseQuery.TextResponseConfigurationOptions? = {
-      if type == String.self {
+      guard let type else {
         return nil
       }
 
       let config = CreateModelResponseQuery.TextResponseConfigurationOptions.OutputFormat.StructuredOutputsConfig(
-        name: snakeCaseName(for: type),
-        schema: .dynamicJsonSchema(type.generationSchema),
+        name: type.name,
+        schema: .dynamicJsonSchema(type.schemaType.generationSchema),
         description: nil,
         strict: false,
       )

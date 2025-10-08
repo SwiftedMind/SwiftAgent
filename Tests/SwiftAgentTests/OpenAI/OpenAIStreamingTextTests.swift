@@ -79,9 +79,17 @@ struct OpenAIAdapterStreamingTextTests {
   }
 
   private func validateTranscript(generatedTranscript: Transcript) throws {
-    #expect(generatedTranscript.count == 2)
+    print(generatedTranscript)
+    #expect(generatedTranscript.count == 3)
 
-    guard case let .reasoning(reasoning) = generatedTranscript[0] else {
+    guard case let .prompt(prompt) = generatedTranscript[0] else {
+      Issue.record("First transcript entry is not .prompt")
+      return
+    }
+
+    #expect(prompt.input == "prompt")
+
+    guard case let .reasoning(reasoning) = generatedTranscript[1] else {
       Issue.record("First transcript entry is not .reasoning")
       return
     }
@@ -89,7 +97,7 @@ struct OpenAIAdapterStreamingTextTests {
     #expect(reasoning.id == "rs_68d7eff985648196883d78673232885e07152cb8c6ac9072")
     #expect(reasoning.summary == [])
 
-    guard case let .response(response) = generatedTranscript[1] else {
+    guard case let .response(response) = generatedTranscript[2] else {
       Issue.record("Second transcript entry is not .response")
       return
     }

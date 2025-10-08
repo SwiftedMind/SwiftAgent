@@ -4,8 +4,6 @@ import Foundation
 import FoundationModels
 import Internal
 
-public protocol SupportsStructuredOutputs {}
-
 public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
   /// The transcript type for this session, containing the conversation history.
   typealias Transcript = SwiftAgent.Transcript
@@ -88,7 +86,7 @@ package extension LanguageModelProvider {
 
   func processResponse<Content>(
     from prompt: Transcript.Prompt,
-    generating type: Content.Type,
+    generating type: StructuredOutputRepresentation<Self, Content>?,
     using model: Adapter.Model,
     options: Adapter.GenerationOptions?,
   ) async throws -> Response<Content> where Content: Generable {
@@ -186,9 +184,22 @@ package extension LanguageModelProvider {
     }
   }
 
+  func processResponse(
+    from prompt: Transcript.Prompt,
+    using model: Adapter.Model,
+    options: Adapter.GenerationOptions?,
+  ) async throws -> Response<String> {
+    try await processResponse(
+      from: prompt,
+      generating: nil,
+      using: model,
+      options: options,
+    )
+  }
+
   func processResponseStream<Content: Generable>(
     from prompt: Transcript.Prompt,
-    generating type: Content.Type,
+    generating type: StructuredOutputRepresentation<Self, Content>?,
     using model: Adapter.Model,
     options: Adapter.GenerationOptions?,
   ) -> AsyncThrowingStream<Snapshot<Content>, any Error> {
@@ -271,6 +282,14 @@ package extension LanguageModelProvider {
     }
 
     return setup.stream
+  }
+
+  func processResponseStream(
+    from prompt: Transcript.Prompt,
+    using model: Adapter.Model,
+    options: Adapter.GenerationOptions?,
+  ) -> AsyncThrowingStream<Snapshot<String>, any Error> {
+    processResponseStream(from: prompt, generating: nil, using: model, options: options)
   }
 }
 

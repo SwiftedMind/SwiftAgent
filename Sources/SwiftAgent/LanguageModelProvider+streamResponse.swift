@@ -37,7 +37,7 @@ public extension LanguageModelProvider {
   ) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {
     let sourcesData = try encodeGrounding([GroundingRepresentation]())
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
-    return processResponseStream(from: prompt, generating: String.self, using: model, options: options)
+    return processResponseStream(from: prompt, using: model, options: options)
   }
 
   /// Generates a streaming text response to a structured prompt.
@@ -123,7 +123,7 @@ public extension LanguageModelProvider {
   /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
   func streamResponse<Content>(
     to prompt: String,
-    generating type: Content.Type = Content.self,
+    generating type: StructuredOutputRepresentation<Self, Content>,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
@@ -167,7 +167,7 @@ public extension LanguageModelProvider {
   /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
   func streamResponse<Content>(
     to prompt: Prompt,
-    generating type: Content.Type = Content.self,
+    generating type: StructuredOutputRepresentation<Self, Content>,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
@@ -204,7 +204,7 @@ public extension LanguageModelProvider {
   ///
   /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
   func streamResponse<Content>(
-    generating type: Content.Type = Content.self,
+    generating type: StructuredOutputRepresentation<Self, Content>,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder prompt: @Sendable () throws -> Prompt,
@@ -230,13 +230,13 @@ public extension LanguageModelProvider {
       sources: sourcesData,
       prompt: prompt(input, sources).formatted(),
     )
-    return processResponseStream(from: prompt, generating: String.self, using: model, options: options)
+    return processResponseStream(from: prompt, using: model, options: options)
   }
 
   @discardableResult
   func streamResponse<Content: Generable>(
     to input: String,
-    generating type: Content.Type = Content.self,
+    generating type: StructuredOutputRepresentation<Self, Content>,
     groundingWith sources: [GroundingRepresentation],
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,

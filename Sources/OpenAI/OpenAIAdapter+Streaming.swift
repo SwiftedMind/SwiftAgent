@@ -7,10 +7,13 @@ import Internal
 import OpenAI
 import SwiftAgent
 
+// TODO: Update this to pass the type name to the response entry
+// TODO: Write unit tests that test structured output
+
 extension OpenAIAdapter {
   public func streamResponse(
     to prompt: Transcript.Prompt,
-    generating type: (some Generable).Type,
+    generating type: StructuredOutputRepresentation<some LanguageModelProvider, some Generable>?,
     using model: Model = .default,
     including transcript: Transcript,
     options: OpenAIGenerationOptions,
@@ -61,7 +64,7 @@ extension OpenAIAdapter {
 
   private func runStreamResponse(
     transcript: Transcript,
-    generating type: (some Generable).Type,
+    generating type: StructuredOutputRepresentation<some LanguageModelProvider, some Generable>?,
     using model: Model,
     options: OpenAIGenerationOptions,
     continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
@@ -72,8 +75,8 @@ extension OpenAIAdapter {
     var functionCallStates: [String: StreamingFunctionCallState] = [:]
     var functionCallOrder: [String] = []
 
-    let isGeneratingString = (type == String.self)
-    let expectedTypeName = String(describing: type)
+    let isGeneratingString = type == nil
+    let expectedTypeName = type?.name ?? "String"
     let allowedSteps = 20
     var currentStep = 0
 

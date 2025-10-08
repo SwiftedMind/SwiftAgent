@@ -17,5 +17,10 @@ public struct StructuredOutputRepresentation<
   public typealias Provider = Provider
   public typealias Schema = Schema
   public let name: String
+
+  public var schemaType: Schema.Type {
+    Schema.self
+  }
+
   public init(_ name: String) { self.name = name }
 }

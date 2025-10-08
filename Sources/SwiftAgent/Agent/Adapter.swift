@@ -14,7 +14,7 @@ public protocol Adapter: Actor {
 
   func respond(
     to prompt: Transcript.Prompt,
-    generating type: (some Generable).Type,
+    generating type: StructuredOutputRepresentation<some LanguageModelProvider, some Generable>?,
     using model: Model,
     including transcript: Transcript,
     options: GenerationOptions,
@@ -22,7 +22,7 @@ public protocol Adapter: Actor {
 
   func streamResponse(
     to prompt: Transcript.Prompt,
-    generating type: (some Generable).Type,
+    generating type: StructuredOutputRepresentation<some LanguageModelProvider, some Generable>?,
     using model: Model,
     including transcript: Transcript,
     options: GenerationOptions,
