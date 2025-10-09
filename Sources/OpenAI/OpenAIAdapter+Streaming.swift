@@ -7,8 +7,8 @@ import Internal
 import OpenAI
 import SwiftAgent
 
-// TODO: Update this to pass the type name to the response entry
 // TODO: Write unit tests that test structured output
+// TODO: Add access levels to the macro implementation
 
 extension OpenAIAdapter {
   public func streamResponse(
@@ -75,8 +75,8 @@ extension OpenAIAdapter {
     var functionCallStates: [String: StreamingFunctionCallState] = [:]
     var functionCallOrder: [String] = []
 
-    let isGeneratingString = type == nil
-    let expectedTypeName = type?.name ?? "String"
+    let structuredOutputTypeName = type?.name
+    let expectedContentDescription = structuredOutputTypeName ?? "String"
     let allowedSteps = 20
     var currentStep = 0
 
@@ -145,7 +145,7 @@ extension OpenAIAdapter {
             case let .added(addedEvent):
               try handleOutputItemAdded(
                 addedEvent,
-                isGeneratingString: isGeneratingString,
+                structuredOutputTypeName: structuredOutputTypeName,
                 generatedTranscript: &generatedTranscript,
                 entryIndices: &entryIndices,
                 messageStates: &messageStates,
@@ -156,7 +156,7 @@ extension OpenAIAdapter {
             case let .done(doneEvent):
               try handleOutputItemDone(
                 doneEvent,
-                expectedTypeName: expectedTypeName,
+                expectedContentDescription: expectedContentDescription,
                 generatedTranscript: &generatedTranscript,
                 entryIndices: &entryIndices,
                 messageStates: &messageStates,
@@ -280,7 +280,7 @@ extension OpenAIAdapter {
 
   private func handleOutputItemAdded(
     _ event: ResponseOutputItemAddedEvent,
-    isGeneratingString: Bool,
+    structuredOutputTypeName: String?,
     generatedTranscript: inout Transcript,
     entryIndices: inout [String: Int],
     messageStates: inout [String: StreamingMessageState],
@@ -302,7 +302,7 @@ extension OpenAIAdapter {
       messageStates[message.id] = StreamingMessageState(
         entryIndex: entryIndex,
         status: status,
-        isGeneratingString: isGeneratingString,
+        structuredOutputTypeName: structuredOutputTypeName,
       )
     case let .functionToolCall(functionCall):
       let placeholderArguments = try GeneratedContent(json: "{}")
@@ -350,7 +350,7 @@ extension OpenAIAdapter {
 
   private func handleOutputItemDone(
     _ event: ResponseOutputItemDoneEvent,
-    expectedTypeName: String,
+    expectedContentDescription: String,
     generatedTranscript: inout Transcript,
     entryIndices: inout [String: Int],
     messageStates: inout [String: StreamingMessageState],
@@ -371,7 +371,9 @@ extension OpenAIAdapter {
       messageStates[message.id] = state
       if let refusalText = state.refusalText {
         AgentLog.outputMessage(text: refusalText, status: String(describing: message.status))
-        throw GenerationError.contentRefusal(.init(expectedType: expectedTypeName, reason: refusalText))
+        throw GenerationError.contentRefusal(
+          .init(expectedType: expectedContentDescription, reason: refusalText),
+        )
       }
     case let .functionToolCall(functionCall):
       let identifier = functionCall.id ?? functionCall.callId
@@ -470,7 +472,7 @@ extension OpenAIAdapter {
   ) throws {
     guard let currentState = messageStates[event.itemId] else { return }
 
-    let finalizeStructuredContent = !currentState.isGeneratingString
+    let finalizeStructuredContent = currentState.structuredOutputTypeName != nil
 
     let updatedState = try updateMessageState(
       for: event.itemId,
@@ -484,7 +486,7 @@ extension OpenAIAdapter {
 
     guard let state = updatedState else { return }
 
-    if state.isGeneratingString {
+    if state.isGeneratingPlainText {
       let combinedText = state.fragments.joined(separator: "\n")
       AgentLog.outputMessage(text: combinedText, status: "completed")
     } else {
@@ -684,14 +686,14 @@ extension OpenAIAdapter {
       if let refusalText = state.refusalText {
         state.structuredContent = nil
         response.segments = [.text(.init(content: refusalText))]
-      } else if !state.isGeneratingString {
+      } else if let typeName = state.structuredOutputTypeName {
         let combinedJSON = state.fragments.joined()
         guard !combinedJSON.isEmpty else { return }
 
         do {
           let content = try GeneratedContent(json: combinedJSON)
           state.structuredContent = content
-          response.segments = [.structure(.init(content: content))]
+          response.segments = [.structure(.init(typeName: typeName, content: content))]
         } catch {
           if finalizeStructuredContent {
             AgentLog.error(error, context: "structured_response_parsing")
@@ -744,7 +746,11 @@ private struct StreamingMessageState {
   var structuredContent: GeneratedContent?
   var refusalText: String?
   var status: SwiftAgent.Transcript.Status
-  var isGeneratingString: Bool
+  var structuredOutputTypeName: String?
+
+  var isGeneratingPlainText: Bool {
+    structuredOutputTypeName == nil
+  }
 }
 
 private struct StreamingFunctionCallState {

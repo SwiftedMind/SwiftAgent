@@ -200,7 +200,8 @@ public actor OpenAIAdapter: Adapter {
     generatedTranscript: inout Transcript,
     continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
   ) async throws {
-    let expectedTypeName = type?.name ?? "String"
+    let structuredOutputTypeName = type?.name
+    let expectedContentDescription = structuredOutputTypeName ?? "String"
     let status: Transcript.Status = transcriptStatusFromOpenAIStatus(message.status)
 
     var fragments: [String] = []
@@ -229,11 +230,11 @@ public actor OpenAIAdapter: Adapter {
       generatedTranscript.append(.response(refusalResponse))
       continuation.yield(.transcript(.response(refusalResponse)))
 
-      throw GenerationError.contentRefusal(.init(expectedType: expectedTypeName, reason: refusalMessage))
+      throw GenerationError.contentRefusal(.init(expectedType: expectedContentDescription, reason: refusalMessage))
     }
 
     guard !fragments.isEmpty else {
-      throw GenerationError.emptyMessageContent(.init(expectedType: expectedTypeName))
+      throw GenerationError.emptyMessageContent(.init(expectedType: expectedContentDescription))
     }
 
     let response: Transcript.Response
@@ -246,7 +247,7 @@ public actor OpenAIAdapter: Adapter {
 
         response = Transcript.Response(
           id: message.id,
-          segments: [.structure(.init(typeName: type.name, content: generatedContent))],
+          segments: [.structure(.init(typeName: structuredOutputTypeName ?? type.name, content: generatedContent))],
           status: status,
         )
       } catch {
