@@ -117,6 +117,10 @@ struct ConversationalAgentExampleView: View {
       """,
       configuration: .direct(apiKey: Secret.OpenAI.apiKey),
     )
+
+    Task {
+      // try await session!.respond(to: "", generating: .weatherReport)
+    }
   }
 
   // MARK: - Actions

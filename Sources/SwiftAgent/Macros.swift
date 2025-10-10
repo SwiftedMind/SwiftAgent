@@ -26,7 +26,11 @@ import Observation
 ///
 /// Tool parameters are omitted automatically when the corresponding properties have default values.
 @attached(member, names: arbitrary)
-@attached(extension, conformances: LanguageModelProvider, Sendable, Observation.Observable, SupportsStructuredOutputs)
+@attached(
+  extension,
+  conformances: LanguageModelProvider, Sendable, Observation.Observable, SupportsStructuredOutputs,
+  names: arbitrary
+)
 public macro LanguageModelProvider(_ provider: Provider) = #externalMacro(
   module: "SwiftAgentMacros",
   type: "LanguageModelProviderMacro",

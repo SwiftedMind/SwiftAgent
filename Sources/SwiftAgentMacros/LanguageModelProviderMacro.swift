@@ -846,7 +846,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
       let extensionDecl: DeclSyntax =
         """
-        extension SwiftAgent.StructuredOutputRepresentation where Provider == \(raw: providerTypeName),
+        extension StructuredOutputRepresentation where Provider == \(raw: providerTypeName),
           Schema == \(raw: schemaType) {
           static var \(raw: caseName): Self { .init(\(raw: providerScopedResolvableName).name) }
         }
