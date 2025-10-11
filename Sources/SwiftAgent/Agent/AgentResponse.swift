@@ -7,14 +7,14 @@ import Internal
 /// The response returned by LanguageModelProvider methods, containing generated content and metadata.
 ///
 /// ``AgentResponse`` encapsulates the result of an AI generation request, providing access to
-/// the generated content, resolved transcript projection, and token usage statistics.
+/// the generated content, decoded transcript projection, and token usage statistics.
 ///
 /// ## Properties
 ///
 /// - **content**: The generated content, which can be a `String` for text responses or any
 ///   `@Generable` type for structured responses.
 /// - **transcript**: The raw transcript entries that were created during this generation.
-/// - **resolvedTranscript**: A projection of the transcript with tool runs fully resolved for the session.
+/// - **decodedTranscript**: A projection of the transcript with tool runs fully decoded for the session.
 /// - **tokenUsage**: Aggregated token consumption across all internal steps (optional).
 ///
 /// ## Example Usage
@@ -38,10 +38,10 @@ public struct AgentResponse<Content: Generable, Provider: LanguageModelProvider>
   /// including reasoning steps, tool calls, and the final response.
   public var transcript: Transcript
 
-  /// The resolved transcript projection for the session.
+  /// The decoded transcript projection for the session.
   ///
-  /// This provides resolved tool runs corresponding to the generated transcript entries.
-  public let resolvedTranscript: Provider.ResolvedTranscript
+  /// This provides decoded tool runs corresponding to the generated transcript entries.
+  public let decodedTranscript: Provider.DecodedTranscript
 
   /// Token usage statistics aggregated across all internal generation steps.
   ///
@@ -52,12 +52,12 @@ public struct AgentResponse<Content: Generable, Provider: LanguageModelProvider>
   package init(
     content: Content,
     transcript: Transcript,
-    resolvedTranscript: Provider.ResolvedTranscript,
+    decodedTranscript: Provider.DecodedTranscript,
     tokenUsage: TokenUsage?,
   ) {
     self.content = content
     self.transcript = transcript
-    self.resolvedTranscript = resolvedTranscript
+    self.decodedTranscript = decodedTranscript
     self.tokenUsage = tokenUsage
   }
 }

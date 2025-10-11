@@ -4,19 +4,19 @@ import Foundation
 import FoundationModels
 
 public extension Transcript {
-  struct Resolved<Provider: LanguageModelProvider>: Equatable, Sendable {
-    /// All transcript entries with resolved tool runs attached where available.
+  struct Decoded<Provider: LanguageModelProvider>: Equatable, Sendable {
+    /// All transcript entries with decoded tool runs attached where available.
     public package(set) var entries: [Entry]
 
     init(transcript: Transcript, session: Provider) {
-      let resolver = TranscriptResolver(for: session, transcript: transcript)
+      let decoder = TranscriptDecoder(for: session, transcript: transcript)
       entries = []
 
       for entry in transcript.entries {
         switch entry {
         case let .prompt(prompt):
-          var decodedSources: [Provider.ResolvedGrounding] = []
-          var errorContext: TranscriptResolutionError.PromptResolution?
+          var decodedSources: [Provider.DecodedGrounding] = []
+          var errorContext: TranscriptDecodingError.PromptResolution?
 
           do {
             decodedSources = try session.decodeGrounding(from: prompt.sources)
@@ -24,7 +24,7 @@ public extension Transcript {
             errorContext = .groundingDecodingFailed(description: error.localizedDescription)
           }
 
-          entries.append(.prompt(Resolved.Prompt(
+          entries.append(.prompt(Decoded.Prompt(
             id: prompt.id,
             input: prompt.input,
             sources: decodedSources,
@@ -32,7 +32,7 @@ public extension Transcript {
             error: errorContext,
           )))
         case let .reasoning(reasoning):
-          entries.append(.reasoning(Resolved.Reasoning(
+          entries.append(.reasoning(Decoded.Reasoning(
             id: reasoning.id,
             summary: reasoning.summary,
           )))
@@ -42,13 +42,13 @@ public extension Transcript {
           for segment in response.segments {
             switch segment {
             case let .text(text):
-              segments.append(.text(Resolved.TextSegment(
+              segments.append(.text(Decoded.TextSegment(
                 id: text.id,
                 content: text.content,
               )))
             case let .structure(structure):
-              let content = resolver.resolve(structure, status: response.status)
-              segments.append(.structure(Resolved.StructuredSegment(
+              let content = decoder.decode(structure, status: response.status)
+              segments.append(.structure(Decoded.StructuredSegment(
                 id: structure.id,
                 typeName: structure.typeName,
                 content: content,
@@ -56,15 +56,15 @@ public extension Transcript {
             }
           }
 
-          entries.append(.response(Resolved.Response(
+          entries.append(.response(Decoded.Response(
             id: response.id,
             segments: segments,
             status: response.status,
           )))
         case let .toolCalls(toolCalls):
           for call in toolCalls {
-            let resolvedToolRun = resolver.resolve(call)
-            entries.append(.toolRun(resolvedToolRun))
+            let decodedToolRun = decoder.decode(call)
+            entries.append(.toolRun(decodedToolRun))
           }
         case .toolOutput:
           // Handled already by the .toolCalls cases
@@ -73,11 +73,11 @@ public extension Transcript {
       }
     }
 
-    /// Transcript entry augmented with resolved tool runs.
+    /// Transcript entry augmented with decoded tool runs.
     public enum Entry: Identifiable, Equatable, Sendable {
       case prompt(Prompt)
       case reasoning(Reasoning)
-      case toolRun(Provider.ResolvedToolRun)
+      case toolRun(Provider.DecodedToolRun)
       case response(Response)
 
       public var id: String {
@@ -97,16 +97,16 @@ public extension Transcript {
     public struct Prompt: Identifiable, Sendable, Equatable {
       public var id: String
       public var input: String
-      public var sources: [Provider.ResolvedGrounding]
-      public let error: TranscriptResolutionError.PromptResolution?
+      public var sources: [Provider.DecodedGrounding]
+      public let error: TranscriptDecodingError.PromptResolution?
       package var prompt: String
 
       package init(
         id: String,
         input: String,
-        sources: [Provider.ResolvedGrounding],
+        sources: [Provider.DecodedGrounding],
         prompt: String,
-        error: TranscriptResolutionError.PromptResolution? = nil,
+        error: TranscriptDecodingError.PromptResolution? = nil,
       ) {
         self.id = id
         self.input = input
@@ -197,9 +197,9 @@ public extension Transcript {
     public struct StructuredSegment: Sendable, Identifiable, Equatable {
       public var id: String
       public var typeName: String
-      public var content: Provider.ResolvedStructuredOutput
+      public var content: Provider.DecodedStructuredOutput
 
-      public init(id: String, typeName: String = "", content: Provider.ResolvedStructuredOutput) {
+      public init(id: String, typeName: String = "", content: Provider.DecodedStructuredOutput) {
         self.id = id
         self.typeName = typeName
         self.content = content
@@ -208,7 +208,7 @@ public extension Transcript {
   }
 }
 
-extension Transcript.Resolved: RandomAccessCollection, RangeReplaceableCollection {
+extension Transcript.Decoded: RandomAccessCollection, RangeReplaceableCollection {
   public var startIndex: Int { entries.startIndex }
   public var endIndex: Int { entries.endIndex }
 

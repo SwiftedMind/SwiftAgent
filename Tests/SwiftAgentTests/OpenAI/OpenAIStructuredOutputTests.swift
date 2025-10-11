@@ -88,7 +88,7 @@
 //       return
 //     }
 
-//     #expect(structuredSegment.typeName == ExampleSession.ResolvableWeatherForecast.name)
+//     #expect(structuredSegment.typeName == ExampleSession.DecodableWeatherForecast.name)
 
 //     do {
 //       let decodedForecast = try WeatherForecast(structuredSegment.content)
@@ -137,7 +137,7 @@
 //       return
 //     }
 
-//     #expect(config.name == ExampleSession.ResolvableWeatherForecast.name)
+//     #expect(config.name == ExampleSession.DecodableWeatherForecast.name)
 //     #expect(config.strict == false)
 //   }
 

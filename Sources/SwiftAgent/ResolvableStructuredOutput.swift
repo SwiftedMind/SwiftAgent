@@ -4,13 +4,13 @@ import Foundation
 import FoundationModels
 import Internal
 
-public protocol ResolvableStructuredOutput<Provider>: Sendable, Equatable {
+public protocol DecodableStructuredOutput<Provider>: Sendable, Equatable {
   associatedtype Base: StructuredOutput
   associatedtype Provider: LanguageModelProvider
   static var name: String { get }
-  static func resolve(_ structuredOutput: ContentGeneration<Self>) -> Provider.ResolvedStructuredOutput
+  static func decode(_ structuredOutput: ContentGeneration<Self>) -> Provider.DecodedStructuredOutput
 }
 
-public extension ResolvableStructuredOutput {
+public extension DecodableStructuredOutput {
   static var name: String { Base.name }
 }

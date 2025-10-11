@@ -11,7 +11,7 @@ public struct ToolRun<Tool: SwiftAgentTool>: Identifiable {
   public enum Arguments {
     case inProgress(Tool.Arguments.PartiallyGenerated)
     case completed(Tool.Arguments)
-    case failed(TranscriptResolutionError.ToolRunResolution)
+    case failed(TranscriptDecodingError.ToolRunResolution)
   }
 
   public var id: String

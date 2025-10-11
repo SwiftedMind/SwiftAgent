@@ -18,10 +18,10 @@ public struct Transcript: Sendable, Equatable {
     }
   }
 
-  public func resolved<Provider: LanguageModelProvider>(
+  public func decoded<Provider: LanguageModelProvider>(
     in session: Provider,
-  ) -> Provider.ResolvedTranscript {
-    Transcript.Resolved(transcript: self, session: session)
+  ) -> Provider.DecodedTranscript {
+    Transcript.Decoded(transcript: self, session: session)
   }
 }
 

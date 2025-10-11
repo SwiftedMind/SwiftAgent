@@ -19,7 +19,7 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
 - [🛠️ Building Tools](#️-building-tools)
 - [📖 Advanced Usage](#-advanced-usage)
   - [Prompt Context](#prompt-context)
-  - [Tool Resolver](#tool-resolver)
+  - [Tool Decoder](#tool-decoder)
   - [Structured Output Generation](#structured-output-generation)
   - [Custom Generation Options](#custom-generation-options)
   - [Conversation History](#conversation-history)
@@ -233,9 +233,9 @@ for entry in session.transcript {
 }
 ```
 
-### Tool Resolver
+### Tool Decoder
 
-`Transcript.Resolved` rebuilds the transcript you already consume, but replaces each
+`Transcript.Decoded` rebuilds the transcript you already consume, but replaces each
 `.toolCalls` and `.toolOutput` pair with a `.toolRun` that carries your typed resolution. You still
 walk the transcript the same way, now with a single case per tool.
 
@@ -248,7 +248,7 @@ enum ToolRunKind {
 
 extension WeatherTool {
   // Map the raw run into your enum case
-  func resolve(_ run: ToolRun<WeatherTool>) -> ToolRunKind {
+  func decode(_ run: ToolRun<WeatherTool>) -> ToolRunKind {
     .weather(run)
   }
 }
@@ -257,8 +257,8 @@ let tools: [any SwiftAgentTool<ToolRunKind>] = [WeatherTool(), CalculatorTool()]
 let configuration = OpenAIConfiguration.direct(apiKey: "sk-...")
 let session = LanguageModelProvider.openAI(tools: tools, instructions: "...", configuration: configuration)
 
-if let resolvedTranscript = session.transcript.resolved(using: tools) {
-  for entry in resolvedTranscript {
+if let decodedTranscript = session.transcript.decoded(using: tools) {
+  for entry in decodedTranscript {
     switch entry {
     case let .toolRun(toolRun):
       // React to the merged tool run
@@ -275,12 +275,12 @@ if let resolvedTranscript = session.transcript.resolved(using: tools) {
 }
 ```
 
-The resolved transcript rebuilds itself from `Transcript`, so create it when you need to render
+The decoded transcript rebuilds itself from `Transcript`, so create it when you need to render
 tool runs and discard it afterward.
 
-#### Tool Resolver Instances
+#### Tool Decoder Instances
 
-Prefer a reusable resolver object when you want to resolve individual tool calls on demand.
+Prefer a reusable decoder object when you want to decode individual tool calls on demand.
 
 ```swift
 enum ToolRunKind {
@@ -289,7 +289,7 @@ enum ToolRunKind {
 }
 
 extension WeatherTool {
-  func resolve(_ run: ToolRun<WeatherTool>) -> ToolRunKind {
+  func decode(_ run: ToolRun<WeatherTool>) -> ToolRunKind {
     .weather(run)
   }
 }
@@ -298,14 +298,14 @@ let tools: [any SwiftAgentTool<ToolRunKind>] = [WeatherTool(), CalculatorTool()]
 let configuration = OpenAIConfiguration.direct(apiKey: "sk-...")
 let session = LanguageModelProvider.openAI(tools: tools, instructions: "...", configuration: configuration)
 
-let toolResolver = session.transcript.toolResolver(using: tools)
+let toolDecoder = session.transcript.toolDecoder(using: tools)
 
 for entry in session.transcript {
   if case let .toolCalls(toolCalls) = entry {
     for toolCall in toolCalls {
-      let resolvedTool = try toolResolver.resolve(toolCall)
+      let decodedTool = try toolDecoder.decode(toolCall)
 
-      switch resolvedTool {
+      switch decodedTool {
       case let .weather(run):
         print("Weather for: \(run.arguments.city)")
         if let output = run.output {

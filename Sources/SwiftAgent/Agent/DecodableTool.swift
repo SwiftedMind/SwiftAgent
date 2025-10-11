@@ -4,13 +4,13 @@ import Foundation
 import FoundationModels
 import Internal
 
-public protocol ResolvableTool<Provider>: SwiftAgentTool {
+public protocol DecodableTool<Provider>: SwiftAgentTool {
   associatedtype Provider: LanguageModelProvider
-  func resolve(_ run: ToolRun<Self>) -> Provider.ResolvedToolRun
+  func decode(_ run: ToolRun<Self>) -> Provider.DecodedToolRun
 }
 
-package extension ResolvableTool {
-  /// Resolves a tool with raw GeneratedContent arguments and output.
+package extension DecodableTool {
+  /// Decodes a tool with raw GeneratedContent arguments and output.
   ///
   /// This is the internal bridge method that converts between Apple's FoundationModels
   /// content representation and SwiftAgent's strongly typed tool system.
@@ -18,13 +18,13 @@ package extension ResolvableTool {
   /// - Parameters:
   ///   - arguments: The raw arguments from the AI model
   ///   - output: The raw output content, if available
-  /// - Returns: The resolved tool result
+  /// - Returns: The decoded tool result
   /// - Throws: Conversion or resolution errors
-  func resolveCompleted(
+  func decodeCompleted(
     id: String,
     rawContent: GeneratedContent,
     rawOutput: GeneratedContent?,
-  ) throws -> Provider.ResolvedToolRun {
+  ) throws -> Provider.DecodedToolRun {
     let arguments = try Arguments(rawContent)
     let toolRun = try toolRun(
       id: id,
@@ -32,14 +32,14 @@ package extension ResolvableTool {
       rawContent: rawContent,
       rawOutput: rawOutput,
     )
-    return resolve(toolRun)
+    return decode(toolRun)
   }
 
-  func resolveInProgress(
+  func decodeInProgress(
     id: String,
     rawContent: GeneratedContent,
     rawOutput: GeneratedContent?,
-  ) throws -> Provider.ResolvedToolRun {
+  ) throws -> Provider.DecodedToolRun {
     let arguments = try Arguments.PartiallyGenerated(rawContent)
     let toolRun = try toolRun(
       id: id,
@@ -47,26 +47,26 @@ package extension ResolvableTool {
       rawContent: rawContent,
       rawOutput: rawOutput,
     )
-    return resolve(toolRun)
+    return decode(toolRun)
   }
 
-  func resolveFailed(
+  func decodeFailed(
     id: String,
-    error: TranscriptResolutionError.ToolRunResolution,
+    error: TranscriptDecodingError.ToolRunResolution,
     rawContent: GeneratedContent,
     rawOutput: GeneratedContent?,
-  ) throws -> Provider.ResolvedToolRun {
+  ) throws -> Provider.DecodedToolRun {
     let toolRun = try toolRun(
       id: id,
       .failed(error),
       rawContent: rawContent,
       rawOutput: rawOutput,
     )
-    return resolve(toolRun)
+    return decode(toolRun)
   }
 }
 
-package extension ResolvableTool {
+package extension DecodableTool {
   /// Creates a strongly typed tool run from raw content.
   ///
   /// - Parameters:

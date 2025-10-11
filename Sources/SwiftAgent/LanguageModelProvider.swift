@@ -7,27 +7,27 @@ import Internal
 public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
   /// The transcript type for this session, containing the conversation history.
   typealias Transcript = SwiftAgent.Transcript
-  typealias ResolvedTranscript = Transcript.Resolved<Self>
+  typealias DecodedTranscript = Transcript.Decoded<Self>
   typealias Response<Content: Generable> = AgentResponse<Content, Self>
   typealias Snapshot<Content: Generable> = AgentSnapshot<Content, Self>
 
   associatedtype Adapter: SwiftAgent.Adapter & SendableMetatype
-  associatedtype ResolvedGrounding: SwiftAgent.ResolvedGrounding
-  associatedtype ResolvedToolRun: SwiftAgent.ResolvedToolRun
-  associatedtype ResolvedStructuredOutput: SwiftAgent.ResolvedStructuredOutput
-  nonisolated static var structuredOutputs: [any (SwiftAgent.ResolvableStructuredOutput<Self>).Type] { get }
-  nonisolated var tools: [any ResolvableTool<Self>] { get }
+  associatedtype DecodedGrounding: SwiftAgent.DecodedGrounding
+  associatedtype DecodedToolRun: SwiftAgent.DecodedToolRun
+  associatedtype DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput
+  nonisolated static var structuredOutputs: [any (SwiftAgent.DecodableStructuredOutput<Self>).Type] { get }
+  nonisolated var tools: [any DecodableTool<Self>] { get }
 
   var adapter: Adapter { get }
   @MainActor var transcript: Transcript { get set }
   @MainActor var tokenUsage: TokenUsage { get set }
 
-  // TODO: Move to the TranscriptResolver
-  nonisolated func encodeGrounding(_ grounding: [ResolvedGrounding]) throws -> Data
-  nonisolated func decodeGrounding(from data: Data) throws -> [ResolvedGrounding]
+  // TODO: Move to the TranscriptDecoder
+  nonisolated func encodeGrounding(_ grounding: [DecodedGrounding]) throws -> Data
+  nonisolated func decodeGrounding(from data: Data) throws -> [DecodedGrounding]
 
   @MainActor func resetTokenUsage()
-  @MainActor func resolver() -> TranscriptResolver<Self>
+  @MainActor func decoder() -> TranscriptDecoder<Self>
 
   @discardableResult
   func withAuthorization<T>(
@@ -37,13 +37,13 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
   ) async rethrows -> T
 }
 
-public protocol ResolvedGrounding: Sendable, Equatable, Codable {}
+public protocol DecodedGrounding: Sendable, Equatable, Codable {}
 
-public protocol ResolvedStructuredOutput: Sendable, Equatable {
+public protocol DecodedStructuredOutput: Sendable, Equatable {
   static func makeUnknown(segment: Transcript.StructuredSegment) -> Self
 }
 
-public protocol ResolvedToolRun: Identifiable, Equatable, Sendable where ID == String {
+public protocol DecodedToolRun: Identifiable, Equatable, Sendable where ID == String {
   var id: String { get }
   static func makeUnknown(toolCall: Transcript.ToolCall) -> Self
 }
@@ -51,16 +51,16 @@ public protocol ResolvedToolRun: Identifiable, Equatable, Sendable where ID == S
 // MARK: - Default Implementations
 
 public extension LanguageModelProvider {
-  @MainActor var resolvedTranscript: ResolvedTranscript {
-    transcript.resolved(in: self)
+  @MainActor var decodedTranscript: DecodedTranscript {
+    transcript.decoded(in: self)
   }
 
-  nonisolated func encodeGrounding(_ grounding: [ResolvedGrounding]) throws -> Data {
+  nonisolated func encodeGrounding(_ grounding: [DecodedGrounding]) throws -> Data {
     try JSONEncoder().encode(grounding)
   }
 
-  nonisolated func decodeGrounding(from data: Data) throws -> [ResolvedGrounding] {
-    try JSONDecoder().decode([ResolvedGrounding].self, from: data)
+  nonisolated func decodeGrounding(from data: Data) throws -> [DecodedGrounding] {
+    try JSONDecoder().decode([DecodedGrounding].self, from: data)
   }
 }
 
@@ -131,11 +131,11 @@ package extension LanguageModelProvider {
                 // We can return here since a structured response can only happen once
                 // TODO: Handle errors here in some way
 
-                let resolvedTranscript = generatedTranscript.resolved(in: self)
+                let decodedTranscript = generatedTranscript.decoded(in: self)
                 return try Response<Content>(
                   content: Content(structuredSegment.content),
                   transcript: generatedTranscript,
-                  resolvedTranscript: resolvedTranscript,
+                  decodedTranscript: decodedTranscript,
                   tokenUsage: generatedUsage,
                 )
               }
@@ -173,11 +173,11 @@ package extension LanguageModelProvider {
         }
         .flatMap(\.self)
 
-      let resolvedTranscript = generatedTranscript.resolved(in: self)
+      let decodedTranscript = generatedTranscript.decoded(in: self)
       return Response<Content>(
         content: finalResponseSegments.joined(separator: "\n") as! Content,
         transcript: generatedTranscript,
-        resolvedTranscript: resolvedTranscript,
+        decodedTranscript: decodedTranscript,
         tokenUsage: generatedUsage,
       )
     } else {
@@ -242,12 +242,12 @@ package extension LanguageModelProvider {
           // Throttle-latest: emit at most once per interval with the freshest state
           let now = clock.now
           if now >= nextEmitDeadline {
-            let partiallyResolvedTranscript = generatedTranscript.resolved(in: self)
+            let partiallyDecodedTranscript = generatedTranscript.decoded(in: self)
             continuation.yield(
               Snapshot(
                 content: nil,
                 transcript: generatedTranscript,
-                streamingTranscript: partiallyResolvedTranscript,
+                streamingTranscript: partiallyDecodedTranscript,
                 tokenUsage: generatedUsage,
               ),
             )
@@ -265,7 +265,7 @@ package extension LanguageModelProvider {
         await mergeTokenUsage(generatedUsage)
 
         // TODO: Send the final, parsed content, if type != String.self
-        let streamingTranscript = generatedTranscript.resolved(in: self)
+        let streamingTranscript = generatedTranscript.decoded(in: self)
         continuation.yield(
           Snapshot(
             content: nil,
@@ -394,8 +394,8 @@ public extension LanguageModelProvider {
     tokenUsage = TokenUsage()
   }
 
-  @MainActor func resolver() -> TranscriptResolver<Self> {
-    TranscriptResolver(for: self, transcript: transcript)
+  @MainActor func decoder() -> TranscriptDecoder<Self> {
+    TranscriptDecoder(for: self, transcript: transcript)
   }
 }
 

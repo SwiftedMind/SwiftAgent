@@ -16,12 +16,12 @@ import UIKit
  -> Thought. Maybe it's fine to not stream the transcript but only the output once it starts arriving?
  - Remove streaming transcript, since it's nw unified
  - Make the throttling properly configurable with presets and custom values
- - Can the resolved transcript even work? the response structured output is on a method basis, so it can't ever be resolved inside the transcript itself
+ - Can the decoded transcript even work? the response structured output is on a method basis, so it can't ever be decoded inside the transcript itself
  - But if you then go for the observe session.transcript way, you never have access to the structured output directly
 
  -> Maybe have something similar to tool resolution. You define @StructuredOutput(SomeGenerable.self) var weatherReport, and then it can be somehow decoded from the transcript's structured response.
 
- The provider macro would then generate an enum ResolvedStructuredOutput<Provider> that you can iterate over in the view to get the structured output. And maybe if there is just one, it's not an enum but the type directly, for convenience?
+ The provider macro would then generate an enum DecodedStructuredOutput<Provider> that you can iterate over in the view to get the structured output. And maybe if there is just one, it's not an enum but the type directly, for convenience?
 
  Problem: tools have names to identify them, the structured output stuff doesn't
  -> Bake it into the transcript since we know the name when calling the method (synthesized from property name)
@@ -36,11 +36,11 @@ import UIKit
 
  passing nil means string response (makes it also easier to check for the output type)
 
- func decodeStructuredOutput(name: String, content: GeneratedContent) -> ResolvedStructuredOutput<Provider> {
+ func decodeStructuredOutput(name: String, content: GeneratedContent) -> DecodedStructuredOutput<Provider> {
   switch name {
   case "WeatherReport":
  // decode
-    return ResolvedStructuredOutput.weatherReport(decodedContent)
+    return DecodedStructuredOutput.weatherReport(decodedContent)
   default:
     return content
   }
@@ -50,7 +50,7 @@ import UIKit
 
 struct ConversationalAgentExampleView: View {
   @State private var userInput = "Compute 234 + 6 using the tool! And write a 10 paragraph story about the result. Just write the story!"
-  @State private var streamingTranscript: OpenAISession.ResolvedTranscript = .init()
+  @State private var streamingTranscript: OpenAISession.DecodedTranscript = .init()
   @State private var session: OpenAISession?
 
   // MARK: - Body
@@ -172,7 +172,7 @@ struct ConversationalAgentExampleView: View {
 // MARK: - Entry Views
 
 private struct PromptEntryView: View {
-  let prompt: OpenAISession.ResolvedTranscript.Prompt
+  let prompt: OpenAISession.DecodedTranscript.Prompt
 
   var body: some View {
     Text(prompt.input)
@@ -180,7 +180,7 @@ private struct PromptEntryView: View {
 }
 
 private struct ReasoningEntryView: View {
-  let reasoning: OpenAISession.ResolvedTranscript.Reasoning
+  let reasoning: OpenAISession.DecodedTranscript.Reasoning
 
   var body: some View {
     Text(reasoning.summary.joined(separator: ", "))
@@ -189,7 +189,7 @@ private struct ReasoningEntryView: View {
 }
 
 private struct ToolRunEntryView: View {
-  let toolRun: OpenAISession.ResolvedToolRun
+  let toolRun: OpenAISession.DecodedToolRun
 
   var body: some View {
     Text("TODO")
@@ -222,7 +222,7 @@ private struct ToolRunEntryView: View {
 }
 
 private struct ResponseEntryView: View {
-  let response: OpenAISession.ResolvedTranscript.Response
+  let response: OpenAISession.DecodedTranscript.Response
 
   var body: some View {
     if let text = response.text {

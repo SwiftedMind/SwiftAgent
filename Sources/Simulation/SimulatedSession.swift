@@ -19,7 +19,7 @@ public extension LanguageModelProvider {
     generations: [SimulatedGeneration<String>],
     configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
   ) async throws -> AgentResponse<String, Self> {
-    let sourcesData = try encodeGrounding([ResolvedGrounding]())
+    let sourcesData = try encodeGrounding([DecodedGrounding]())
     let transcriptPrompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     let promptEntry = Transcript.Entry.prompt(transcriptPrompt)
     await appendTranscript(promptEntry)
@@ -60,11 +60,11 @@ public extension LanguageModelProvider {
     }
 
     let transcript = Transcript(entries: addedEntities)
-    let resolvedTranscript = transcript.resolved(in: self)
+    let decodedTranscript = transcript.decoded(in: self)
     return AgentResponse<String, Self>(
       content: responseContent.joined(separator: "\n"),
       transcript: transcript,
-      resolvedTranscript: resolvedTranscript,
+      decodedTranscript: decodedTranscript,
       tokenUsage: aggregatedUsage,
     )
   }
@@ -75,7 +75,7 @@ public extension LanguageModelProvider {
     generations: [SimulatedGeneration<Content>],
     configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
   ) async throws -> AgentResponse<Content, Self> where Content: MockableGenerable {
-    let sourcesData = try encodeGrounding([ResolvedGrounding]())
+    let sourcesData = try encodeGrounding([DecodedGrounding]())
     let transcriptPrompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     let promptEntry = Transcript.Entry.prompt(transcriptPrompt)
     await appendTranscript(promptEntry)
@@ -101,11 +101,11 @@ public extension LanguageModelProvider {
               break
             case let .structure(structuredSegment):
               let transcript = Transcript(entries: addedEntities)
-              let resolvedTranscript = transcript.resolved(in: self)
+              let decodedTranscript = transcript.decoded(in: self)
               return try AgentResponse<Content, Self>(
                 content: Content(structuredSegment.content),
                 transcript: transcript,
-                resolvedTranscript: resolvedTranscript,
+                decodedTranscript: decodedTranscript,
                 tokenUsage: aggregatedUsage,
               )
             }

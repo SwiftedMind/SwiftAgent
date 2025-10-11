@@ -25,10 +25,10 @@ public struct ToolRunProblem: Error, LocalizedError, Sendable {
   ///   - reason: Optional description explaining the failure. Defaults to `nil`.
   ///   - content: Any value that can be converted into ``GeneratedContent``.
   public init(reason: String? = nil, content: some ConvertibleToGeneratedContent) {
-    let resolvedReason = reason ?? Self.fallbackReason
-    let problemReport = ProblemReport(reason: resolvedReason, details: content.generatedContent)
+    let decodedReason = reason ?? Self.fallbackReason
+    let problemReport = ProblemReport(reason: decodedReason, details: content.generatedContent)
     generatedContent = problemReport.generatedContent
-    self.reason = resolvedReason
+    self.reason = decodedReason
   }
 
   /// Creates a recoverable tool problem from pre-built generated content.
@@ -37,10 +37,10 @@ public struct ToolRunProblem: Error, LocalizedError, Sendable {
   ///   - reason: Optional description explaining the failure. Defaults to `nil`.
   ///   - generatedContent: The payload to forward to the model.
   public init(reason: String? = nil, generatedContent: GeneratedContent) {
-    let resolvedReason = reason ?? Self.fallbackReason
-    let problemReport = ProblemReport(reason: resolvedReason, details: generatedContent)
+    let decodedReason = reason ?? Self.fallbackReason
+    let problemReport = ProblemReport(reason: decodedReason, details: generatedContent)
     self.generatedContent = problemReport.generatedContent
-    self.reason = resolvedReason
+    self.reason = decodedReason
   }
 
   /// Convenience initializer that wraps string-keyed details into a structured payload.

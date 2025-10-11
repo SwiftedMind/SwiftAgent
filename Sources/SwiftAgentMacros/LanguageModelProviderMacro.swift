@@ -122,7 +122,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
       ))
     members.append(
       """
-      let tools: [any ResolvableTool<ProviderType>]
+      let tools: [any DecodableTool<ProviderType>]
       """,
     )
 
@@ -139,14 +139,14 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
         provider: provider,
       ))
 
-    members.append(generateResolvedGroundingEnum(for: groundingProperties))
+    members.append(generateDecodedGroundingEnum(for: groundingProperties))
 
-    members.append(generateResolvedToolRunEnum(for: toolProperties))
-    members.append(contentsOf: toolProperties.map(Self.generateResolvableWrapper))
+    members.append(generateDecodedToolRunEnum(for: toolProperties))
+    members.append(contentsOf: toolProperties.map(Self.generateDecodableWrapper))
 
     // Structured Output typing support
-    members.append(generateResolvedStructuredOutputEnum(for: structuredOutputProperties))
-    members.append(contentsOf: generateResolvableStructuredOutputTypes(for: structuredOutputProperties))
+    members.append(generateDecodedStructuredOutputEnum(for: structuredOutputProperties))
+    members.append(contentsOf: generateDecodableStructuredOutputTypes(for: structuredOutputProperties))
 
     return members
   }
@@ -264,7 +264,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     }
   }
 
-  /// Collects `@Grounding` declarations to drive `ResolvedGrounding` synthesis.
+  /// Collects `@Grounding` declarations to drive `DecodedGrounding` synthesis.
   private static func extractGroundingProperties(from classDeclaration: ClassDeclSyntax) throws -> [GroundingProperty] {
     try classDeclaration.memberBlock.members.compactMap { member in
       guard let variableDecl = member.decl.as(VariableDeclSyntax.self) else {
@@ -443,11 +443,11 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
       : "\(wrapperAssignments)\n\n"
 
     let toolsArrayInit = toolParameters.map { parameter in
-      let wrapperName = "Resolvable\(parameter.name.capitalizedFirstLetter())Tool"
+      let wrapperName = "Decodable\(parameter.name.capitalizedFirstLetter())Tool"
       let baseToolExpression = parameter.hasInitializer
         ? "_\(parameter.name).wrappedValue"
         : parameter.name
-      // Wrap each declared tool so we can hand it to the adapter as a `ResolvableTool`.
+      // Wrap each declared tool so we can hand it to the adapter as a `DecodableTool`.
       return "      \(wrapperName)(baseTool: \(baseToolExpression))"
     }
     .joined(separator: ",\n")
@@ -470,7 +470,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
       	init(
       	\(raw: allInitParameters)
       	) {
-        \(raw: initializerPrologueBlock)  let tools: [any ResolvableTool<ProviderType>] = \(raw: toolsArrayCode)
+        \(raw: initializerPrologueBlock)  let tools: [any DecodableTool<ProviderType>] = \(raw: toolsArrayCode)
         self.tools = tools
 
         adapter = \(raw: provider.adapterTypeName)(
@@ -492,7 +492,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
       	init(
       	\(raw: configurationInitParameters)
       	) {
-        \(raw: initializerPrologueBlock)  let tools: [any ResolvableTool<ProviderType>] = \(raw: toolsArrayCode)
+        \(raw: initializerPrologueBlock)  let tools: [any DecodableTool<ProviderType>] = \(raw: toolsArrayCode)
         self.tools = tools
 
         adapter = \(raw: provider.adapterTypeName)(
@@ -507,10 +507,10 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     return initializers
   }
 
-  /// Produces the `ResolvedToolRun` enum mapping each tool wrapper to a case.
-  private static func generateResolvedToolRunEnum(for tools: [ToolProperty]) -> DeclSyntax {
+  /// Produces the `DecodedToolRun` enum mapping each tool wrapper to a case.
+  private static func generateDecodedToolRunEnum(for tools: [ToolProperty]) -> DeclSyntax {
     let cases = tools.map { tool -> String in
-      let wrapperName = "Resolvable\(tool.identifier.text.capitalizedFirstLetter())Tool"
+      let wrapperName = "Decodable\(tool.identifier.text.capitalizedFirstLetter())Tool"
       return "    case \(tool.identifier.text)(ToolRun<\(wrapperName)>)"
     }
     .joined(separator: "\n")
@@ -522,7 +522,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
     return
       """
-      enum ResolvedToolRun: SwiftAgent.ResolvedToolRun {
+      enum DecodedToolRun: SwiftAgent.DecodedToolRun {
       \(raw: cases)
       case unknown(toolCall: SwiftAgent.Transcript.ToolCall)
 
@@ -541,16 +541,16 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
       """
   }
 
-  /// Emits the `ResolvedGrounding` enum used to send and receive grounding payloads.
-  private static func generateResolvedGroundingEnum(for groundings: [GroundingProperty]) -> DeclSyntax {
+  /// Emits the `DecodedGrounding` enum used to send and receive grounding payloads.
+  private static func generateDecodedGroundingEnum(for groundings: [GroundingProperty]) -> DeclSyntax {
     guard !groundings.isEmpty else {
       return
         """
-        enum ResolvedGrounding: SwiftAgent.ResolvedGrounding {
+        enum DecodedGrounding: SwiftAgent.DecodedGrounding {
           init(from decoder: Decoder) throws {
             let context = DecodingError.Context(
               codingPath: decoder.codingPath,
-              debugDescription: "No @Grounding properties are defined, so no ResolvedGrounding can be decoded."
+              debugDescription: "No @Grounding properties are defined, so no DecodedGrounding can be decoded."
             )
             throw DecodingError.dataCorrupted(context)
           }
@@ -558,7 +558,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
           func encode(to encoder: Encoder) throws {
             let context = EncodingError.Context(
               codingPath: encoder.codingPath,
-              debugDescription: "No @Grounding properties are defined, so no ResolvedGrounding can be encoded."
+              debugDescription: "No @Grounding properties are defined, so no DecodedGrounding can be encoded."
             )
             throw EncodingError.invalidValue(self, context)
           }
@@ -573,19 +573,19 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
     return
       """
-      enum ResolvedGrounding: SwiftAgent.ResolvedGrounding {
+      enum DecodedGrounding: SwiftAgent.DecodedGrounding {
       \(raw: cases)
       }
       """
   }
 
   /// Wraps a user-declared tool so it can integrate with the provider's resolution APIs.
-  private static func generateResolvableWrapper(for tool: ToolProperty) -> DeclSyntax {
-    let wrapperName = "Resolvable\(tool.identifier.text.capitalizedFirstLetter())Tool"
+  private static func generateDecodableWrapper(for tool: ToolProperty) -> DeclSyntax {
+    let wrapperName = "Decodable\(tool.identifier.text.capitalizedFirstLetter())Tool"
 
     return
       """
-      struct \(raw: wrapperName): ResolvableTool {
+      struct \(raw: wrapperName): DecodableTool {
         typealias Provider = ProviderType
         typealias BaseTool = \(raw: tool.typeName)
         typealias Arguments = BaseTool.Arguments
@@ -613,9 +613,9 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
           try await baseTool.call(arguments: arguments)
         }
 
-        func resolve(
+        func decode(
           _ run: ToolRun<\(raw: wrapperName)>
-        ) -> Provider.ResolvedToolRun {
+        ) -> Provider.DecodedToolRun {
           .\(raw: tool.identifier.text)(run)
         }
       }
@@ -752,7 +752,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
   ) -> DeclSyntax {
     guard !outputs.isEmpty else {
       return """
-      static let structuredOutputs: [any (SwiftAgent.ResolvableStructuredOutput<ProviderType>).Type] = []
+      static let structuredOutputs: [any (SwiftAgent.DecodableStructuredOutput<ProviderType>).Type] = []
       """
     }
 
@@ -763,13 +763,13 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
       .joined(separator: "\n")
 
     return """
-    static let structuredOutputs: [any (SwiftAgent.ResolvableStructuredOutput<ProviderType>).Type] = [
+    static let structuredOutputs: [any (SwiftAgent.DecodableStructuredOutput<ProviderType>).Type] = [
     \(raw: entries)
     ]
     """
   }
 
-  private static func generateResolvedStructuredOutputEnum(
+  private static func generateDecodedStructuredOutputEnum(
     for outputs: [StructuredOutputProperty],
   ) -> DeclSyntax {
     var sections: [String] = []
@@ -794,13 +794,13 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     let body = sections.joined(separator: "\n")
 
     return """
-    enum ResolvedStructuredOutput: SwiftAgent.ResolvedStructuredOutput {
+    enum DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput {
     \(raw: body)
     }
     """
   }
 
-  private static func generateResolvableStructuredOutputTypes(
+  private static func generateDecodableStructuredOutputTypes(
     for outputs: [StructuredOutputProperty],
   ) -> [DeclSyntax] {
     outputs.map { output in
@@ -809,14 +809,14 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
       let caseName = output.identifier.text
 
       return """
-      struct \(raw: resolvableName): SwiftAgent.ResolvableStructuredOutput {
+      struct \(raw: resolvableName): SwiftAgent.DecodableStructuredOutput {
         typealias Schema = \(raw: schemaType)
         typealias Provider = ProviderType
         static let name = "\(raw: caseName)"
 
-        static func resolve(
+        static func decode(
           _ structuredOutput: SwiftAgent.ContentGeneration<\(raw: resolvableName)>
-        ) -> ResolvedStructuredOutput {
+        ) -> DecodedStructuredOutput {
           .\(raw: caseName)(structuredOutput)
         }
       }
@@ -825,6 +825,6 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
   }
 
   private static func resolvableStructuredOutputTypeName(for output: StructuredOutputProperty) -> String {
-    "Resolvable\(output.identifier.text.capitalizedFirstLetter())"
+    "Decodable\(output.identifier.text.capitalizedFirstLetter())"
   }
 }

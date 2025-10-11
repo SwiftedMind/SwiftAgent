@@ -58,7 +58,7 @@
   }
   ```
 
-- **Recoverable Tool Problems**: Added a `ToolRunProblem` error type so tools can return a recoverable issue back to the agent without stopping the loop; the OpenAI adapter now reads these problem objects to decide when a tool should retry or provide alternate output. `ToolRun` also exposes `problem` and `isAwaitingOutput` so resolvers can surface the problem payload forwarded by the adapter whenever `SwiftAgentTool.Output` decoding fails.
+- **Recoverable Tool Problems**: Added a `ToolRunProblem` error type so tools can return a recoverable issue back to the agent without stopping the loop; the OpenAI adapter now reads these problem objects to decide when a tool should retry or provide alternate output. `ToolRun` also exposes `problem` and `isAwaitingOutput` so decoders can surface the problem payload forwarded by the adapter whenever `SwiftAgentTool.Output` decoding fails.
 
   ```swift
   struct CustomerLookupTool: SwiftAgentTool {
@@ -82,7 +82,7 @@
 - **MacPaw OpenAI SDK Migration**: Adopted MacPaw's `OpenAI` Swift package for request execution and removed the `MetaCodable` macro dependency, simplifying adapter maintenance and eliminating macro build overhead.
 - **Code Cleanup**: Removed unused `Array<PromptContextLinkPreview>` extension that was adding unnecessary complexity to the prompt context API surface.
 - **Tool Error Type Rename**: Renamed the core tool error type to `ToolRunError`.
-- **Improved Tool Resolution**: Introduced the `Transcript.Resolved` type for embedding tool runs directly into a transcript you can iterate over. You can access it through `transcript.resolved(using: tools)`.
+- **Improved Tool Resolution**: Introduced the `Transcript.Decoded` type for embedding tool runs directly into a transcript you can iterate over. You can access it through `transcript.decoded(using: tools)`.
 
 ### Fixed
 
@@ -248,7 +248,7 @@
 ### Fixed
 
 - **Agent Text Response Content Formatting**: Fixed an issue with the agent's text response content formatting that could cause malformed responses
-- **Tool Resolution**: Fixed a critical bug where tools would never be resolved due to mismatched IDs, ensuring proper tool call execution
+- **Tool Resolution**: Fixed a critical bug where tools would never be decoded due to mismatched IDs, ensuring proper tool call execution
 - **Tool Resolution Logging**: Improved logging around tool resolution to better debug tool call issues
 
 ### Enhanced
@@ -305,26 +305,26 @@
   }
   ```
 
-- **Tool Resolver**: Added a powerful type-safe tool resolution system that combines tool calls with their outputs. The `ToolResolver` enables compile-time access to tool arguments and outputs:
+- **Tool Decoder**: Added a powerful type-safe tool resolution system that combines tool calls with their outputs. The `ToolDecoder` enables compile-time access to tool arguments and outputs:
   ```swift
-  // Define a resolved tool run enum
-  enum ResolvedToolRun {
+  // Define a decoded tool run enum
+  enum DecodedToolRun {
     case getFavoriteNumbers(AgentToolRun<GetFavoriteNumbersTool>)
   }
   
-  // Tools must implement the resolve method
-  func resolve(_ run: AgentToolRun<GetFavoriteNumbersTool>) -> ResolvedToolRun {
+  // Tools must implement the decode method
+  func decode(_ run: AgentToolRun<GetFavoriteNumbersTool>) -> DecodedToolRun {
     .getFavoriteNumbers(run)
   }
   
-  // Use the tool resolver in your UI code
-  let toolResolver = agent.transcript.toolResolver(for: tools)
+  // Use the tool decoder in your UI code
+  let toolDecoder = agent.transcript.toolDecoder(for: tools)
   
   for entry in agent.transcript {
     if case let .toolCalls(toolCalls) = entry {
       for toolCall in toolCalls.calls {
-        let resolvedTool = try toolResolver.resolve(toolCall)
-        switch resolvedTool {
+        let decodedTool = try toolDecoder.decode(toolCall)
+        switch decodedTool {
         case let .getFavoriteNumbers(run):
           print("Count:", run.arguments.count)
           if let output = run.output {
@@ -350,8 +350,8 @@
 
 ### Enhanced
 
-- **AgentTool Protocol**: Extended the `AgentTool` protocol with an optional `ResolvedToolRun` associated type to support the new tool resolver system
-- **Type Safety**: Improved compile-time type safety for tool argument and output access through the tool resolver
+- **AgentTool Protocol**: Extended the `AgentTool` protocol with an optional `DecodedToolRun` associated type to support the new tool decoder system
+- **Type Safety**: Improved compile-time type safety for tool argument and output access through the tool decoder
 - **Transcript Organization**: Better separation of concerns in transcript entries, with user input and context clearly distinguished
 
 ### Migration Guide
@@ -359,5 +359,5 @@
 1. **Update Provider references**: Replace all instances of `Provider` with `Adapter` in your code
 2. **Update Transcript references**: Replace `Transcript` with `AgentTranscript` where needed
 3. **Consider adopting PromptContext**: If you're currently building prompts with embedded context outside the agent, consider migrating to the new `PromptContext` system for cleaner separation
-4. **Adopt Tool Resolver**: For better type safety in UI code that displays tool runs, implement the `resolve` method in your tools and use the transcript's `toolResolver`
+4. **Adopt Tool Decoder**: For better type safety in UI code that displays tool runs, implement the `decode` method in your tools and use the transcript's `toolDecoder`
 5. **Use convenience initializers**: Simplify your agent initialization code using the new `OpenAIAgent` typealias and convenience initializers

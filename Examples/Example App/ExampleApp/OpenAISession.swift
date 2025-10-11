@@ -5,13 +5,13 @@ import FoundationModels
 import Observation
 import OpenAISession
 
-// TODO: Rename resolve to decode! and Resolver to Decoder!
+// TODO: Rename decode to decode! and Decoder to Decoder!
 
 /*
 
  - Make a StructuredOutput protocol and accept those for generating respond overloads
  - Also allow some Generable types and use their String(describing:) for the name of the output
- - Transcript resolver a protocol -> @TranscriptResolver with @Tool and @StructuredOutput for resolved type generations
+ - Transcript decoder a protocol -> @TranscriptDecoder with @Tool and @StructuredOutput for decoded type generations
  - OpenAISession a pre-built class
  - Groundings? Maybe they could be like EnvironmentValues? where you extend static vars?
 
@@ -23,7 +23,7 @@ import OpenAISession
 
  what if @LanguageModelProvider(.openAI) clas OpenAISession stays. When you don't add any tools etc. you have the regular [any Tools] overloads, but when you have tools you get other overloads.
 
- And then a session.resolver() or transcript.resolved(in: session)
+ And then a session.decoder() or transcript.decoded(in: session)
 
  Keep the "generating" as "any StructuredOutput.Type".
 
@@ -127,10 +127,10 @@ final class OpenAISession {
     }
   }
 
-  let tools: [any ResolvableTool<ProviderType>]
+  let tools: [any DecodableTool<ProviderType>]
 
-  static let structuredOutputs: [any (SwiftAgent.ResolvableStructuredOutput<ProviderType>).Type] = [
-    ResolvableWeatherReport.self,
+  static let structuredOutputs: [any (SwiftAgent.DecodableStructuredOutput<ProviderType>).Type] = [
+    DecodableWeatherReport.self,
   ]
 
   private let _$observationRegistrar = Observation.ObservationRegistrar()
@@ -180,9 +180,9 @@ final class OpenAISession {
     instructions: String,
     apiKey: String,
   ) {
-    let tools: [any ResolvableTool<ProviderType>] = [
-      ResolvableCalculatorTool(baseTool: _calculator.wrappedValue),
-      ResolvableWeatherTool(baseTool: _weather.wrappedValue),
+    let tools: [any DecodableTool<ProviderType>] = [
+      DecodableCalculatorTool(baseTool: _calculator.wrappedValue),
+      DecodableWeatherTool(baseTool: _weather.wrappedValue),
     ]
     self.tools = tools
 
@@ -197,9 +197,9 @@ final class OpenAISession {
     instructions: String,
     configuration: OpenAIConfiguration,
   ) {
-    let tools: [any ResolvableTool<ProviderType>] = [
-      ResolvableCalculatorTool(baseTool: _calculator.wrappedValue),
-      ResolvableWeatherTool(baseTool: _weather.wrappedValue),
+    let tools: [any DecodableTool<ProviderType>] = [
+      DecodableCalculatorTool(baseTool: _calculator.wrappedValue),
+      DecodableWeatherTool(baseTool: _weather.wrappedValue),
     ]
     self.tools = tools
 
@@ -210,13 +210,13 @@ final class OpenAISession {
     )
   }
 
-  enum ResolvedGrounding: SwiftAgent.ResolvedGrounding {
+  enum DecodedGrounding: SwiftAgent.DecodedGrounding {
     case currentDate(Date)
   }
 
-  enum ResolvedToolRun: SwiftAgent.ResolvedToolRun {
-    case calculator(ToolRun<ResolvableCalculatorTool>)
-    case weather(ToolRun<ResolvableWeatherTool>)
+  enum DecodedToolRun: SwiftAgent.DecodedToolRun {
+    case calculator(ToolRun<DecodableCalculatorTool>)
+    case weather(ToolRun<DecodableWeatherTool>)
     case unknown(toolCall: SwiftAgent.Transcript.ToolCall)
 
     static func makeUnknown(toolCall: SwiftAgent.Transcript.ToolCall) -> Self {
@@ -235,8 +235,8 @@ final class OpenAISession {
     }
   }
 
-  enum ResolvedStructuredOutput: SwiftAgent.ResolvedStructuredOutput {
-    case weatherReport(SwiftAgent.ContentGeneration<ResolvableWeatherReport>)
+  enum DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput {
+    case weatherReport(SwiftAgent.ContentGeneration<DecodableWeatherReport>)
     case unknown(SwiftAgent.Transcript.StructuredSegment)
 
     static func makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {
@@ -244,7 +244,7 @@ final class OpenAISession {
     }
   }
 
-  struct ResolvableCalculatorTool: ResolvableTool {
+  struct DecodableCalculatorTool: DecodableTool {
     typealias Provider = ProviderType
     typealias BaseTool = CalculatorTool
     typealias Arguments = BaseTool.Arguments
@@ -272,14 +272,14 @@ final class OpenAISession {
       try await baseTool.call(arguments: arguments)
     }
 
-    func resolve(
-      _ run: ToolRun<ResolvableCalculatorTool>,
-    ) -> Provider.ResolvedToolRun {
+    func decode(
+      _ run: ToolRun<DecodableCalculatorTool>,
+    ) -> Provider.DecodedToolRun {
       .calculator(run)
     }
   }
 
-  struct ResolvableWeatherTool: ResolvableTool {
+  struct DecodableWeatherTool: DecodableTool {
     typealias Provider = ProviderType
     typealias BaseTool = WeatherTool
     typealias Arguments = BaseTool.Arguments
@@ -307,20 +307,20 @@ final class OpenAISession {
       try await baseTool.call(arguments: arguments)
     }
 
-    func resolve(
-      _ run: ToolRun<ResolvableWeatherTool>,
-    ) -> Provider.ResolvedToolRun {
+    func decode(
+      _ run: ToolRun<DecodableWeatherTool>,
+    ) -> Provider.DecodedToolRun {
       .weather(run)
     }
   }
 
-  struct ResolvableWeatherReport: SwiftAgent.ResolvableStructuredOutput {
+  struct DecodableWeatherReport: SwiftAgent.DecodableStructuredOutput {
     typealias Base = WeatherReport
     typealias Provider = ProviderType
 
-    static func resolve(
-      _ structuredOutput: SwiftAgent.ContentGeneration<ResolvableWeatherReport>,
-    ) -> ResolvedStructuredOutput {
+    static func decode(
+      _ structuredOutput: SwiftAgent.ContentGeneration<DecodableWeatherReport>,
+    ) -> DecodedStructuredOutput {
       .weatherReport(structuredOutput)
     }
   }

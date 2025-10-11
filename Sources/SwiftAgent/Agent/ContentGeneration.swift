@@ -4,10 +4,10 @@ import Foundation
 import FoundationModels
 import Internal
 
-public struct ContentGeneration<ResolvableOutput: ResolvableStructuredOutput>: Identifiable {
+public struct ContentGeneration<DecodableOutput: DecodableStructuredOutput>: Identifiable {
   public enum State {
-    case inProgress(ResolvableOutput.Base.Schema.PartiallyGenerated)
-    case completed(ResolvableOutput.Base.Schema)
+    case inProgress(DecodableOutput.Base.Schema.PartiallyGenerated)
+    case completed(DecodableOutput.Base.Schema)
     case failed(GeneratedContent)
   }
 
@@ -22,14 +22,14 @@ public struct ContentGeneration<ResolvableOutput: ResolvableStructuredOutput>: I
   }
 }
 
-extension ContentGeneration.State: Sendable where ResolvableOutput.Base.Schema: Sendable,
-  ResolvableOutput.Base.Schema.PartiallyGenerated: Sendable {}
-extension ContentGeneration.State: Equatable where ResolvableOutput.Base.Schema: Equatable,
-  ResolvableOutput.Base.Schema.PartiallyGenerated: Equatable {}
-extension ContentGeneration: Sendable where ResolvableOutput.Base.Schema: Sendable,
-  ResolvableOutput.Base.Schema.PartiallyGenerated: Sendable {}
+extension ContentGeneration.State: Sendable where DecodableOutput.Base.Schema: Sendable,
+  DecodableOutput.Base.Schema.PartiallyGenerated: Sendable {}
+extension ContentGeneration.State: Equatable where DecodableOutput.Base.Schema: Equatable,
+  DecodableOutput.Base.Schema.PartiallyGenerated: Equatable {}
+extension ContentGeneration: Sendable where DecodableOutput.Base.Schema: Sendable,
+  DecodableOutput.Base.Schema.PartiallyGenerated: Sendable {}
 extension ContentGeneration: Equatable {
-  public static func == (lhs: ContentGeneration<ResolvableOutput>, rhs: ContentGeneration<ResolvableOutput>) -> Bool {
+  public static func == (lhs: ContentGeneration<DecodableOutput>, rhs: ContentGeneration<DecodableOutput>) -> Bool {
     lhs.id == rhs.id && lhs.raw == rhs.raw
   }
 }

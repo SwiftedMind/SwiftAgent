@@ -2,7 +2,7 @@
 
 import Foundation
 
-public enum TranscriptResolutionError: Error, LocalizedError, Sendable, Equatable {
+public enum TranscriptDecodingError: Error, LocalizedError, Sendable, Equatable {
   case prompt(PromptResolution)
   case toolRun(ToolRunResolution)
 

@@ -35,7 +35,7 @@ public extension LanguageModelProvider {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {
-    let sourcesData = try encodeGrounding([ResolvedGrounding]())
+    let sourcesData = try encodeGrounding([DecodedGrounding]())
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     return processResponseStream(from: prompt, using: model, options: options)
   }
@@ -127,7 +127,7 @@ public extension LanguageModelProvider {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
-    let sourcesData = try encodeGrounding([ResolvedGrounding]())
+    let sourcesData = try encodeGrounding([DecodedGrounding]())
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     return processResponseStream(from: prompt, generating: type, using: model, options: options)
   }
@@ -219,9 +219,9 @@ public extension LanguageModelProvider {
   func streamResponse(
     to input: String,
     using model: Adapter.Model = .default,
-    groundingWith sources: [ResolvedGrounding],
+    groundingWith sources: [DecodedGrounding],
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [ResolvedGrounding]) -> Prompt,
+    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [DecodedGrounding]) -> Prompt,
   ) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {
     let sourcesData = try encodeGrounding(sources)
 
@@ -237,10 +237,10 @@ public extension LanguageModelProvider {
   func streamResponse<Content: Generable>(
     to input: String,
     generating type: (some StructuredOutput<Content>).Type,
-    groundingWith sources: [ResolvedGrounding],
+    groundingWith sources: [DecodedGrounding],
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [ResolvedGrounding]) -> Prompt,
+    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [DecodedGrounding]) -> Prompt,
   ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
     let sourcesData = try encodeGrounding(sources)
 

@@ -187,7 +187,7 @@ struct SuggestionTextEditor: View {
     private func getSubstrings(
         text: String, indices: AttributedTextSelection.Indices
     ) -> [Substring] {
-        // Resolve substrings representing the current selection...
+        // Decode substrings representing the current selection...
     }
 }
 
@@ -217,7 +217,7 @@ struct SuggestionTextEditor: View {
     private func getSubstrings(
         text: String, indices: AttributedTextSelection.Indices
     ) -> [Substring] {
-        // Resolve substrings representing the current selection...
+        // Decode substrings representing the current selection...
     }
 }
 

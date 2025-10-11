@@ -34,7 +34,7 @@ public extension LanguageModelProvider {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) async throws -> Response<String> {
-    let sourcesData = try encodeGrounding([ResolvedGrounding]())
+    let sourcesData = try encodeGrounding([DecodedGrounding]())
 
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     return try await processResponse(
@@ -153,7 +153,7 @@ public extension LanguageModelProvider {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) async throws -> Response<Content> where Content: Generable {
-    let sourcesData = try encodeGrounding([ResolvedGrounding]())
+    let sourcesData = try encodeGrounding([DecodedGrounding]())
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     return try await processResponse(from: prompt, generating: type, using: model, options: options)
   }
@@ -286,9 +286,9 @@ public extension LanguageModelProvider {
   func respond(
     to input: String,
     using model: Adapter.Model = .default,
-    groundingWith sources: [ResolvedGrounding],
+    groundingWith sources: [DecodedGrounding],
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [ResolvedGrounding]) -> Prompt,
+    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [DecodedGrounding]) -> Prompt,
   ) async throws -> Response<String> {
     let sourcesData = try encodeGrounding(sources)
 
@@ -346,9 +346,9 @@ public extension LanguageModelProvider {
     to input: String,
     generating type: (some StructuredOutput<Content>).Type,
     using model: Adapter.Model = .default,
-    groundingWith sources: [ResolvedGrounding],
+    groundingWith sources: [DecodedGrounding],
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [ResolvedGrounding]) -> Prompt,
+    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [DecodedGrounding]) -> Prompt,
   ) async throws -> Response<Content> where Content: Generable {
     let sourcesData = try encodeGrounding(sources)
 

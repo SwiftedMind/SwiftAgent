@@ -264,16 +264,16 @@ struct StyledTextEditingView: View {
     private func toggleBold() {
         text.transformAttributes(in: &selection) {
             let font = $0.font ?? .default
-            let resolved = font.resolve(in: fontResolutionContext)
-            $0.font = font.bold(!resolved.isBold)
+            let decoded = font.decode(in: fontResolutionContext)
+            $0.font = font.bold(!decoded.isBold)
         }
     }
     
     private func toggleItalic() {
         text.transformAttributes(in: &selection) {
             let font = $0.font ?? .default
-            let resolved = font.resolve(in: fontResolutionContext)
-            $0.font = font.italic(!resolved.isItalic)
+            let decoded = font.decode(in: fontResolutionContext)
+            $0.font = font.italic(!decoded.isItalic)
         }
     }
     
@@ -312,7 +312,7 @@ struct MyTextFormatting: AttributedTextFormattingDefinition {
         \.font,
         constraint: { font in
             guard let font = font else { return nil }
-            let weight = font.resolve().weight
+            let weight = font.decode().weight
             return font.weight(weight == .bold ? .regular : .bold)
         }
     )

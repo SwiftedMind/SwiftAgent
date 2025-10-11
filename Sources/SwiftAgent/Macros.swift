@@ -8,8 +8,8 @@ import Observation
 /// Applying this macro to a class performs the following:
 /// - Generates the nested `@Tool` property wrapper used to mark stored tool properties.
 /// - Adds type aliases, storage, and initializers required by `LanguageModelProvider`.
-/// - Synthesizes `ResolvedToolRun` and `StreamingToolRun` enums.
-/// - Emits resolver wrapper types (`Resolvable<Name>Tool`) for each `@Tool` property.
+/// - Synthesizes `DecodedToolRun` and `StreamingToolRun` enums.
+/// - Emits decoder wrapper types (`Decodable<Name>Tool`) for each `@Tool` property.
 ///
 /// Example:
 /// ```swift

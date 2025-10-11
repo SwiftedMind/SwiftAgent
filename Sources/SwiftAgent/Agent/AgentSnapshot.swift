@@ -8,8 +8,8 @@ import Internal
 ///
 /// ## Properties
 ///
-/// - **transcript**: The current conversation transcript with partially resolved tool runs attached
-/// - **unresolvedTranscript**: The raw transcript backing the resolved projection, useful for debugging or
+/// - **transcript**: The current conversation transcript with partially decoded tool runs attached
+/// - **undecodedTranscript**: The raw transcript backing the decoded projection, useful for debugging or
 ///   custom resolution flows
 /// - **tokenUsage**: Current token usage statistics (optional, may be nil if not available)
 ///
@@ -34,13 +34,13 @@ public struct AgentSnapshot<Content: Generable, Provider: LanguageModelProvider>
   /// The current conversation transcript.
   ///
   /// This includes all entries that have been added during the current generation,
-  /// including reasoning steps, tool calls, and partial responses. Tool calls are partially resolved
+  /// including reasoning steps, tool calls, and partial responses. Tool calls are partially decoded
   /// for the observing session so that UI code can render tool output without additional resolution work.
   public let transcript: Transcript
 
   /// The raw transcript before resolution, kept for consumers that still need direct access to the
   /// untransformed entries.
-  public let streamingTranscript: Provider.ResolvedTranscript
+  public let streamingTranscript: Provider.DecodedTranscript
 
   /// Current token usage statistics.
   ///
@@ -57,7 +57,7 @@ public struct AgentSnapshot<Content: Generable, Provider: LanguageModelProvider>
   public init(
     content: Content? = nil,
     transcript: Transcript,
-    streamingTranscript: Provider.ResolvedTranscript,
+    streamingTranscript: Provider.DecodedTranscript,
     tokenUsage: TokenUsage? = nil,
   ) {
     self.content = content

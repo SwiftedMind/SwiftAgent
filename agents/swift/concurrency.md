@@ -842,7 +842,7 @@ protocol DataProvider {
 2. **Fix simple issues first**: Immutable globals, missing Sendable conformances
 3. **Isolate UI layer**: Add @MainActor to view controllers and view models
 4. **Address shared state**: Convert to actors or use synchronization
-5. **Enable Swift 6 mode**: Once warnings are resolved
+5. **Enable Swift 6 mode**: Once warnings are decoded
 
 ## Code Examples
 
