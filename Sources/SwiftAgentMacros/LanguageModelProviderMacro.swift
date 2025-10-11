@@ -70,9 +70,11 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     members.append(
       """
       @propertyWrapper
-      struct StructuredOutput<Schema: Generable> {
-        var wrappedValue: Schema.Type
-        init(_ wrappedValue: Schema.Type) { self.wrappedValue = wrappedValue }
+      struct StructuredOutput<Output: SwiftAgent.StructuredOutput> {
+        var wrappedValue: Output.Type
+        init(_ wrappedValue: Output.Type) {
+          self.wrappedValue = Output.self
+        }
       }
       """,
     )
@@ -137,7 +139,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
         provider: provider,
       ))
 
-    members.append(generateGroundingRepresentationEnum(for: groundingProperties))
+    members.append(generateResolvedGroundingEnum(for: groundingProperties))
 
     members.append(generateResolvedToolRunEnum(for: toolProperties))
     members.append(contentsOf: toolProperties.map(Self.generateResolvableWrapper))
@@ -176,18 +178,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
       return []
     }
 
-    var extensions: [ExtensionDeclSyntax] = [baseExtensionDecl]
-
-    if let classDeclaration = declaration.as(ClassDeclSyntax.self) {
-      extensions.append(
-        contentsOf: generateStructuredOutputRepresentationExtensions(
-          for: classDeclaration.name.text,
-          outputs: structuredOutputProperties,
-        ),
-      )
-    }
-
-    return extensions
+    return [baseExtensionDecl]
   }
 
   /// Captures information about a `@Tool` property declared on the session type.
@@ -273,7 +264,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     }
   }
 
-  /// Collects `@Grounding` declarations to drive `GroundingRepresentation` synthesis.
+  /// Collects `@Grounding` declarations to drive `ResolvedGrounding` synthesis.
   private static func extractGroundingProperties(from classDeclaration: ClassDeclSyntax) throws -> [GroundingProperty] {
     try classDeclaration.memberBlock.members.compactMap { member in
       guard let variableDecl = member.decl.as(VariableDeclSyntax.self) else {
@@ -550,16 +541,16 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
       """
   }
 
-  /// Emits the `GroundingRepresentation` enum used to send and receive grounding payloads.
-  private static func generateGroundingRepresentationEnum(for groundings: [GroundingProperty]) -> DeclSyntax {
+  /// Emits the `ResolvedGrounding` enum used to send and receive grounding payloads.
+  private static func generateResolvedGroundingEnum(for groundings: [GroundingProperty]) -> DeclSyntax {
     guard !groundings.isEmpty else {
       return
         """
-        enum GroundingRepresentation: GroundingRepresentable {
+        enum ResolvedGrounding: SwiftAgent.ResolvedGrounding {
           init(from decoder: Decoder) throws {
             let context = DecodingError.Context(
               codingPath: decoder.codingPath,
-              debugDescription: "No @Grounding properties are defined, so no GroundingRepresentation can be decoded."
+              debugDescription: "No @Grounding properties are defined, so no ResolvedGrounding can be decoded."
             )
             throw DecodingError.dataCorrupted(context)
           }
@@ -567,7 +558,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
           func encode(to encoder: Encoder) throws {
             let context = EncodingError.Context(
               codingPath: encoder.codingPath,
-              debugDescription: "No @Grounding properties are defined, so no GroundingRepresentation can be encoded."
+              debugDescription: "No @Grounding properties are defined, so no ResolvedGrounding can be encoded."
             )
             throw EncodingError.invalidValue(self, context)
           }
@@ -582,7 +573,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
     return
       """
-      enum GroundingRepresentation: GroundingRepresentable {
+      enum ResolvedGrounding: SwiftAgent.ResolvedGrounding {
       \(raw: cases)
       }
       """
@@ -788,7 +779,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
         .map { output in
           let caseName = output.identifier.text
           let resolvableTypeName = resolvableStructuredOutputTypeName(for: output)
-          return "    case \(caseName)(SwiftAgent.StructuredOutput<\(resolvableTypeName)>)"
+          return "    case \(caseName)(SwiftAgent.ContentGeneration<\(resolvableTypeName)>)"
         }
         .joined(separator: "\n")
       sections.append(cases)
@@ -824,35 +815,12 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
         static let name = "\(raw: caseName)"
 
         static func resolve(
-          _ structuredOutput: SwiftAgent.StructuredOutput<\(raw: resolvableName)>
+          _ structuredOutput: SwiftAgent.ContentGeneration<\(raw: resolvableName)>
         ) -> ResolvedStructuredOutput {
           .\(raw: caseName)(structuredOutput)
         }
       }
       """
-    }
-  }
-
-  /// Provides strongly-typed accessors for each structured output scoped to the provider.
-  private static func generateStructuredOutputRepresentationExtensions(
-    for providerTypeName: String,
-    outputs: [StructuredOutputProperty],
-  ) -> [ExtensionDeclSyntax] {
-    outputs.compactMap { output in
-      let schemaType = output.typeName
-      let caseName = output.identifier.text
-      let providerScopedResolvableName =
-        "\(providerTypeName).\(resolvableStructuredOutputTypeName(for: output))"
-
-      let extensionDecl: DeclSyntax =
-        """
-        extension StructuredOutputRepresentation where Provider == \(raw: providerTypeName),
-          Schema == \(raw: schemaType) {
-          static var \(raw: caseName): Self { .init(\(raw: providerScopedResolvableName).name) }
-        }
-        """
-
-      return extensionDecl.as(ExtensionDeclSyntax.self)
     }
   }
 

@@ -35,7 +35,7 @@ public extension LanguageModelProvider {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {
-    let sourcesData = try encodeGrounding([GroundingRepresentation]())
+    let sourcesData = try encodeGrounding([ResolvedGrounding]())
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     return processResponseStream(from: prompt, using: model, options: options)
   }
@@ -123,11 +123,11 @@ public extension LanguageModelProvider {
   /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
   func streamResponse<Content>(
     to prompt: String,
-    generating type: StructuredOutputRepresentation<Self, Content>,
+    generating type: (some StructuredOutput<Content>).Type,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
-    let sourcesData = try encodeGrounding([GroundingRepresentation]())
+    let sourcesData = try encodeGrounding([ResolvedGrounding]())
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     return processResponseStream(from: prompt, generating: type, using: model, options: options)
   }
@@ -167,7 +167,7 @@ public extension LanguageModelProvider {
   /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
   func streamResponse<Content>(
     to prompt: Prompt,
-    generating type: StructuredOutputRepresentation<Self, Content>,
+    generating type: (some StructuredOutput<Content>).Type,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
@@ -204,7 +204,7 @@ public extension LanguageModelProvider {
   ///
   /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
   func streamResponse<Content>(
-    generating type: StructuredOutputRepresentation<Self, Content>,
+    generating type: (some StructuredOutput<Content>).Type,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder prompt: @Sendable () throws -> Prompt,
@@ -219,9 +219,9 @@ public extension LanguageModelProvider {
   func streamResponse(
     to input: String,
     using model: Adapter.Model = .default,
-    groundingWith sources: [GroundingRepresentation],
+    groundingWith sources: [ResolvedGrounding],
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [GroundingRepresentation]) -> Prompt,
+    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [ResolvedGrounding]) -> Prompt,
   ) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {
     let sourcesData = try encodeGrounding(sources)
 
@@ -236,11 +236,11 @@ public extension LanguageModelProvider {
   @discardableResult
   func streamResponse<Content: Generable>(
     to input: String,
-    generating type: StructuredOutputRepresentation<Self, Content>,
-    groundingWith sources: [GroundingRepresentation],
+    generating type: (some StructuredOutput<Content>).Type,
+    groundingWith sources: [ResolvedGrounding],
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [GroundingRepresentation]) -> Prompt,
+    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [ResolvedGrounding]) -> Prompt,
   ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
     let sourcesData = try encodeGrounding(sources)
 

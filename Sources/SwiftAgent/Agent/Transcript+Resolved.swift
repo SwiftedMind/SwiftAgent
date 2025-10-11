@@ -15,7 +15,7 @@ public extension Transcript {
       for entry in transcript.entries {
         switch entry {
         case let .prompt(prompt):
-          var decodedSources: [Provider.GroundingRepresentation] = []
+          var decodedSources: [Provider.ResolvedGrounding] = []
           var errorContext: TranscriptResolutionError.PromptResolution?
 
           do {
@@ -97,14 +97,14 @@ public extension Transcript {
     public struct Prompt: Identifiable, Sendable, Equatable {
       public var id: String
       public var input: String
-      public var sources: [Provider.GroundingRepresentation]
+      public var sources: [Provider.ResolvedGrounding]
       public let error: TranscriptResolutionError.PromptResolution?
       package var prompt: String
 
       package init(
         id: String,
         input: String,
-        sources: [Provider.GroundingRepresentation],
+        sources: [Provider.ResolvedGrounding],
         prompt: String,
         error: TranscriptResolutionError.PromptResolution? = nil,
       ) {

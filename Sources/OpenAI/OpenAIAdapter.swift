@@ -29,7 +29,7 @@ public actor OpenAIAdapter: Adapter {
 
   public func respond(
     to prompt: Transcript.Prompt,
-    generating type: StructuredOutputRepresentation<some LanguageModelProvider, some Generable>?,
+    generating type: (some StructuredOutput).Type?,
     using model: Model = .default,
     including transcript: Transcript,
     options: OpenAIGenerationOptions,
@@ -80,7 +80,7 @@ public actor OpenAIAdapter: Adapter {
 
   private func run(
     transcript: Transcript,
-    generating type: StructuredOutputRepresentation<some LanguageModelProvider, some Generable>?,
+    generating type: (some StructuredOutput).Type?,
     using model: Model = .default,
     options: OpenAIGenerationOptions,
     continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
@@ -165,7 +165,7 @@ public actor OpenAIAdapter: Adapter {
 
   private func handleOutput(
     _ output: OutputItem,
-    type: StructuredOutputRepresentation<some LanguageModelProvider, some Generable>?,
+    type: (some StructuredOutput).Type?,
     generatedTranscript: inout Transcript,
     continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
   ) async throws {
@@ -196,11 +196,12 @@ public actor OpenAIAdapter: Adapter {
 
   private func handleMessage(
     _ message: Components.Schemas.OutputMessage,
-    type: StructuredOutputRepresentation<some LanguageModelProvider, some Generable>?,
+    type: (some StructuredOutput).Type?,
     generatedTranscript: inout Transcript,
     continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
   ) async throws {
     let structuredOutputTypeName = type?.name
+
     let expectedContentDescription = structuredOutputTypeName ?? "String"
     let status: Transcript.Status = transcriptStatusFromOpenAIStatus(message.status)
 
@@ -384,7 +385,7 @@ public actor OpenAIAdapter: Adapter {
 
   func responseQuery(
     including transcript: Transcript,
-    generating type: StructuredOutputRepresentation<some LanguageModelProvider, some Generable>?,
+    generating type: (some StructuredOutput).Type?,
     using model: Model,
     options: OpenAIGenerationOptions,
     streamResponses: Bool = false,
@@ -396,7 +397,7 @@ public actor OpenAIAdapter: Adapter {
 
       let config = CreateModelResponseQuery.TextResponseConfigurationOptions.OutputFormat.StructuredOutputsConfig(
         name: type.name,
-        schema: .dynamicJsonSchema(type.schemaType.generationSchema),
+        schema: .dynamicJsonSchema(type.Schema.generationSchema),
         description: nil,
         strict: false,
       )

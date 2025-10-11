@@ -34,7 +34,7 @@ public extension LanguageModelProvider {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) async throws -> Response<String> {
-    let sourcesData = try encodeGrounding([GroundingRepresentation]())
+    let sourcesData = try encodeGrounding([ResolvedGrounding]())
 
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     return try await processResponse(
@@ -149,11 +149,11 @@ public extension LanguageModelProvider {
   @discardableResult
   func respond<Content>(
     to prompt: String,
-    generating type: StructuredOutputRepresentation<Self, Content>,
+    generating type: (some StructuredOutput<Content>).Type,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) async throws -> Response<Content> where Content: Generable {
-    let sourcesData = try encodeGrounding([GroundingRepresentation]())
+    let sourcesData = try encodeGrounding([ResolvedGrounding]())
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     return try await processResponse(from: prompt, generating: type, using: model, options: options)
   }
@@ -190,7 +190,7 @@ public extension LanguageModelProvider {
   @discardableResult
   func respond<Content>(
     to prompt: Prompt,
-    generating type: StructuredOutputRepresentation<Self, Content>,
+    generating type: (some StructuredOutput<Content>).Type,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) async throws -> Response<Content> where Content: Generable {
@@ -228,7 +228,7 @@ public extension LanguageModelProvider {
   /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
   @discardableResult
   func respond<Content>(
-    generating type: StructuredOutputRepresentation<Self, Content>,
+    generating type: (some StructuredOutput<Content>).Type,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder prompt: () throws -> Prompt,
@@ -286,9 +286,9 @@ public extension LanguageModelProvider {
   func respond(
     to input: String,
     using model: Adapter.Model = .default,
-    groundingWith sources: [GroundingRepresentation],
+    groundingWith sources: [ResolvedGrounding],
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [GroundingRepresentation]) -> Prompt,
+    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [ResolvedGrounding]) -> Prompt,
   ) async throws -> Response<String> {
     let sourcesData = try encodeGrounding(sources)
 
@@ -344,11 +344,11 @@ public extension LanguageModelProvider {
   @discardableResult
   func respond<Content>(
     to input: String,
-    generating type: StructuredOutputRepresentation<Self, Content>,
+    generating type: (some StructuredOutput<Content>).Type,
     using model: Adapter.Model = .default,
-    groundingWith sources: [GroundingRepresentation],
+    groundingWith sources: [ResolvedGrounding],
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [GroundingRepresentation]) -> Prompt,
+    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [ResolvedGrounding]) -> Prompt,
   ) async throws -> Response<Content> where Content: Generable {
     let sourcesData = try encodeGrounding(sources)
 

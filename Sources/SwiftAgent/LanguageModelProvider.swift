@@ -12,9 +12,9 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
   typealias Snapshot<Content: Generable> = AgentSnapshot<Content, Self>
 
   associatedtype Adapter: SwiftAgent.Adapter & SendableMetatype
+  associatedtype ResolvedGrounding: SwiftAgent.ResolvedGrounding
   associatedtype ResolvedToolRun: SwiftAgent.ResolvedToolRun
   associatedtype ResolvedStructuredOutput: SwiftAgent.ResolvedStructuredOutput
-  associatedtype GroundingRepresentation: GroundingRepresentable
   nonisolated static var structuredOutputs: [any (SwiftAgent.ResolvableStructuredOutput<Self>).Type] { get }
   nonisolated var tools: [any ResolvableTool<Self>] { get }
 
@@ -22,8 +22,9 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
   @MainActor var transcript: Transcript { get set }
   @MainActor var tokenUsage: TokenUsage { get set }
 
-  nonisolated func encodeGrounding(_ grounding: [GroundingRepresentation]) throws -> Data
-  nonisolated func decodeGrounding(from data: Data) throws -> [GroundingRepresentation]
+  // TODO: Move to the TranscriptResolver
+  nonisolated func encodeGrounding(_ grounding: [ResolvedGrounding]) throws -> Data
+  nonisolated func decodeGrounding(from data: Data) throws -> [ResolvedGrounding]
 
   @MainActor func resetTokenUsage()
   @MainActor func resolver() -> TranscriptResolver<Self>
@@ -35,6 +36,8 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
     perform: () async throws -> T,
   ) async rethrows -> T
 }
+
+public protocol ResolvedGrounding: Sendable, Equatable, Codable {}
 
 public protocol ResolvedStructuredOutput: Sendable, Equatable {
   static func makeUnknown(segment: Transcript.StructuredSegment) -> Self
@@ -52,12 +55,12 @@ public extension LanguageModelProvider {
     transcript.resolved(in: self)
   }
 
-  nonisolated func encodeGrounding(_ grounding: [GroundingRepresentation]) throws -> Data {
+  nonisolated func encodeGrounding(_ grounding: [ResolvedGrounding]) throws -> Data {
     try JSONEncoder().encode(grounding)
   }
 
-  nonisolated func decodeGrounding(from data: Data) throws -> [GroundingRepresentation] {
-    try JSONDecoder().decode([GroundingRepresentation].self, from: data)
+  nonisolated func decodeGrounding(from data: Data) throws -> [ResolvedGrounding] {
+    try JSONDecoder().decode([ResolvedGrounding].self, from: data)
   }
 }
 
@@ -86,7 +89,7 @@ package extension LanguageModelProvider {
 
   func processResponse<Content>(
     from prompt: Transcript.Prompt,
-    generating type: StructuredOutputRepresentation<Self, Content>?,
+    generating type: (some StructuredOutput<Content>).Type?,
     using model: Adapter.Model,
     options: Adapter.GenerationOptions?,
   ) async throws -> Response<Content> where Content: Generable {
@@ -191,7 +194,7 @@ package extension LanguageModelProvider {
   ) async throws -> Response<String> {
     try await processResponse(
       from: prompt,
-      generating: nil,
+      generating: nil as String.Type?,
       using: model,
       options: options,
     )
@@ -199,7 +202,7 @@ package extension LanguageModelProvider {
 
   func processResponseStream<Content: Generable>(
     from prompt: Transcript.Prompt,
-    generating type: StructuredOutputRepresentation<Self, Content>?,
+    generating type: (some StructuredOutput<Content>).Type?,
     using model: Adapter.Model,
     options: Adapter.GenerationOptions?,
   ) -> AsyncThrowingStream<Snapshot<Content>, any Error> {
@@ -289,7 +292,7 @@ package extension LanguageModelProvider {
     using model: Adapter.Model,
     options: Adapter.GenerationOptions?,
   ) -> AsyncThrowingStream<Snapshot<String>, any Error> {
-    processResponseStream(from: prompt, generating: nil, using: model, options: options)
+    processResponseStream(from: prompt, generating: nil as String.Type?, using: model, options: options)
   }
 }
 

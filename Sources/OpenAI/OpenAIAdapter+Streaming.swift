@@ -13,7 +13,7 @@ import SwiftAgent
 extension OpenAIAdapter {
   public func streamResponse(
     to prompt: Transcript.Prompt,
-    generating type: StructuredOutputRepresentation<some LanguageModelProvider, some Generable>?,
+    generating type: (some StructuredOutput).Type?,
     using model: Model = .default,
     including transcript: Transcript,
     options: OpenAIGenerationOptions,
@@ -64,7 +64,7 @@ extension OpenAIAdapter {
 
   private func runStreamResponse(
     transcript: Transcript,
-    generating type: StructuredOutputRepresentation<some LanguageModelProvider, some Generable>?,
+    generating type: (some StructuredOutput).Type?,
     using model: Model,
     options: OpenAIGenerationOptions,
     continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
