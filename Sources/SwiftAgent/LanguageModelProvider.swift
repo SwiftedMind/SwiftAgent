@@ -17,7 +17,9 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
   associatedtype DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput
 
   nonisolated static var structuredOutputs: [any (SwiftAgent.DecodableStructuredOutput<Self>).Type] { get }
-  nonisolated var tools: [any DecodableTool<Self>] { get }
+
+  nonisolated var tools: [any SwiftAgentTool] { get }
+  nonisolated var decodableTools: [any DecodableTool<Self>] { get }
 
   var adapter: Adapter { get }
   @MainActor var transcript: Transcript { get set }

@@ -144,7 +144,12 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
       ))
     members.append(
       """
-      let tools: [any DecodableTool<ProviderType>]
+      let tools: [any SwiftAgentTool]
+      """,
+    )
+    members.append(
+      """
+      let decodableTools: [any DecodableTool<ProviderType>]
       """,
     )
 
@@ -454,7 +459,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
           return nil
         }
 
-        return "  _\(parameter.name) = Tool(wrappedValue: \(parameter.name))"
+        return "    _\(parameter.name) = Tool(wrappedValue: \(parameter.name))"
       }
       .joined(separator: "\n")
 
@@ -462,7 +467,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
       ? ""
       : "\(wrapperAssignments)\n\n"
 
-    let toolsArrayInit = toolParameters.map { parameter in
+    let decodableToolsArrayInit = toolParameters.map { parameter in
       let wrapperName = "Decodable\(parameter.name.capitalizedFirstLetter())Tool"
       let baseToolExpression = parameter.hasInitializer
         ? "_\(parameter.name).wrappedValue"
@@ -473,7 +478,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     .joined(separator: ",\n")
 
     // Construct the literal array so the adapter receives every tool in declaration order.
-    let toolsArrayCode = toolsArrayInit.isEmpty ? "[]" : "[\n\(toolsArrayInit)\n    ]"
+    let decodableToolsArrayCode = decodableToolsArrayInit.isEmpty ? "[]" : "[\n\(decodableToolsArrayInit)\n    ]"
 
     let initParameters = toolParameters
       .filter { !$0.hasInitializer }
@@ -487,18 +492,22 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     // Base initializer wires direct API key authentication through the generated adapter.
     initializers.append(
       """
-      	init(
-      	\(raw: allInitParameters)
-      	) {
-        \(raw: initializerPrologueBlock)  let tools: [any DecodableTool<ProviderType>] = \(raw: toolsArrayCode)
-        self.tools = tools
+        init(
+          \(raw: allInitParameters)
+        ) {
+        \(raw: initializerPrologueBlock)    let decodableTools: [any DecodableTool<ProviderType>] = \(
+          raw: decodableToolsArrayCode
+        )
+          let tools: [any SwiftAgentTool] = decodableTools.map { $0 as any SwiftAgentTool }
+          self.decodableTools = decodableTools
+          self.tools = tools
 
-        adapter = \(raw: provider.adapterTypeName)(
-      		tools: tools,
-      		instructions: instructions,
-      		configuration: .direct(apiKey: apiKey)
-      	)
-      }
+          adapter = \(raw: provider.adapterTypeName)(
+            tools: tools,
+            instructions: instructions,
+            configuration: .direct(apiKey: apiKey)
+          )
+        }
       """,
     )
 
@@ -509,20 +518,72 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     // Overload initializer accepts a fully-formed provider configuration instead.
     initializers.append(
       """
-      	init(
-      	\(raw: configurationInitParameters)
-      	) {
-        \(raw: initializerPrologueBlock)  let tools: [any DecodableTool<ProviderType>] = \(raw: toolsArrayCode)
-        self.tools = tools
+        init(
+          \(raw: configurationInitParameters)
+        ) {
+        \(raw: initializerPrologueBlock)    let decodableTools: [any DecodableTool<ProviderType>] = \(
+          raw: decodableToolsArrayCode
+        )
+          let tools: [any SwiftAgentTool] = decodableTools.map { $0 as any SwiftAgentTool }
+          self.decodableTools = decodableTools
+          self.tools = tools
 
-        adapter = \(raw: provider.adapterTypeName)(
-      		tools: tools,
-      		instructions: instructions,
-      		configuration: configuration
-      	)
-      }
+          adapter = \(raw: provider.adapterTypeName)(
+            tools: tools,
+            instructions: instructions,
+            configuration: configuration
+          )
+        }
       """,
     )
+
+    if toolParameters.isEmpty {
+      initializers.append(
+        """
+          init<each Tool: FoundationModels.Tool>(
+            tools: repeat each Tool,
+            instructions: String,
+            apiKey: String
+          ) where repeat (each Tool).Arguments: Generable, repeat (each Tool).Output: Generable {
+        \(raw: initializerPrologueBlock)    self.decodableTools = []
+            var wrappedTools: [any SwiftAgentTool] = []
+            for tool in repeat each tools {
+              wrappedTools.append(SwiftAgentToolWrapper(tool: tool))
+            }
+            self.tools = wrappedTools
+
+            adapter = \(raw: provider.adapterTypeName)(
+              tools: wrappedTools,
+              instructions: instructions,
+              configuration: .direct(apiKey: apiKey)
+            )
+          }
+        """,
+      )
+
+      initializers.append(
+        """
+          init<each Tool: FoundationModels.Tool>(
+            tools: repeat each Tool,
+            instructions: String,
+            configuration: \(raw: provider.configurationTypeName)
+          ) where repeat (each Tool).Arguments: Generable, repeat (each Tool).Output: Generable {
+        \(raw: initializerPrologueBlock)    self.decodableTools = []
+            var wrappedTools: [any SwiftAgentTool] = []
+            for tool in repeat each tools {
+              wrappedTools.append(SwiftAgentToolWrapper(tool: tool))
+            }
+            self.tools = wrappedTools
+
+            adapter = \(raw: provider.adapterTypeName)(
+              tools: wrappedTools,
+              instructions: instructions,
+              configuration: configuration
+            )
+          }
+        """,
+      )
+    }
 
     return initializers
   }

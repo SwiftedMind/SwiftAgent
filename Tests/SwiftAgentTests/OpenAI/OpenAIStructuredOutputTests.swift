@@ -8,16 +8,6 @@ import OpenAI
 @testable import SwiftAgent
 import Testing
 
-/*
-
- TODO: More unit tests.
- TODO: Update the Session init to have a "tools" parameter when no @Tool properties are defined.
- TODO: Go through the API flow and check if this is now somewhat final
-      -> Do this by finally building the example app properly
- TODO: Start writing new documentation
- TODO: Changelog
- */
-
 @LanguageModelProvider(.openAI)
 private final class ExampleSession {
   @StructuredOutput(WeatherForecast.self) var weatherForecast

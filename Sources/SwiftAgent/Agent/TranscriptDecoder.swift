@@ -22,7 +22,7 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
   ///   - transcript: The conversation transcript containing tool calls and outputs
   public init(for provider: Provider) {
     self.provider = provider
-    toolsByName = Dictionary(uniqueKeysWithValues: provider.tools.map { ($0.name, $0) })
+    toolsByName = Dictionary(uniqueKeysWithValues: provider.decodableTools.map { ($0.name, $0) })
   }
 
   public func decode(_ transcript: Transcript) throws -> Provider.DecodedTranscript {

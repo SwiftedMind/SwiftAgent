@@ -9,6 +9,7 @@ import UIKit
 
  TODO: More unit tests.
  TODO: Update the Session init to have a "tools" parameter when no @Tool properties are defined.
+ TODO: Add access level to macro generation
  TODO: Go through the API flow and check if this is now somewhat final
       -> Do this by finally building the example app properly
  TODO: Start writing new documentation
