@@ -163,7 +163,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
         accessModifier: accessModifier,
       ))
 
-    members.append(generateDecodedGroundingEnum(for: groundingProperties, accessModifier: accessModifier))
+    members.append(generateDecodedGroundingType(for: groundingProperties, accessModifier: accessModifier))
 
     members.append(generateDecodedToolRunEnum(for: toolProperties, accessModifier: accessModifier))
     members.append(contentsOf: toolProperties.map { Self.generateDecodableWrapper(

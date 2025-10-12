@@ -255,33 +255,16 @@ extension LanguageModelProviderMacro {
 
   // MARK: - Grounding
 
-  static func generateDecodedGroundingEnum(
+  static func generateDecodedGroundingType(
     for groundings: [GroundingProperty],
     accessModifier: String?,
   ) -> DeclSyntax {
     let enumKeyword = accessModifier.map { "\($0) enum" } ?? "enum"
-    let initKeyword = accessModifier.map { "\($0) init" } ?? "init"
-    let functionKeyword = accessModifier.map { "\($0) func" } ?? "func"
+    let structKeyword = accessModifier.map { "\($0) struct" } ?? "struct"
     guard !groundings.isEmpty else {
       return
         """
-        \(raw: enumKeyword) DecodedGrounding: SwiftAgent.DecodedGrounding {
-          \(raw: initKeyword)(from decoder: Decoder) throws {
-            let context = DecodingError.Context(
-              codingPath: decoder.codingPath,
-              debugDescription: "No @Grounding properties are defined, so no DecodedGrounding can be decoded."
-            )
-            throw DecodingError.dataCorrupted(context)
-          }
-
-          \(raw: functionKeyword) encode(to encoder: Encoder) throws {
-            let context = EncodingError.Context(
-              codingPath: encoder.codingPath,
-              debugDescription: "No @Grounding properties are defined, so no DecodedGrounding can be encoded."
-            )
-            throw EncodingError.invalidValue(self, context)
-          }
-        }
+        \(raw: structKeyword) DecodedGrounding: SwiftAgent.DecodedGrounding {}
         """
     }
 
