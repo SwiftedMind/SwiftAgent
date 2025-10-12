@@ -38,11 +38,6 @@ public struct AgentResponse<Content: Generable, Provider: LanguageModelProvider>
   /// including reasoning steps, tool calls, and the final response.
   public var transcript: Transcript
 
-  /// The decoded transcript projection for the session.
-  ///
-  /// This provides decoded tool runs corresponding to the generated transcript entries.
-  public let decodedTranscript: Provider.DecodedTranscript
-
   /// Token usage statistics aggregated across all internal generation steps.
   ///
   /// Provides information about input tokens, output tokens, cached tokens, and reasoning tokens
@@ -52,12 +47,10 @@ public struct AgentResponse<Content: Generable, Provider: LanguageModelProvider>
   package init(
     content: Content,
     transcript: Transcript,
-    decodedTranscript: Provider.DecodedTranscript,
     tokenUsage: TokenUsage?,
   ) {
     self.content = content
     self.transcript = transcript
-    self.decodedTranscript = decodedTranscript
     self.tokenUsage = tokenUsage
   }
 }

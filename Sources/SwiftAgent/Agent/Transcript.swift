@@ -20,8 +20,9 @@ public struct Transcript: Sendable, Equatable {
 
   public func decoded<Provider: LanguageModelProvider>(
     in session: Provider,
-  ) -> Provider.DecodedTranscript {
-    Transcript.Decoded(transcript: self, session: session)
+  ) throws -> Provider.DecodedTranscript {
+    let decoder = session.decoder()
+    return try decoder.decode(self)
   }
 }
 

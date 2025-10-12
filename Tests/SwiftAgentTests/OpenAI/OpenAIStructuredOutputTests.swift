@@ -148,9 +148,14 @@
 // }
 
 // @Generable
-// struct WeatherForecast: Equatable {
-//   var temperatureCelsius: Double
-//   var condition: String
+// struct WeatherForecast: StructuredOutput {
+//   static let name: String = "weather_forecast"
+
+//   @Generable
+//   struct Schema {
+//     var temperatureCelsius: Double
+//     var condition: String
+//   }
 // }
 
 // // MARK: - Mock Responses

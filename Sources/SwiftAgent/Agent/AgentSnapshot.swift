@@ -38,10 +38,6 @@ public struct AgentSnapshot<Content: Generable, Provider: LanguageModelProvider>
   /// for the observing session so that UI code can render tool output without additional resolution work.
   public let transcript: Transcript
 
-  /// The raw transcript before resolution, kept for consumers that still need direct access to the
-  /// untransformed entries.
-  public let streamingTranscript: Provider.DecodedTranscript
-
   /// Current token usage statistics.
   ///
   /// Provides information about input tokens, output tokens, cached tokens, and reasoning tokens
@@ -57,12 +53,10 @@ public struct AgentSnapshot<Content: Generable, Provider: LanguageModelProvider>
   public init(
     content: Content? = nil,
     transcript: Transcript,
-    streamingTranscript: Provider.DecodedTranscript,
     tokenUsage: TokenUsage? = nil,
   ) {
     self.content = content
     self.transcript = transcript
-    self.streamingTranscript = streamingTranscript
     self.tokenUsage = tokenUsage
   }
 }

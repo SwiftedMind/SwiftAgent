@@ -5,51 +5,9 @@ import SimulatedSession
 import SwiftUI
 import UIKit
 
-/*
-
- TODOS
-
- - Updating transcript in session vs only retuning it in the stream method
-    -> transcript always updates as soon as new data arrives, in both non-streaming and streaming methods
- -> So it's always fine to observe the transcript and ignore AgentResponse / AgentSnapshot data
- -> So you can either observe the transcript and ignore the response, or observe the response (managing your own transcript state) and ignore the transcript
- -> Thought. Maybe it's fine to not stream the transcript but only the output once it starts arriving?
- - Remove streaming transcript, since it's nw unified
- - Make the throttling properly configurable with presets and custom values
- - Can the decoded transcript even work? the response structured output is on a method basis, so it can't ever be decoded inside the transcript itself
- - But if you then go for the observe session.transcript way, you never have access to the structured output directly
-
- -> Maybe have something similar to tool resolution. You define @StructuredOutput(SomeGenerable.self) var weatherReport, and then it can be somehow decoded from the transcript's structured response.
-
- The provider macro would then generate an enum DecodedStructuredOutput<Provider> that you can iterate over in the view to get the structured output. And maybe if there is just one, it's not an enum but the type directly, for convenience?
-
- Problem: tools have names to identify them, the structured output stuff doesn't
- -> Bake it into the transcript since we know the name when calling the method (synthesized from property name)
- -> But I need to figure out how the api does structured outputs. -> Simply decode all .structured responses into the type. In practice it should only ever be one, but just in case, map everything.
-
- in session:
-
- This is passed  as the "generating:" parameter to the session.streamResponse method (generating: .weatherReport)
- enum XYZ: String {
-  case weatherReport = "weatherReport"
- }
-
- passing nil means string response (makes it also easier to check for the output type)
-
- func decodeStructuredOutput(name: String, content: GeneratedContent) -> DecodedStructuredOutput<Provider> {
-  switch name {
-  case "WeatherReport":
- // decode
-    return DecodedStructuredOutput.weatherReport(decodedContent)
-  default:
-    return content
-  }
- }
-
- */
-
 struct ConversationalAgentExampleView: View {
   @State private var userInput = "Compute 234 + 6 using the tool! And write a 10 paragraph story about the result. Just write the story!"
+  @State private var transcript: OpenAISession.DecodedTranscript = .init()
   @State private var streamingTranscript: OpenAISession.DecodedTranscript = .init()
   @State private var session: OpenAISession?
 
@@ -94,7 +52,7 @@ struct ConversationalAgentExampleView: View {
 
   @ViewBuilder
   private func content(session: OpenAISession) -> some View {
-    ForEach(streamingTranscript) { entry in
+    ForEach(transcript + streamingTranscript) { entry in
       switch entry {
       case let .prompt(prompt):
         PromptEntryView(prompt: prompt)
@@ -119,7 +77,9 @@ struct ConversationalAgentExampleView: View {
     )
 
     Task {
-      // try await session!.respond(to: "", generating: .weatherReport)
+      // print("NOW")
+      // let test = try await session!.weatherReport.respond(to: "Make up a weather report")
+      // print(test.content)
     }
   }
 
@@ -137,32 +97,33 @@ struct ConversationalAgentExampleView: View {
         reasoning: .init(effort: .minimal, summary: .auto),
       )
 
-      // let stream = try session.streamResponse(
-      //   to: userInput,
-      //   generating: String.self,
-      //   groundingWith: [.currentDate(Date())],
-      //   using: OpenAIModel.gpt5_nano,
-      //   options: options,
-      // ) { input, sources in
-      //   PromptTag("context") {
-      //     for source in sources {
-      //       switch source {
-      //       case let .currentDate(date):
-      //         PromptTag("current-date") { date }
-      //       }
-      //     }
-      //   }
+      let stream = try session.streamResponse(
+        to: userInput,
+        groundingWith: [.currentDate(Date())],
+        using: OpenAIModel.gpt5_nano,
+        options: options,
+      ) { input, sources in
+        PromptTag("context") {
+          for source in sources {
+            switch source {
+            case let .currentDate(date):
+              PromptTag("current-date") { date }
+            }
+          }
+        }
 
-      //   PromptTag("input") {
-      //     input
-      //   }
-      // }
+        PromptTag("input") {
+          input
+        }
+      }
 
-      // for try await snapshot in stream {
-      //   streamingTranscript = snapshot.streamingTranscript
-      // }
+      let decoder = session.decoder()
+      for try await snapshot in stream {
+        streamingTranscript = try decoder.decode(snapshot.transcript)
+      }
 
-      //			streamingTranscript = .init()
+      transcript += streamingTranscript
+      streamingTranscript = .init()
     } catch {
       print("Error", error.localizedDescription)
     }
@@ -192,32 +153,32 @@ private struct ToolRunEntryView: View {
   let toolRun: OpenAISession.DecodedToolRun
 
   var body: some View {
-    Text("TODO")
-    // switch toolRun.resolution {
-    // case let .inProgress(inProgressRun):
-    // 	switch inProgressRun {
-    // 	case let .calculator(calculatorRun):
-    // 		Text(
-    // 			"Calculator Run: \(calculatorRun.arguments.firstNumber ?? 0) \(calculatorRun.arguments.operation ?? "?")
-    // 			\(calculatorRun.arguments.secondNumber ?? 0)",
-    // 		)
-    // 	default:
-    // 		Text("Weather Run: \(toolRun.toolName)")
-    // 	}
-    // case let .completed(completedRun):
-    // 	switch completedRun {
-    // 	case let .calculator(calculatorRun):
-    // 		Text("TODO")
-    // 	// Text(
-    // 	// 	"Calculator Run: \(calculatorRun.arguments.firstNumber) \(calculatorRun.arguments.operation)
-    // 	// 	\(calculatorRun.arguments.secondNumber)",
-    // 	// )
-    // 	default:
-    // 		Text("Weather Run: \(toolRun.toolName)")
-    // 	}
-    // case let .failed(failedRun):
-    // 	Text("Failed Run: \(String(describing: failedRun))")
-    // }
+    switch toolRun {
+    case let .calculator(calculatorRun):
+      switch calculatorRun.arguments {
+      case let .completed(arguments):
+        Text(
+          "Calculator Run: \(arguments.firstNumber.formatted()) \(arguments.operation) \(arguments.secondNumber.formatted())",
+        )
+      case let .inProgress(arguments):
+        Text(
+          "Calculator Run: \(arguments.firstNumber?.formatted(), default: "?") \(arguments.operation, default: "?") \(arguments.secondNumber?.formatted(), default: "?")",
+        )
+      case let .failed(error):
+        Text("Calculator Run: \(error, default: "?")")
+      }
+    case let .weather(weatherRun):
+      switch weatherRun.arguments {
+      case let .completed(arguments):
+        Text("Weather Run: \(arguments.location, default: "?")")
+      case let .inProgress(arguments):
+        Text("Weather Run: \(arguments.location, default: "?")")
+      case let .failed(error):
+        Text("Weather Run: \(error, default: "?")")
+      }
+    case let .unknown(toolCall):
+      Text("Unknown Run: \(toolCall.toolName)")
+    }
   }
 }
 

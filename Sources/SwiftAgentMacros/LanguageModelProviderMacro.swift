@@ -71,9 +71,31 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
       """
       @propertyWrapper
       struct StructuredOutput<Output: SwiftAgent.StructuredOutput> {
-        var wrappedValue: Output.Type
+        typealias Generating<EnclosingSelf: LanguageModelProvider> = GeneratingLanguageModelProvider<EnclosingSelf, Output>
+        private var output: Output.Type
+
         init(_ wrappedValue: Output.Type) {
-          self.wrappedValue = Output.self
+          output = wrappedValue
+        }
+
+        static subscript<EnclosingSelf>(
+          _enclosingInstance observed: EnclosingSelf,
+          wrapped wrappedKeyPath: ReferenceWritableKeyPath<EnclosingSelf, Generating<EnclosingSelf>>,
+          storage storageKeyPath: ReferenceWritableKeyPath<EnclosingSelf, StructuredOutput<Output>>,
+        ) -> Generating<EnclosingSelf> where EnclosingSelf: LanguageModelProvider {
+          get {
+            let wrapper = observed[keyPath: storageKeyPath]
+            return Generating(provider: observed, output: wrapper.output)
+          }
+          set {
+            // Intentionally ignore external assignments to the wrapped value
+          }
+        }
+
+        @available(*, unavailable, message: "This property wrapper can only be applied to classes")
+        var wrappedValue: Generating<ProviderType> {
+          get { fatalError() }
+          set { fatalError() }
         }
       }
       """,
@@ -159,15 +181,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     conformingTo protocols: [TypeSyntax],
     in context: some MacroExpansionContext,
   ) throws -> [ExtensionDeclSyntax] {
-    var conformances = ["LanguageModelProvider", "@unchecked Sendable", "nonisolated Observation.Observable"]
-    var structuredOutputProperties: [StructuredOutputProperty] = []
-
-    if let classDeclaration = declaration.as(ClassDeclSyntax.self) {
-      structuredOutputProperties = try extractStructuredOutputProperties(from: classDeclaration)
-      if !structuredOutputProperties.isEmpty {
-        conformances.append("SupportsStructuredOutputs")
-      }
-    }
+    let conformances = ["LanguageModelProvider", "@unchecked Sendable", "nonisolated Observation.Observable"]
 
     let extensionDecl: DeclSyntax =
       """
@@ -779,7 +793,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
         .map { output in
           let caseName = output.identifier.text
           let resolvableTypeName = resolvableStructuredOutputTypeName(for: output)
-          return "    case \(caseName)(SwiftAgent.ContentGeneration<\(resolvableTypeName)>)"
+          return "    case \(caseName)(SwiftAgent.DecodedGeneratedContent<\(resolvableTypeName)>)"
         }
         .joined(separator: "\n")
       sections.append(cases)
@@ -810,13 +824,12 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
       return """
       struct \(raw: resolvableName): SwiftAgent.DecodableStructuredOutput {
-        typealias Schema = \(raw: schemaType)
+        typealias Base = \(raw: schemaType)
         typealias Provider = ProviderType
-        static let name = "\(raw: caseName)"
 
         static func decode(
-          _ structuredOutput: SwiftAgent.ContentGeneration<\(raw: resolvableName)>
-        ) -> DecodedStructuredOutput {
+          _ structuredOutput: SwiftAgent.DecodedGeneratedContent<\(raw: resolvableName)>
+        ) -> Provider.DecodedStructuredOutput {
           .\(raw: caseName)(structuredOutput)
         }
       }

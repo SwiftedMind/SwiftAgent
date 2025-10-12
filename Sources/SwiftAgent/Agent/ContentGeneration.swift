@@ -4,7 +4,7 @@ import Foundation
 import FoundationModels
 import Internal
 
-public struct ContentGeneration<DecodableOutput: DecodableStructuredOutput>: Identifiable {
+public struct DecodedGeneratedContent<DecodableOutput: DecodableStructuredOutput>: Identifiable {
   public enum State {
     case inProgress(DecodableOutput.Base.Schema.PartiallyGenerated)
     case completed(DecodableOutput.Base.Schema)
@@ -22,14 +22,15 @@ public struct ContentGeneration<DecodableOutput: DecodableStructuredOutput>: Ide
   }
 }
 
-extension ContentGeneration.State: Sendable where DecodableOutput.Base.Schema: Sendable,
+extension DecodedGeneratedContent.State: Sendable where DecodableOutput.Base.Schema: Sendable,
   DecodableOutput.Base.Schema.PartiallyGenerated: Sendable {}
-extension ContentGeneration.State: Equatable where DecodableOutput.Base.Schema: Equatable,
+extension DecodedGeneratedContent.State: Equatable where DecodableOutput.Base.Schema: Equatable,
   DecodableOutput.Base.Schema.PartiallyGenerated: Equatable {}
-extension ContentGeneration: Sendable where DecodableOutput.Base.Schema: Sendable,
+extension DecodedGeneratedContent: Sendable where DecodableOutput.Base.Schema: Sendable,
   DecodableOutput.Base.Schema.PartiallyGenerated: Sendable {}
-extension ContentGeneration: Equatable {
-  public static func == (lhs: ContentGeneration<DecodableOutput>, rhs: ContentGeneration<DecodableOutput>) -> Bool {
+extension DecodedGeneratedContent: Equatable {
+  public static func == (lhs: DecodedGeneratedContent<DecodableOutput>,
+                         rhs: DecodedGeneratedContent<DecodableOutput>) -> Bool {
     lhs.id == rhs.id && lhs.raw == rhs.raw
   }
 }

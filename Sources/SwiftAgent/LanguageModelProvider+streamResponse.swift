@@ -218,8 +218,8 @@ public extension LanguageModelProvider {
 public extension LanguageModelProvider {
   func streamResponse(
     to input: String,
-    using model: Adapter.Model = .default,
     groundingWith sources: [DecodedGrounding],
+    using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [DecodedGrounding]) -> Prompt,
   ) throws -> AsyncThrowingStream<Snapshot<String>, any Error> {

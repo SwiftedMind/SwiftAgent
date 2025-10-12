@@ -15,6 +15,7 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
   associatedtype DecodedGrounding: SwiftAgent.DecodedGrounding
   associatedtype DecodedToolRun: SwiftAgent.DecodedToolRun
   associatedtype DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput
+
   nonisolated static var structuredOutputs: [any (SwiftAgent.DecodableStructuredOutput<Self>).Type] { get }
   nonisolated var tools: [any DecodableTool<Self>] { get }
 
@@ -22,15 +23,11 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
   @MainActor var transcript: Transcript { get set }
   @MainActor var tokenUsage: TokenUsage { get set }
 
-  // TODO: Move to the TranscriptDecoder
-  nonisolated func encodeGrounding(_ grounding: [DecodedGrounding]) throws -> Data
-  nonisolated func decodeGrounding(from data: Data) throws -> [DecodedGrounding]
-
   @MainActor func resetTokenUsage()
-  @MainActor func decoder() -> TranscriptDecoder<Self>
+  nonisolated func decoder() -> TranscriptDecoder<Self>
 
   @discardableResult
-  func withAuthorization<T>(
+  nonisolated func withAuthorization<T>(
     token: String,
     refresh: (@Sendable () async throws -> String)?,
     perform: () async throws -> T,
@@ -50,17 +47,9 @@ public protocol DecodedToolRun: Identifiable, Equatable, Sendable where ID == St
 
 // MARK: - Default Implementations
 
-public extension LanguageModelProvider {
-  @MainActor var decodedTranscript: DecodedTranscript {
-    transcript.decoded(in: self)
-  }
-
+package extension LanguageModelProvider {
   nonisolated func encodeGrounding(_ grounding: [DecodedGrounding]) throws -> Data {
     try JSONEncoder().encode(grounding)
-  }
-
-  nonisolated func decodeGrounding(from data: Data) throws -> [DecodedGrounding] {
-    try JSONDecoder().decode([DecodedGrounding].self, from: data)
   }
 }
 
@@ -131,11 +120,9 @@ package extension LanguageModelProvider {
                 // We can return here since a structured response can only happen once
                 // TODO: Handle errors here in some way
 
-                let decodedTranscript = generatedTranscript.decoded(in: self)
                 return try Response<Content>(
                   content: Content(structuredSegment.content),
                   transcript: generatedTranscript,
-                  decodedTranscript: decodedTranscript,
                   tokenUsage: generatedUsage,
                 )
               }
@@ -173,11 +160,9 @@ package extension LanguageModelProvider {
         }
         .flatMap(\.self)
 
-      let decodedTranscript = generatedTranscript.decoded(in: self)
       return Response<Content>(
         content: finalResponseSegments.joined(separator: "\n") as! Content,
         transcript: generatedTranscript,
-        decodedTranscript: decodedTranscript,
         tokenUsage: generatedUsage,
       )
     } else {
@@ -242,12 +227,10 @@ package extension LanguageModelProvider {
           // Throttle-latest: emit at most once per interval with the freshest state
           let now = clock.now
           if now >= nextEmitDeadline {
-            let partiallyDecodedTranscript = generatedTranscript.decoded(in: self)
             continuation.yield(
               Snapshot(
                 content: nil,
                 transcript: generatedTranscript,
-                streamingTranscript: partiallyDecodedTranscript,
                 tokenUsage: generatedUsage,
               ),
             )
@@ -265,12 +248,10 @@ package extension LanguageModelProvider {
         await mergeTokenUsage(generatedUsage)
 
         // TODO: Send the final, parsed content, if type != String.self
-        let streamingTranscript = generatedTranscript.decoded(in: self)
         continuation.yield(
           Snapshot(
             content: nil,
             transcript: generatedTranscript,
-            streamingTranscript: streamingTranscript,
             tokenUsage: generatedUsage,
           ),
         )
@@ -299,61 +280,61 @@ package extension LanguageModelProvider {
 // MARK: - Authorization
 
 public extension LanguageModelProvider {
-  /// Executes the provided work with a temporary authorization context for this session.
-  ///
-  /// Use this helper to attach an access token to all network requests that happen during a single
-  /// "agent turn" — that is, every request the agent performs until it finishes producing the
-  /// next message (reasoning steps, tool calls and their outputs, and the final response).
-  ///
-  /// The token is stored in an internal task‑local value and is automatically picked up by adapter
-  /// configurations that support proxy authorization (for example, ``OpenAIConfiguration/proxy(through:)``).
-  /// This keeps credentials out of your app bundle and enables secure, backend‑issued, short‑lived
-  /// tokens that you can rotate per turn.
-  ///
-  /// You can also provide an optional `refresh` closure. If the proxy responds with `401 Unauthorized`,
-  /// the SDK will invoke this closure to obtain a new token and retry the failed request once.
-  ///
-  /// - Parameters:
-  ///   - token: The access token to authorize requests for this agent turn.
-  ///   - refresh: Optional closure that returns a freshly issued token when a request is unauthorized.
-  ///   - perform: The asynchronous work to run while the authorization context is active.
-  /// - Returns: The result of the `perform` closure.
-  ///
-  /// ## Example: Per‑Turn Token
-  ///
-  /// ```swift
-  /// // 1) Configure the session to use your proxy backend
-  /// let configuration = OpenAIConfiguration.proxy(through: URL(string: "https://api.your‑backend.com")!)
-  /// let session = LanguageModelProvider.openAI(
-  ///   tools: [WeatherTool(), CalculatorTool()],
-  ///   instructions: "You are a helpful assistant.",
-  ///   configuration: configuration
-  /// )
-  ///
-  /// // 2) Ask your backend for a short‑lived token that is valid for a single agent turn
-  /// let token = try await backend.issueTurnToken(for: userId)
-  ///
-  /// // 3) Run all requests for this turn with that token
-  /// let response = try await session.withAuthorization(token: token) {
-  ///   try await session.respond(to: "What's the weather in San Francisco?")
-  /// }
-  /// print(response.content)
-  /// ```
-  ///
-  /// ## Example: Automatic Refresh
-  ///
-  /// ```swift
-  /// let initial = try await backend.issueTurnToken(for: userId)
-  ///
-  /// let response = try await session.withAuthorization(
-  ///   token: initial,
-  ///   refresh: { try await backend.refreshTurnToken(for: userId) }
-  /// ) {
-  ///   try await session.respond(to: "Plan a 3‑day trip to Kyoto.")
-  /// }
-  /// ```
+  // Executes the provided work with a temporary authorization context for this session.
+  //
+  // Use this helper to attach an access token to all network requests that happen during a single
+  // "agent turn" — that is, every request the agent performs until it finishes producing the
+  // next message (reasoning steps, tool calls and their outputs, and the final response).
+  //
+  // The token is stored in an internal task‑local value and is automatically picked up by adapter
+  // configurations that support proxy authorization (for example, ``OpenAIConfiguration/proxy(through:)``).
+  // This keeps credentials out of your app bundle and enables secure, backend‑issued, short‑lived
+  // tokens that you can rotate per turn.
+  //
+  // You can also provide an optional `refresh` closure. If the proxy responds with `401 Unauthorized`,
+  // the SDK will invoke this closure to obtain a new token and retry the failed request once.
+  //
+  // - Parameters:
+  //   - token: The access token to authorize requests for this agent turn.
+  //   - refresh: Optional closure that returns a freshly issued token when a request is unauthorized.
+  //   - perform: The asynchronous work to run while the authorization context is active.
+  // - Returns: The result of the `perform` closure.
+  //
+  // ## Example: Per‑Turn Token
+  //
+  // ```swift
+  // // 1) Configure the session to use your proxy backend
+  // let configuration = OpenAIConfiguration.proxy(through: URL(string: "https://api.your‑backend.com")!)
+  // let session = LanguageModelProvider.openAI(
+  //   tools: [WeatherTool(), CalculatorTool()],
+  //   instructions: "You are a helpful assistant.",
+  //   configuration: configuration
+  // )
+  //
+  // // 2) Ask your backend for a short‑lived token that is valid for a single agent turn
+  // let token = try await backend.issueTurnToken(for: userId)
+  //
+  // // 3) Run all requests for this turn with that token
+  // let response = try await session.withAuthorization(token: token) {
+  //   try await session.respond(to: "What's the weather in San Francisco?")
+  // }
+  // print(response.content)
+  // ```
+  //
+  // ## Example: Automatic Refresh
+  //
+  // ```swift
+  // let initial = try await backend.issueTurnToken(for: userId)
+  //
+  // let response = try await session.withAuthorization(
+  //   token: initial,
+  //   refresh: { try await backend.refreshTurnToken(for: userId) }
+  // ) {
+  //   try await session.respond(to: "Plan a 3‑day trip to Kyoto.")
+  // }
+  // ```
   @discardableResult
-  func withAuthorization<T>(
+  nonisolated func withAuthorization<T>(
     token: String,
     refresh: (@Sendable () async throws -> String)? = nil,
     perform: () async throws -> T,
@@ -394,8 +375,8 @@ public extension LanguageModelProvider {
     tokenUsage = TokenUsage()
   }
 
-  @MainActor func decoder() -> TranscriptDecoder<Self> {
-    TranscriptDecoder(for: self, transcript: transcript)
+  nonisolated func decoder() -> TranscriptDecoder<Self> {
+    TranscriptDecoder(for: self)
   }
 }
 

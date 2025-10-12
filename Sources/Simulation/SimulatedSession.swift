@@ -60,11 +60,9 @@ public extension LanguageModelProvider {
     }
 
     let transcript = Transcript(entries: addedEntities)
-    let decodedTranscript = transcript.decoded(in: self)
     return AgentResponse<String, Self>(
       content: responseContent.joined(separator: "\n"),
       transcript: transcript,
-      decodedTranscript: decodedTranscript,
       tokenUsage: aggregatedUsage,
     )
   }
@@ -101,11 +99,9 @@ public extension LanguageModelProvider {
               break
             case let .structure(structuredSegment):
               let transcript = Transcript(entries: addedEntities)
-              let decodedTranscript = transcript.decoded(in: self)
               return try AgentResponse<Content, Self>(
                 content: Content(structuredSegment.content),
                 transcript: transcript,
-                decodedTranscript: decodedTranscript,
                 tokenUsage: aggregatedUsage,
               )
             }

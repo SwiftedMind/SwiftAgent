@@ -8,69 +8,8 @@ public extension Transcript {
     /// All transcript entries with decoded tool runs attached where available.
     public package(set) var entries: [Entry]
 
-    init(transcript: Transcript, session: Provider) {
-      let decoder = TranscriptDecoder(for: session, transcript: transcript)
-      entries = []
-
-      for entry in transcript.entries {
-        switch entry {
-        case let .prompt(prompt):
-          var decodedSources: [Provider.DecodedGrounding] = []
-          var errorContext: TranscriptDecodingError.PromptResolution?
-
-          do {
-            decodedSources = try session.decodeGrounding(from: prompt.sources)
-          } catch {
-            errorContext = .groundingDecodingFailed(description: error.localizedDescription)
-          }
-
-          entries.append(.prompt(Decoded.Prompt(
-            id: prompt.id,
-            input: prompt.input,
-            sources: decodedSources,
-            prompt: prompt.prompt,
-            error: errorContext,
-          )))
-        case let .reasoning(reasoning):
-          entries.append(.reasoning(Decoded.Reasoning(
-            id: reasoning.id,
-            summary: reasoning.summary,
-          )))
-        case let .response(response):
-          var segments: [Segment] = []
-
-          for segment in response.segments {
-            switch segment {
-            case let .text(text):
-              segments.append(.text(Decoded.TextSegment(
-                id: text.id,
-                content: text.content,
-              )))
-            case let .structure(structure):
-              let content = decoder.decode(structure, status: response.status)
-              segments.append(.structure(Decoded.StructuredSegment(
-                id: structure.id,
-                typeName: structure.typeName,
-                content: content,
-              )))
-            }
-          }
-
-          entries.append(.response(Decoded.Response(
-            id: response.id,
-            segments: segments,
-            status: response.status,
-          )))
-        case let .toolCalls(toolCalls):
-          for call in toolCalls {
-            let decodedToolRun = decoder.decode(call)
-            entries.append(.toolRun(decodedToolRun))
-          }
-        case .toolOutput:
-          // Handled already by the .toolCalls cases
-          break
-        }
-      }
+    public init(entries: [Entry]) {
+      self.entries = entries
     }
 
     /// Transcript entry augmented with decoded tool runs.

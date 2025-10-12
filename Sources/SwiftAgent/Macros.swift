@@ -28,7 +28,7 @@ import Observation
 @attached(member, names: arbitrary)
 @attached(
   extension,
-  conformances: LanguageModelProvider, Sendable, Observation.Observable, SupportsStructuredOutputs,
+  conformances: LanguageModelProvider, Sendable, Observation.Observable,
   names: arbitrary
 )
 public macro LanguageModelProvider(_ provider: Provider) = #externalMacro(

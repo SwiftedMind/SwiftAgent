@@ -12,27 +12,87 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
   /// Dictionary mapping tool names to their implementations for fast lookup.
   private let toolsByName: [String: any DecodableTool<Provider>]
 
-  /// All tool outputs extracted from the conversation transcript.
-  private let transcriptToolOutputs: [Transcript.ToolOutput]
+  /// The provider that is used to decode the transcript.
+  private let provider: Provider
 
   /// Creates a new tool decoder for the given tools and transcript.
   ///
   /// - Parameters:
   ///   - tools: The tools that can be decoded, all sharing the same `Resolution` type
   ///   - transcript: The conversation transcript containing tool calls and outputs
-  init(for provider: Provider, transcript: Transcript) {
+  public init(for provider: Provider) {
+    self.provider = provider
     toolsByName = Dictionary(uniqueKeysWithValues: provider.tools.map { ($0.name, $0) })
-    transcriptToolOutputs = transcript.compactMap { entry in
-      switch entry {
-      case let .toolOutput(toolOutput):
-        toolOutput
-      default:
-        nil
-      }
-    }
   }
 
-  public func decode(_ call: ToolCall) -> Provider.DecodedToolRun {
+  public func decode(_ transcript: Transcript) throws -> Provider.DecodedTranscript {
+    var decodedTranscript = Provider.DecodedTranscript()
+
+    for (index, entry) in transcript.entries.enumerated() {
+      switch entry {
+      case let .prompt(prompt):
+        var decodedSources: [Provider.DecodedGrounding] = []
+        var errorContext: TranscriptDecodingError.PromptResolution?
+
+        do {
+          decodedSources = try decodeGrounding(from: prompt.sources)
+        } catch {
+          errorContext = .groundingDecodingFailed(description: error.localizedDescription)
+        }
+
+        decodedTranscript.append(.prompt(Provider.DecodedTranscript.Prompt(
+          id: prompt.id,
+          input: prompt.input,
+          sources: decodedSources,
+          prompt: prompt.prompt,
+          error: errorContext,
+        )))
+      case let .reasoning(reasoning):
+        decodedTranscript.append(.reasoning(Provider.DecodedTranscript.Reasoning(
+          id: reasoning.id,
+          summary: reasoning.summary,
+        )))
+      case let .response(response):
+        var segments: [Provider.DecodedTranscript.Segment] = []
+
+        for segment in response.segments {
+          switch segment {
+          case let .text(text):
+            segments.append(.text(Provider.DecodedTranscript.TextSegment(
+              id: text.id,
+              content: text.content,
+            )))
+          case let .structure(structure):
+            let content = decode(structure, status: response.status)
+            segments.append(.structure(Provider.DecodedTranscript.StructuredSegment(
+              id: structure.id,
+              typeName: structure.typeName,
+              content: content,
+            )))
+          }
+        }
+
+        decodedTranscript.append(.response(Provider.DecodedTranscript.Response(
+          id: response.id,
+          segments: segments,
+          status: response.status,
+        )))
+      case let .toolCalls(toolCalls):
+        for call in toolCalls {
+          let rawOutput = findOutput(for: call, startingAt: index + 1, in: transcript.entries)
+          let decodedToolRun = decode(call, rawOutput: rawOutput)
+          decodedTranscript.append(.toolRun(decodedToolRun))
+        }
+      case .toolOutput:
+        // Handled already by the .toolCalls cases
+        break
+      }
+    }
+
+    return decodedTranscript
+  }
+
+  public func decode(_ call: ToolCall, rawOutput: GeneratedContent?) -> Provider.DecodedToolRun {
     guard let tool = toolsByName[call.toolName] else {
       let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
       let error = TranscriptDecodingError.ToolRunResolution.unknownTool(name: call.toolName)
@@ -42,8 +102,6 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
       )
       return Provider.DecodedToolRun.makeUnknown(toolCall: call)
     }
-
-    let rawOutput = findOutput(for: call)
 
     do {
       switch call.status {
@@ -60,17 +118,34 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
     }
   }
 
-  private func findOutput(for call: ToolCall) -> GeneratedContent? {
-    guard let toolOutput = transcriptToolOutputs.first(where: { $0.callId == call.callId }) else {
-      return nil
+  /// Finds the tool output for a given tool call by searching forward from the current index.
+  /// Tool outputs typically appear shortly after their corresponding tool calls in the transcript.
+  ///
+  /// - Parameters:
+  ///   - call: The tool call to find output for
+  ///   - startIndex: The index to start searching from (typically the index after the tool call entry)
+  ///   - entries: The transcript entries to search through
+  /// - Returns: The generated content from the tool output, or nil if not found
+  private func findOutput(
+    for call: ToolCall,
+    startingAt startIndex: Int,
+    in entries: [Transcript.Entry],
+  ) -> GeneratedContent? {
+    // Search forward from the current position for the matching tool output
+    // Tool outputs are typically close to their calls, so this is efficient
+    for index in startIndex..<entries.count {
+      if case let .toolOutput(toolOutput) = entries[index],
+         toolOutput.callId == call.callId {
+        switch toolOutput.segment {
+        case let .text(text):
+          return GeneratedContent(text.content)
+        case let .structure(structure):
+          return structure.content
+        }
+      }
     }
 
-    switch toolOutput.segment {
-    case let .text(text):
-      return GeneratedContent(text.content)
-    case let .structure(structure):
-      return structure.content
-    }
+    return nil
   }
 
   // MARK: - Structured Outputs
@@ -93,7 +168,7 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
     status: Transcript.Status,
     with resolvableType: DecodableType.Type,
   ) -> Provider.DecodedStructuredOutput where DecodableType.Provider == Provider {
-    var decodedContent: ContentGeneration<DecodableType>.State
+    var decodedContent: DecodedGeneratedContent<DecodableType>.State
 
     do {
       switch status {
@@ -108,12 +183,18 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
       decodedContent = .failed(structuredSegment.content)
     }
 
-    let structuredOutput = ContentGeneration<DecodableType>(
+    let structuredOutput = DecodedGeneratedContent<DecodableType>(
       id: structuredSegment.id,
       state: decodedContent,
       raw: structuredSegment.content,
     )
 
     return DecodableType.decode(structuredOutput)
+  }
+
+  // MARK: Groundings
+
+  public func decodeGrounding(from data: Data) throws -> [Provider.DecodedGrounding] {
+    try JSONDecoder().decode([Provider.DecodedGrounding].self, from: data)
   }
 }
