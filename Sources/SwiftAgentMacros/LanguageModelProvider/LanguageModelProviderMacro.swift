@@ -44,6 +44,19 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
     var members: [DeclSyntax] = []
 
+    // Type aliases
+    members.append(
+      """
+      \(raw: accessKeyword("typealias")) Adapter = \(raw: provider.adapterTypeName)
+      """,
+    )
+
+    members.append(
+      """
+      \(raw: accessKeyword("typealias")) ProviderType = \(raw: classDeclaration.name.text)
+      """,
+    )
+
     // Property wrappers copied onto the session type so user code can declare tools/groundings/structured outputs.
     members.append(
       """
@@ -100,25 +113,30 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
       """,
     )
 
-    members.append(
-      """
-      \(raw: accessKeyword("typealias")) Adapter = \(raw: provider.adapterTypeName)
-      """,
-    )
-
-    members.append(
-      """
-      \(raw: accessKeyword("typealias")) ProviderType = \(raw: classDeclaration.name.text)
-      """,
-    )
-
-    // Store the chosen adapter and observation-aware state the macro manages.
+    // Stored properties
     members.append(
       """
       \(raw: accessKeyword("let")) adapter: \(raw: provider.adapterTypeName)
       """,
     )
 
+    members.append(
+      """
+      \(raw: accessKeyword("let")) tools: [any SwiftAgentTool]
+      """,
+    )
+
+    members.append(
+      """
+      \(raw: accessKeyword("let")) decodableTools: [any DecodableTool<ProviderType>]
+      """,
+    )
+
+    members.append(
+      generateStructuredOutputsProperty(for: structuredOutputProperties, accessModifier: accessModifier),
+    )
+
+    // Observable state
     members.append(contentsOf:
       generateObservableMembers(
         named: "transcript",
@@ -137,25 +155,10 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
         accessModifier: accessModifier,
       ))
 
-    members.append(
-      """
-      \(raw: accessKeyword("let")) tools: [any SwiftAgentTool]
-      """,
-    )
-
-    members.append(
-      """
-      \(raw: accessKeyword("let")) decodableTools: [any DecodableTool<ProviderType>]
-      """,
-    )
-
-    members.append(
-      generateStructuredOutputsProperty(for: structuredOutputProperties, accessModifier: accessModifier),
-    )
-
+    // Observation support members
     members.append(contentsOf: generateObservationSupportMembers())
 
-    // Emit initializers, grounding source types, and tool wrappers derived from the user's declarations.
+    // Initializers
     try members.append(contentsOf:
       generateInitializers(
         for: toolProperties,
@@ -163,6 +166,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
         accessModifier: accessModifier,
       ))
 
+    // Supporting nested types
     members.append(generateDecodedGroundingType(for: groundingProperties, accessModifier: accessModifier))
 
     members.append(generateDecodedToolRunEnum(for: toolProperties, accessModifier: accessModifier))
@@ -171,7 +175,6 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
       accessModifier: accessModifier,
     ) })
 
-    // Structured Output typing support
     members.append(generateDecodedStructuredOutputEnum(for: structuredOutputProperties, accessModifier: accessModifier))
     members.append(contentsOf: generateDecodableStructuredOutputTypes(
       for: structuredOutputProperties,
