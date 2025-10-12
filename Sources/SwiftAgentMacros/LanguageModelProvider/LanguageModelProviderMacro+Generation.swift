@@ -11,8 +11,10 @@ extension LanguageModelProviderMacro {
   static func generateInitializers(
     for tools: [ToolProperty],
     provider: Provider,
+    accessModifier: String?,
   ) throws -> [DeclSyntax] {
     var initializers: [DeclSyntax] = []
+    let initKeyword = accessModifier.map { "\($0) init" } ?? "init"
 
     // Capture parameter metadata so we can drive wrapper creation and initializer signatures.
     let toolParameters = tools.map { tool in
@@ -63,7 +65,7 @@ extension LanguageModelProviderMacro {
     // Base initializer wires direct API key authentication through the generated adapter.
     initializers.append(
       """
-        init(
+        \(raw: initKeyword)(
           \(raw: allInitParameters)
         ) {
         \(raw: initializerPrologueBlock)    let decodableTools: [any DecodableTool<ProviderType>] = \(
@@ -89,7 +91,7 @@ extension LanguageModelProviderMacro {
     // Overload initializer accepts a fully-formed provider configuration instead.
     initializers.append(
       """
-        init(
+        \(raw: initKeyword)(
           \(raw: configurationInitParameters)
         ) {
         \(raw: initializerPrologueBlock)    let decodableTools: [any DecodableTool<ProviderType>] = \(
@@ -111,7 +113,7 @@ extension LanguageModelProviderMacro {
     if toolParameters.isEmpty {
       initializers.append(
         """
-          init<each Tool: FoundationModels.Tool>(
+          \(raw: initKeyword)<each Tool: FoundationModels.Tool>(
             tools: repeat each Tool,
             instructions: String,
             apiKey: String
@@ -134,7 +136,7 @@ extension LanguageModelProviderMacro {
 
       initializers.append(
         """
-          init<each Tool: FoundationModels.Tool>(
+          \(raw: initKeyword)<each Tool: FoundationModels.Tool>(
             tools: repeat each Tool,
             instructions: String,
             configuration: \(raw: provider.configurationTypeName)
@@ -161,7 +163,13 @@ extension LanguageModelProviderMacro {
 
   // MARK: - Tool decoding
 
-  static func generateDecodedToolRunEnum(for tools: [ToolProperty]) -> DeclSyntax {
+  static func generateDecodedToolRunEnum(
+    for tools: [ToolProperty],
+    accessModifier: String?,
+  ) -> DeclSyntax {
+    let enumKeyword = accessModifier.map { "\($0) enum" } ?? "enum"
+    let staticFunctionKeyword = accessModifier.map { "\($0) static func" } ?? "static func"
+    let propertyKeyword = accessModifier.map { "\($0) var" } ?? "var"
     let cases = tools.map { tool -> String in
       let wrapperName = "Decodable\(tool.identifier.text.capitalizedFirstLetter())Tool"
       return "    case \(tool.identifier.text)(ToolRun<\(wrapperName)>)"
@@ -175,15 +183,15 @@ extension LanguageModelProviderMacro {
 
     return
       """
-      enum DecodedToolRun: SwiftAgent.DecodedToolRun {
+      \(raw: enumKeyword) DecodedToolRun: SwiftAgent.DecodedToolRun {
       \(raw: cases)
       case unknown(toolCall: SwiftAgent.Transcript.ToolCall)
 
-      static func makeUnknown(toolCall: SwiftAgent.Transcript.ToolCall) -> Self {
+      \(raw: staticFunctionKeyword) makeUnknown(toolCall: SwiftAgent.Transcript.ToolCall) -> Self {
         .unknown(toolCall: toolCall)
       }
 
-      var id: String {
+      \(raw: propertyKeyword) id: String {
         switch self {
       \(raw: idSwitchCases)
         case let .unknown(toolCall):
@@ -194,40 +202,49 @@ extension LanguageModelProviderMacro {
       """
   }
 
-  static func generateDecodableWrapper(for tool: ToolProperty) -> DeclSyntax {
+  static func generateDecodableWrapper(
+    for tool: ToolProperty,
+    accessModifier: String?,
+  ) -> DeclSyntax {
     let wrapperName = "Decodable\(tool.identifier.text.capitalizedFirstLetter())Tool"
+    let structKeyword = accessModifier.map { "\($0) struct" } ?? "struct"
+    let typeDeclaration = "\(structKeyword) \(wrapperName)"
+    let initKeyword = accessModifier.map { "\($0) init" } ?? "init"
+    let propertyKeyword = accessModifier.map { "\($0) var" } ?? "var"
+    let functionKeyword = accessModifier.map { "\($0) func" } ?? "func"
+    let typealiasKeyword = accessModifier.map { "\($0) typealias" } ?? "typealias"
 
     return
       """
-      struct \(raw: wrapperName): DecodableTool {
-        typealias Provider = ProviderType
-        typealias BaseTool = \(raw: tool.typeName)
-        typealias Arguments = BaseTool.Arguments
-        typealias Output = BaseTool.Output
+      \(raw: typeDeclaration): DecodableTool {
+        \(raw: typealiasKeyword) Provider = ProviderType
+        \(raw: typealiasKeyword) BaseTool = \(raw: tool.typeName)
+        \(raw: typealiasKeyword) Arguments = BaseTool.Arguments
+        \(raw: typealiasKeyword) Output = BaseTool.Output
 
         private let baseTool: BaseTool
 
-        init(baseTool: \(raw: tool.typeName)) {
+        \(raw: initKeyword)(baseTool: \(raw: tool.typeName)) {
           self.baseTool = baseTool
         }
 
-        var name: String {
+        \(raw: propertyKeyword) name: String {
           baseTool.name
         }
 
-        var description: String {
+        \(raw: propertyKeyword) description: String {
           baseTool.description
         }
 
-        var parameters: GenerationSchema {
+        \(raw: propertyKeyword) parameters: GenerationSchema {
           baseTool.parameters
         }
 
-        func call(arguments: Arguments) async throws -> Output {
+        \(raw: functionKeyword) call(arguments: Arguments) async throws -> Output {
           try await baseTool.call(arguments: arguments)
         }
 
-        func decode(
+        \(raw: functionKeyword) decode(
           _ run: ToolRun<\(raw: wrapperName)>
         ) -> Provider.DecodedToolRun {
           .\(raw: tool.identifier.text)(run)
@@ -238,12 +255,18 @@ extension LanguageModelProviderMacro {
 
   // MARK: - Grounding
 
-  static func generateDecodedGroundingEnum(for groundings: [GroundingProperty]) -> DeclSyntax {
+  static func generateDecodedGroundingEnum(
+    for groundings: [GroundingProperty],
+    accessModifier: String?,
+  ) -> DeclSyntax {
+    let enumKeyword = accessModifier.map { "\($0) enum" } ?? "enum"
+    let initKeyword = accessModifier.map { "\($0) init" } ?? "init"
+    let functionKeyword = accessModifier.map { "\($0) func" } ?? "func"
     guard !groundings.isEmpty else {
       return
         """
-        enum DecodedGrounding: SwiftAgent.DecodedGrounding {
-          init(from decoder: Decoder) throws {
+        \(raw: enumKeyword) DecodedGrounding: SwiftAgent.DecodedGrounding {
+          \(raw: initKeyword)(from decoder: Decoder) throws {
             let context = DecodingError.Context(
               codingPath: decoder.codingPath,
               debugDescription: "No @Grounding properties are defined, so no DecodedGrounding can be decoded."
@@ -251,7 +274,7 @@ extension LanguageModelProviderMacro {
             throw DecodingError.dataCorrupted(context)
           }
 
-          func encode(to encoder: Encoder) throws {
+          \(raw: functionKeyword) encode(to encoder: Encoder) throws {
             let context = EncodingError.Context(
               codingPath: encoder.codingPath,
               debugDescription: "No @Grounding properties are defined, so no DecodedGrounding can be encoded."
@@ -269,7 +292,7 @@ extension LanguageModelProviderMacro {
 
     return
       """
-      enum DecodedGrounding: SwiftAgent.DecodedGrounding {
+      \(raw: enumKeyword) DecodedGrounding: SwiftAgent.DecodedGrounding {
       \(raw: cases)
       }
       """
@@ -279,10 +302,12 @@ extension LanguageModelProviderMacro {
 
   static func generateStructuredOutputsProperty(
     for outputs: [StructuredOutputProperty],
+    accessModifier: String?,
   ) -> DeclSyntax {
+    let staticKeyword = accessModifier.map { "\($0) static" } ?? "static"
     guard !outputs.isEmpty else {
       return """
-      static let structuredOutputs: [any (SwiftAgent.DecodableStructuredOutput<ProviderType>).Type] = []
+      \(raw: staticKeyword) let structuredOutputs: [any (SwiftAgent.DecodableStructuredOutput<ProviderType>).Type] = []
       """
     }
 
@@ -293,7 +318,7 @@ extension LanguageModelProviderMacro {
       .joined(separator: "\n")
 
     return """
-    static let structuredOutputs: [any (SwiftAgent.DecodableStructuredOutput<ProviderType>).Type] = [
+    \(raw: staticKeyword) let structuredOutputs: [any (SwiftAgent.DecodableStructuredOutput<ProviderType>).Type] = [
     \(raw: entries)
     ]
     """
@@ -301,7 +326,10 @@ extension LanguageModelProviderMacro {
 
   static func generateDecodedStructuredOutputEnum(
     for outputs: [StructuredOutputProperty],
+    accessModifier: String?,
   ) -> DeclSyntax {
+    let enumKeyword = accessModifier.map { "\($0) enum" } ?? "enum"
+    let staticFunctionKeyword = accessModifier.map { "\($0) static func" } ?? "static func"
     var sections: [String] = []
 
     if !outputs.isEmpty {
@@ -317,14 +345,15 @@ extension LanguageModelProviderMacro {
 
     sections.append("    case unknown(SwiftAgent.Transcript.StructuredSegment)")
     sections.append("")
-    sections.append("    static func makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {")
+    sections
+      .append("    \(staticFunctionKeyword) makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {")
     sections.append("        .unknown(segment)")
     sections.append("    }")
 
     let body = sections.joined(separator: "\n")
 
     return """
-    enum DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput {
+    \(raw: enumKeyword) DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput {
     \(raw: body)
     }
     """
@@ -332,18 +361,23 @@ extension LanguageModelProviderMacro {
 
   static func generateDecodableStructuredOutputTypes(
     for outputs: [StructuredOutputProperty],
+    accessModifier: String?,
   ) -> [DeclSyntax] {
-    outputs.map { output in
+    let structKeyword = accessModifier.map { "\($0) struct" } ?? "struct"
+    let staticFunctionKeyword = accessModifier.map { "\($0) static func" } ?? "static func"
+    let typealiasKeyword = accessModifier.map { "\($0) typealias" } ?? "typealias"
+    return outputs.map { output -> DeclSyntax in
       let resolvableName = resolvableStructuredOutputTypeName(for: output)
       let schemaType = output.typeName
       let caseName = output.identifier.text
+      let typeDeclaration = "\(structKeyword) \(resolvableName)"
 
       return """
-      struct \(raw: resolvableName): SwiftAgent.DecodableStructuredOutput {
-        typealias Base = \(raw: schemaType)
-        typealias Provider = ProviderType
+      \(raw: typeDeclaration): SwiftAgent.DecodableStructuredOutput {
+        \(raw: typealiasKeyword) Base = \(raw: schemaType)
+        \(raw: typealiasKeyword) Provider = ProviderType
 
-        static func decode(
+        \(raw: staticFunctionKeyword) decode(
           _ structuredOutput: SwiftAgent.DecodedGeneratedContent<\(raw: resolvableName)>
         ) -> Provider.DecodedStructuredOutput {
           .\(raw: caseName)(structuredOutput)

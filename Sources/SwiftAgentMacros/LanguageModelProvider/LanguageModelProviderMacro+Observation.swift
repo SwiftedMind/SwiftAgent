@@ -31,16 +31,18 @@ extension LanguageModelProviderMacro {
     type: String,
     initialValue: String,
     actorAttribute: String,
+    accessModifier: String?,
   ) -> [DeclSyntax] {
     let storedProperty: DeclSyntax =
       """
       \(raw: actorAttribute) private var _\(raw: name): \(raw: type) = \(raw: initialValue)
       """
 
+    let propertyKeyword = accessModifier.map { "\($0) var" } ?? "var"
     let keyPath = "\\.\(name)"
     let computedProperty: DeclSyntax =
       """
-      \(raw: actorAttribute) var \(raw: name): \(raw: type) {
+      \(raw: actorAttribute) \(raw: propertyKeyword) \(raw: name): \(raw: type) {
         @storageRestrictions(initializes: _\(raw: name))
         init(initialValue) {
           _\(raw: name) = initialValue

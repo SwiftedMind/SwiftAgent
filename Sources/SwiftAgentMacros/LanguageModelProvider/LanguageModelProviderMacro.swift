@@ -33,6 +33,14 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     let toolProperties = try extractToolProperties(from: classDeclaration)
     let groundingProperties = try extractGroundingProperties(from: classDeclaration)
     let structuredOutputProperties = try extractStructuredOutputProperties(from: classDeclaration)
+    let accessModifier = Self.accessModifier(for: classDeclaration)
+    let accessKeyword: (String) -> String = { baseKeyword in
+      guard let accessModifier else {
+        return baseKeyword
+      }
+
+      return "\(accessModifier) \(baseKeyword)"
+    }
 
     var members: [DeclSyntax] = []
 
@@ -40,7 +48,8 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     members.append(
       """
       @propertyWrapper
-      struct Tool<ToolType: FoundationModels.Tool> where ToolType.Arguments: Generable, ToolType.Output: Generable {
+      struct Tool<ToolType: FoundationModels.Tool>
+      where ToolType.Arguments: Generable & Sendable, ToolType.Output: Generable & Sendable {
         var wrappedValue: ToolType
         init(wrappedValue: ToolType) { self.wrappedValue = wrappedValue }
       }
@@ -93,20 +102,20 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
     members.append(
       """
-      typealias Adapter = \(raw: provider.adapterTypeName)
+      \(raw: accessKeyword("typealias")) Adapter = \(raw: provider.adapterTypeName)
       """,
     )
 
     members.append(
       """
-      typealias ProviderType = \(raw: classDeclaration.name.text)
+      \(raw: accessKeyword("typealias")) ProviderType = \(raw: classDeclaration.name.text)
       """,
     )
 
     // Store the chosen adapter and observation-aware state the macro manages.
     members.append(
       """
-      let adapter: \(raw: provider.adapterTypeName)
+      \(raw: accessKeyword("let")) adapter: \(raw: provider.adapterTypeName)
       """,
     )
 
@@ -116,6 +125,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
         type: "SwiftAgent.Transcript",
         initialValue: "Transcript()",
         actorAttribute: "@MainActor",
+        accessModifier: accessModifier,
       ))
 
     members.append(contentsOf:
@@ -124,22 +134,23 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
         type: "TokenUsage",
         initialValue: "TokenUsage()",
         actorAttribute: "@MainActor",
+        accessModifier: accessModifier,
       ))
 
     members.append(
       """
-      let tools: [any SwiftAgentTool]
+      \(raw: accessKeyword("let")) tools: [any SwiftAgentTool]
       """,
     )
 
     members.append(
       """
-      let decodableTools: [any DecodableTool<ProviderType>]
+      \(raw: accessKeyword("let")) decodableTools: [any DecodableTool<ProviderType>]
       """,
     )
 
     members.append(
-      generateStructuredOutputsProperty(for: structuredOutputProperties),
+      generateStructuredOutputsProperty(for: structuredOutputProperties, accessModifier: accessModifier),
     )
 
     members.append(contentsOf: generateObservationSupportMembers())
@@ -149,16 +160,23 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
       generateInitializers(
         for: toolProperties,
         provider: provider,
+        accessModifier: accessModifier,
       ))
 
-    members.append(generateDecodedGroundingEnum(for: groundingProperties))
+    members.append(generateDecodedGroundingEnum(for: groundingProperties, accessModifier: accessModifier))
 
-    members.append(generateDecodedToolRunEnum(for: toolProperties))
-    members.append(contentsOf: toolProperties.map(Self.generateDecodableWrapper))
+    members.append(generateDecodedToolRunEnum(for: toolProperties, accessModifier: accessModifier))
+    members.append(contentsOf: toolProperties.map { Self.generateDecodableWrapper(
+      for: $0,
+      accessModifier: accessModifier,
+    ) })
 
     // Structured Output typing support
-    members.append(generateDecodedStructuredOutputEnum(for: structuredOutputProperties))
-    members.append(contentsOf: generateDecodableStructuredOutputTypes(for: structuredOutputProperties))
+    members.append(generateDecodedStructuredOutputEnum(for: structuredOutputProperties, accessModifier: accessModifier))
+    members.append(contentsOf: generateDecodableStructuredOutputTypes(
+      for: structuredOutputProperties,
+      accessModifier: accessModifier,
+    ))
 
     return members
   }
@@ -173,8 +191,9 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
   ) throws -> [ExtensionDeclSyntax] {
     var conformances = ["LanguageModelProvider", "@unchecked Sendable", "nonisolated Observation.Observable"]
 
+    let classDeclaration = declaration.as(ClassDeclSyntax.self)
     if
-      let classDeclaration = declaration.as(ClassDeclSyntax.self),
+      let classDeclaration,
       try extractStructuredOutputProperties(from: classDeclaration).isEmpty {
       conformances.append("SwiftAgent.RawStructuredOutputSupport")
     }
@@ -189,5 +208,22 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     }
 
     return [baseExtensionDecl]
+  }
+}
+
+extension LanguageModelProviderMacro {
+  static func accessModifier(for classDeclaration: ClassDeclSyntax) -> String? {
+    for modifier in classDeclaration.modifiers {
+      switch modifier.name.tokenKind {
+      case .keyword(.public), .keyword(.open):
+        return "public"
+      case .keyword(.package):
+        return "package"
+      default:
+        continue
+      }
+    }
+
+    return nil
   }
 }
