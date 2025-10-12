@@ -5,6 +5,16 @@ import SimulatedSession
 import SwiftUI
 import UIKit
 
+/*
+
+ TODO: More unit tests.
+ TODO: Update the Session init to have a "tools" parameter when no @Tool properties are defined.
+ TODO: Go through the API flow and check if this is now somewhat final
+      -> Do this by finally building the example app properly
+ TODO: Start writing new documentation
+ TODO: Changelog
+ */
+
 struct ConversationalAgentExampleView: View {
   @State private var userInput = "Compute 234 + 6 using the tool! And write a 10 paragraph story about the result. Just write the story!"
   @State private var transcript: OpenAISession.DecodedTranscript = .init()

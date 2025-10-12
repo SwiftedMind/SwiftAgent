@@ -11,8 +11,8 @@ import Testing
 @LanguageModelProvider(.openAI)
 private final class ExampleSession {}
 
-@Suite("OpenAIAdapter - Streaming - Text")
-struct OpenAIAdapterStreamingTextTests {
+@Suite("OpenAI - Streaming - Text")
+struct OpenAIStreamingTextTests {
   typealias Transcript = SwiftAgent.Transcript
 
   // MARK: - Properties

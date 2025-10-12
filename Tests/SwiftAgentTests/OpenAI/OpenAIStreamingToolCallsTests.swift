@@ -13,8 +13,8 @@ private final class ExampleSession {
   @Tool var weather = WeatherTool()
 }
 
-@Suite("OpenAIAdapter - Streaming - Tool Calls")
-struct OpenAIAdapterStreamingToolCallsTests {
+@Suite("OpenAI - Streaming - Tool Calls")
+struct OpenAIStreamingToolCallsTests {
   typealias Transcript = SwiftAgent.Transcript
 
   // MARK: - Properties

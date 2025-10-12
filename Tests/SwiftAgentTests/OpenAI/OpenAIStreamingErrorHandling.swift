@@ -11,8 +11,8 @@ import Testing
 @LanguageModelProvider(.openAI)
 private final class ExampleSession {}
 
-@Suite("OpenAIAdapter - Streaming - Error Handling")
-struct OpenAIAdapterStreamingErrorTests {
+@Suite("OpenAI - Streaming - Error Handling")
+struct OpenAIStreamingErrorTests {
   typealias Transcript = SwiftAgent.Transcript
 
   @Test("'CancellationError' is thrown")

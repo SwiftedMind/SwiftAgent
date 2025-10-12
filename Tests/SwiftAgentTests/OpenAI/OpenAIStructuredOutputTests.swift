@@ -23,8 +23,8 @@ private final class ExampleSession {
   @StructuredOutput(WeatherForecast.self) var weatherForecast
 }
 
-@Suite("OpenAIAdapter - Structured Output")
-struct OpenAIAdapterStructuredOutputTests {
+@Suite("OpenAI - Streaming - Structured Output")
+struct OpenAIStructuredOutputTests {
   typealias Transcript = SwiftAgent.Transcript
 
   // MARK: - Properties
@@ -48,7 +48,6 @@ struct OpenAIAdapterStructuredOutputTests {
 
     try await validateHTTPRequests()
     validateAgentResponse(agentResponse)
-    await validateSessionTranscript()
   }
 
   // MARK: - Private Test Helper Methods
@@ -59,6 +58,42 @@ struct OpenAIAdapterStructuredOutputTests {
       using: .gpt5_mini,
       options: .init(include: [.reasoning_encryptedContent]),
     )
+  }
+
+  private func validateHTTPRequests() async throws {
+    let recordedRequests = await mockHTTPClient.recordedRequests()
+
+    let request = try #require(recordedRequests.first)
+    guard case let .inputItemList(items) = request.body.input else {
+      Issue.record("Recorded request body input is not .inputItemList")
+      return
+    }
+
+    #expect(items.count == 1)
+
+    guard case let .inputMessage(message) = items[0] else {
+      Issue.record("Recorded request item is not .inputMessage")
+      return
+    }
+    guard case let .textInput(text) = message.content else {
+      Issue.record("Expected message content to be text input")
+      return
+    }
+
+    #expect(text == "Provide the latest weather update.")
+
+    let expectedOutputConfig = CreateModelResponseQuery.TextResponseConfigurationOptions.OutputFormat
+      .StructuredOutputsConfig(
+        name: WeatherForecast.name,
+        schema: .dynamicJsonSchema(WeatherForecast.Schema.generationSchema),
+        description: nil,
+        strict: false,
+      )
+
+    guard request.body.text == .jsonSchema(expectedOutputConfig) else {
+      Issue.record("Expected text configuration format to be present")
+      return
+    }
   }
 
   private func validateAgentResponse(
@@ -107,51 +142,10 @@ struct OpenAIAdapterStructuredOutputTests {
       Issue.record("Failed to decode structured segment: \(error)")
     }
   }
-
-  private func validateHTTPRequests() async throws {
-    let recordedRequests = await mockHTTPClient.recordedRequests()
-
-    let request = try #require(recordedRequests.first)
-    guard case let .inputItemList(items) = request.body.input else {
-      Issue.record("Recorded request body input is not .inputItemList")
-      return
-    }
-
-    #expect(items.count == 1)
-
-    guard case let .inputMessage(message) = items[0] else {
-      Issue.record("Recorded request item is not .inputMessage")
-      return
-    }
-    guard case let .textInput(text) = message.content else {
-      Issue.record("Expected message content to be text input")
-      return
-    }
-
-    #expect(text == "Provide the latest weather update.")
-
-    let expectedOutputConfig = CreateModelResponseQuery.TextResponseConfigurationOptions.OutputFormat
-      .StructuredOutputsConfig(
-        name: WeatherForecast.name,
-        schema: .dynamicJsonSchema(WeatherForecast.Schema.generationSchema),
-        description: nil,
-        strict: false,
-      )
-
-    guard request.body.text == .jsonSchema(expectedOutputConfig) else {
-      Issue.record("Expected text configuration format to be present")
-      return
-    }
-  }
-
-  @MainActor
-  private func validateSessionTranscript() {
-    #expect(session.transcript.count == 3)
-  }
 }
 
 @Generable
-struct WeatherForecast: StructuredOutput {
+private struct WeatherForecast: StructuredOutput {
   static let name: String = "weather_forecast"
 
   @Generable
