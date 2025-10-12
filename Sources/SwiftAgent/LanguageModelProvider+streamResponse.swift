@@ -126,7 +126,8 @@ public extension LanguageModelProvider {
     generating type: (some StructuredOutput<Content>).Type,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
+  ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable,
+    Self: RawStructuredOutputSupport {
     let sourcesData = try encodeGrounding([DecodedGrounding]())
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     return processResponseStream(from: prompt, generating: type, using: model, options: options)
@@ -170,7 +171,8 @@ public extension LanguageModelProvider {
     generating type: (some StructuredOutput<Content>).Type,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
+  ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable,
+    Self: RawStructuredOutputSupport {
     try streamResponse(to: prompt.formatted(), generating: type, using: model, options: options)
   }
 
@@ -208,7 +210,8 @@ public extension LanguageModelProvider {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder prompt: @Sendable () throws -> Prompt,
-  ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
+  ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable,
+    Self: RawStructuredOutputSupport {
     try streamResponse(to: prompt().formatted(), generating: type, using: model, options: options)
   }
 }
@@ -241,7 +244,8 @@ public extension LanguageModelProvider {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [DecodedGrounding]) -> Prompt,
-  ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable {
+  ) throws -> AsyncThrowingStream<Snapshot<Content>, any Error> where Content: Generable,
+    Self: RawStructuredOutputSupport {
     let sourcesData = try encodeGrounding(sources)
 
     let prompt = Transcript.Prompt(

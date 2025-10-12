@@ -181,7 +181,13 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     conformingTo protocols: [TypeSyntax],
     in context: some MacroExpansionContext,
   ) throws -> [ExtensionDeclSyntax] {
-    let conformances = ["LanguageModelProvider", "@unchecked Sendable", "nonisolated Observation.Observable"]
+    var conformances = ["LanguageModelProvider", "@unchecked Sendable", "nonisolated Observation.Observable"]
+
+    if
+      let classDeclaration = declaration.as(ClassDeclSyntax.self),
+      try extractStructuredOutputProperties(from: classDeclaration).isEmpty {
+      conformances.append("SwiftAgent.RawStructuredOutputSupport")
+    }
 
     let extensionDecl: DeclSyntax =
       """

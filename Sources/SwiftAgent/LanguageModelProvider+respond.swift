@@ -152,7 +152,7 @@ public extension LanguageModelProvider {
     generating type: (some StructuredOutput<Content>).Type,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) async throws -> Response<Content> where Content: Generable {
+  ) async throws -> Response<Content> where Content: Generable, Self: RawStructuredOutputSupport {
     let sourcesData = try encodeGrounding([DecodedGrounding]())
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     return try await processResponse(from: prompt, generating: type, using: model, options: options)
@@ -193,7 +193,7 @@ public extension LanguageModelProvider {
     generating type: (some StructuredOutput<Content>).Type,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) async throws -> Response<Content> where Content: Generable {
+  ) async throws -> Response<Content> where Content: Generable, Self: RawStructuredOutputSupport {
     try await respond(
       to: prompt.formatted(),
       generating: type,
@@ -232,7 +232,7 @@ public extension LanguageModelProvider {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder prompt: () throws -> Prompt,
-  ) async throws -> Response<Content> where Content: Generable {
+  ) async throws -> Response<Content> where Content: Generable, Self: RawStructuredOutputSupport {
     try await respond(
       to: prompt().formatted(),
       generating: type,
@@ -349,7 +349,7 @@ public extension LanguageModelProvider {
     groundingWith sources: [DecodedGrounding],
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [DecodedGrounding]) -> Prompt,
-  ) async throws -> Response<Content> where Content: Generable {
+  ) async throws -> Response<Content> where Content: Generable, Self: RawStructuredOutputSupport {
     let sourcesData = try encodeGrounding(sources)
 
     let prompt = Transcript.Prompt(

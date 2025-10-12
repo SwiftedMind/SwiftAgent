@@ -93,7 +93,7 @@ package extension LanguageModelProvider {
       options: options ?? .automatic(for: model),
     )
 
-    var generatedTranscript = Transcript()
+    var generatedTranscript = Transcript(entries: [promptEntry])
     var generatedUsage: TokenUsage?
 
     for try await update in stream {
