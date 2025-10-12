@@ -200,12 +200,12 @@ struct OpenAIStreamingToolCallsTests {
 
 // MARK: - Tools
 
-private struct WeatherTool: SwiftAgentTool {
+private struct WeatherTool: FoundationModels.Tool {
   var name: String = "get_weather"
   var description: String = "Get current temperature for a given location."
 
   @Generable
-  struct Arguments: Equatable {
+  struct Arguments {
     var location: String
   }
 
