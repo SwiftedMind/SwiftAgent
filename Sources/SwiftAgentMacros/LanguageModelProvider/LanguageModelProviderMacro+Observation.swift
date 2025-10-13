@@ -25,56 +25,6 @@ extension LanguageModelProviderMacro {
     }
   }
 
-  /// Synthesizes stored and computed properties that bridge Observation to macro-managed members.
-  static func generateObservableMembers(
-    named name: String,
-    type: String,
-    initialValue: String,
-    actorAttribute: String,
-    accessModifier: String?,
-  ) -> [DeclSyntax] {
-    let storedProperty: DeclSyntax =
-      """
-      \(raw: actorAttribute) private var _\(raw: name): \(raw: type) = \(raw: initialValue)
-      """
-
-    let propertyKeyword = accessModifier.map { "\($0) var" } ?? "var"
-    let keyPath = "\\.\(name)"
-    let computedProperty: DeclSyntax =
-      """
-      \(raw: actorAttribute) \(raw: propertyKeyword) \(raw: name): \(raw: type) {
-        @storageRestrictions(initializes: _\(raw: name))
-        init(initialValue) {
-          _\(raw: name) = initialValue
-        }
-        get {
-          access(keyPath: \(raw: keyPath))
-          return _\(raw: name)
-        }
-        set {
-          guard shouldNotifyObservers(_\(raw: name), newValue) else {
-            _\(raw: name) = newValue
-            return
-          }
-
-          withMutation(keyPath: \(raw: keyPath)) {
-            _\(raw: name) = newValue
-          }
-        }
-        _modify {
-          access(keyPath: \(raw: keyPath))
-          _$observationRegistrar.willSet(self, keyPath: \(raw: keyPath))
-          defer {
-            _$observationRegistrar.didSet(self, keyPath: \(raw: keyPath))
-          }
-          yield &_\(raw: name)
-        }
-      }
-      """
-
-    return [storedProperty, computedProperty]
-  }
-
   /// Adds the reusable observation registrar helpers shared by all generated sessions.
   static func generateObservationSupportMembers() -> [DeclSyntax] {
     [

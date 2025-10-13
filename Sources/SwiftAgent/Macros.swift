@@ -36,6 +36,14 @@ public macro LanguageModelProvider(_ provider: Provider) = #externalMacro(
   type: "LanguageModelProviderMacro",
 )
 
+/// Marks a property synthesized by `@LanguageModelProvider` as observable and inserts the associated storage.
+@attached(peer, names: prefixed(_))
+@attached(accessor)
+public macro _LanguageModelProviderObserved(initialValue: Any) = #externalMacro(
+  module: "SwiftAgentMacros",
+  type: "LanguageModelProviderObservedMacro",
+)
+
 /// Provider types supported by `@LanguageModelProvider`.
 public enum Provider {
   case openAI

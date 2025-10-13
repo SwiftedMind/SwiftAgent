@@ -137,23 +137,19 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     )
 
     // Observable state
-    members.append(contentsOf:
-      generateObservableMembers(
-        named: "transcript",
-        type: "SwiftAgent.Transcript",
-        initialValue: "Transcript()",
-        actorAttribute: "@MainActor",
-        accessModifier: accessModifier,
-      ))
+    members.append(
+      """
+      @MainActor @_LanguageModelProviderObserved(initialValue: Transcript())
+      \(raw: accessKeyword("var")) transcript: SwiftAgent.Transcript
+      """,
+    )
 
-    members.append(contentsOf:
-      generateObservableMembers(
-        named: "tokenUsage",
-        type: "TokenUsage",
-        initialValue: "TokenUsage()",
-        actorAttribute: "@MainActor",
-        accessModifier: accessModifier,
-      ))
+    members.append(
+      """
+      @MainActor @_LanguageModelProviderObserved(initialValue: TokenUsage())
+      \(raw: accessKeyword("var")) tokenUsage: TokenUsage
+      """,
+    )
 
     // Observation support members
     members.append(contentsOf: generateObservationSupportMembers())

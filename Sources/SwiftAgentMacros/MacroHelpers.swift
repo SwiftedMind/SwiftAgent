@@ -20,6 +20,8 @@ enum MacroError: CustomStringConvertible {
   case invalidGroundingAttribute(node: Syntax)
   case manualObservable(node: Syntax, typeName: String)
   case observationIgnored(node: Syntax)
+  case observedPropertyProvidesInitializer(node: Syntax)
+  case missingObservedInitialValue(node: Syntax)
 
   var description: String {
     String(describing: diagnostic.message)
@@ -121,6 +123,22 @@ enum MacroError: CustomStringConvertible {
     case let .observationIgnored(node):
       messageID = MessageID(domain: Self.domain, id: "observation-ignored")
       message = "@ObservationIgnored isn't supported here; LanguageModelProvider manages observation automatically"
+      return Diagnostic(
+        node: node,
+        message: MacroDiagnosticMessage(message: message, diagnosticID: messageID, severity: .error),
+      )
+
+    case let .observedPropertyProvidesInitializer(node):
+      messageID = MessageID(domain: Self.domain, id: "observed-property-initializer")
+      message = "Remove the initializer; @_LanguageModelProviderObserved manages storage automatically"
+      return Diagnostic(
+        node: node,
+        message: MacroDiagnosticMessage(message: message, diagnosticID: messageID, severity: .error),
+      )
+
+    case let .missingObservedInitialValue(node):
+      messageID = MessageID(domain: Self.domain, id: "missing-observed-initial-value")
+      message = "@_LanguageModelProviderObserved requires an 'initialValue:' argument"
       return Diagnostic(
         node: node,
         message: MacroDiagnosticMessage(message: message, diagnosticID: messageID, severity: .error),
