@@ -8,7 +8,7 @@ public protocol DecodableStructuredOutput<Provider>: Sendable, Equatable {
   associatedtype Base: StructuredOutput
   associatedtype Provider: LanguageModelProvider
   static var name: String { get }
-  static func decode(_ structuredOutput: StructuredOutputUpdate<Self>) -> Provider.DecodedStructuredOutput
+  static func decode(_ structuredOutput: StructuredOutputUpdate<Base>) -> Provider.DecodedStructuredOutput
 }
 
 public extension DecodableStructuredOutput {

@@ -4,10 +4,10 @@ import Foundation
 import FoundationModels
 import Internal
 
-public struct StructuredOutputUpdate<DecodableOutput: DecodableStructuredOutput>: Identifiable {
+public struct StructuredOutputUpdate<Output: StructuredOutput>: Identifiable {
   public enum Phase {
-    case partial(DecodableOutput.Base.Schema.PartiallyGenerated)
-    case final(DecodableOutput.Base.Schema)
+    case partial(Output.Schema.PartiallyGenerated)
+    case final(Output.Schema)
     case failed(GeneratedContent)
   }
 
@@ -22,15 +22,15 @@ public struct StructuredOutputUpdate<DecodableOutput: DecodableStructuredOutput>
   }
 }
 
-extension StructuredOutputUpdate.Phase: Sendable where DecodableOutput.Base.Schema: Sendable,
-  DecodableOutput.Base.Schema.PartiallyGenerated: Sendable {}
-extension StructuredOutputUpdate.Phase: Equatable where DecodableOutput.Base.Schema: Equatable,
-  DecodableOutput.Base.Schema.PartiallyGenerated: Equatable {}
-extension StructuredOutputUpdate: Sendable where DecodableOutput.Base.Schema: Sendable,
-  DecodableOutput.Base.Schema.PartiallyGenerated: Sendable {}
+extension StructuredOutputUpdate.Phase: Sendable where Output.Schema: Sendable,
+  Output.Schema.PartiallyGenerated: Sendable {}
+extension StructuredOutputUpdate.Phase: Equatable where Output.Schema: Equatable,
+  Output.Schema.PartiallyGenerated: Equatable {}
+extension StructuredOutputUpdate: Sendable where Output.Schema: Sendable,
+  Output.Schema.PartiallyGenerated: Sendable {}
 extension StructuredOutputUpdate: Equatable {
-  public static func == (lhs: StructuredOutputUpdate<DecodableOutput>,
-                         rhs: StructuredOutputUpdate<DecodableOutput>) -> Bool {
+  public static func == (lhs: StructuredOutputUpdate<Output>,
+                         rhs: StructuredOutputUpdate<Output>) -> Bool {
     lhs.id == rhs.id && lhs.raw == rhs.raw
   }
 }

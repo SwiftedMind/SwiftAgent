@@ -9,7 +9,6 @@ public protocol StructuredOutput<Schema>: Sendable {
   static var name: String { get }
 }
 
-// TODO: Is this the best solution?
 extension String: StructuredOutput {
   public typealias Schema = Self
   public static var name: String { "String" }

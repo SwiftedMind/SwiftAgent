@@ -320,7 +320,7 @@ extension LanguageModelProviderMacro {
         .map { output in
           let caseName = output.identifier.text
           let resolvableTypeName = resolvableStructuredOutputTypeName(for: output)
-          return "  case \(caseName)(SwiftAgent.StructuredOutputUpdate<\(resolvableTypeName)>)"
+          return "  case \(caseName)(SwiftAgent.StructuredOutputUpdate<\(resolvableTypeName).Base>)"
         }
         .joined(separator: "\n")
       sections.append(cases)
@@ -361,7 +361,7 @@ extension LanguageModelProviderMacro {
         \(raw: typealiasKeyword) Provider = ProviderType
 
         \(raw: staticFunctionKeyword) decode(
-          _ structuredOutput: SwiftAgent.StructuredOutputUpdate<\(raw: resolvableName)>
+          _ structuredOutput: SwiftAgent.StructuredOutputUpdate<\(raw: resolvableName).Base>
         ) -> Provider.DecodedStructuredOutput {
           .\(raw: caseName)(structuredOutput)
         }

@@ -168,7 +168,7 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
     status: Transcript.Status,
     with resolvableType: DecodableType.Type,
   ) -> Provider.DecodedStructuredOutput where DecodableType.Provider == Provider {
-    var phase: StructuredOutputUpdate<DecodableType>.Phase
+    var phase: StructuredOutputUpdate<DecodableType.Base>.Phase
 
     do {
       switch status {
@@ -183,7 +183,7 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
       phase = .failed(structuredSegment.content)
     }
 
-    let structuredOutput = StructuredOutputUpdate<DecodableType>(
+    let structuredOutput = StructuredOutputUpdate<DecodableType.Base>(
       id: structuredSegment.id,
       phase: phase,
       raw: structuredSegment.content,

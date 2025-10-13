@@ -415,7 +415,7 @@ struct LanguageModelProviderMacroTests {
         }
 
         enum DecodedToolRun: SwiftAgent.DecodedToolRun {
-          case weatherTool(ToolRun<DecodableWeatherTool>)
+          case weatherTool(ToolRun<WeatherTool.Arguments, WeatherTool.Output>)
           case unknown(toolCall: SwiftAgent.Transcript.ToolCall)
 
           static func makeUnknown(toolCall: SwiftAgent.Transcript.ToolCall) -> Self {
@@ -461,14 +461,14 @@ struct LanguageModelProviderMacroTests {
           }
 
           func decode(
-            _ run: ToolRun<DecodableWeatherTool>
+            _ run: ToolRun<WeatherTool.Arguments, WeatherTool.Output>
           ) -> Provider.DecodedToolRun {
             .weatherTool(run)
           }
         }
 
         enum DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput {
-          case weatherReport(SwiftAgent.StructuredOutputUpdate<DecodableWeatherReport>)
+          case weatherReport(SwiftAgent.StructuredOutputUpdate<DecodableWeatherReport.Base>)
           case unknown(SwiftAgent.Transcript.StructuredSegment)
 
           static func makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {
@@ -481,7 +481,7 @@ struct LanguageModelProviderMacroTests {
           typealias Provider = ProviderType
 
           static func decode(
-            _ structuredOutput: SwiftAgent.StructuredOutputUpdate<DecodableWeatherReport>
+            _ structuredOutput: SwiftAgent.StructuredOutputUpdate<DecodableWeatherReport.Base>
           ) -> Provider.DecodedStructuredOutput {
             .weatherReport(structuredOutput)
           }
