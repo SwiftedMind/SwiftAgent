@@ -172,7 +172,7 @@ extension LanguageModelProviderMacro {
     let staticFunctionKeyword = accessModifier.map { "\($0) static func" } ?? "static func"
     let propertyKeyword = accessModifier.map { "\($0) var" } ?? "var"
     let cases = tools.map { tool -> String in
-      return "  case \(tool.identifier.text)(ToolRun<\(tool.typeName).Arguments, \(tool.typeName).Output>)"
+      return "  case \(tool.identifier.text)(ToolRun<\(tool.typeName)>)"
     }
     .joined(separator: "\n")
 
@@ -245,7 +245,7 @@ extension LanguageModelProviderMacro {
         }
 
         \(raw: functionKeyword) decode(
-          _ run: ToolRun<\(raw: tool.typeName).Arguments, \(raw: tool.typeName).Output>
+          _ run: ToolRun<\(raw: tool.typeName)>
         ) -> Provider.DecodedToolRun {
           .\(raw: tool.identifier.text)(run)
         }
@@ -319,8 +319,7 @@ extension LanguageModelProviderMacro {
       let cases = outputs
         .map { output in
           let caseName = output.identifier.text
-          let resolvableTypeName = resolvableStructuredOutputTypeName(for: output)
-          return "  case \(caseName)(SwiftAgent.StructuredOutputUpdate<\(resolvableTypeName).Base>)"
+          return "  case \(caseName)(SwiftAgent.StructuredOutputUpdate<\(output.typeName)>)"
         }
         .joined(separator: "\n")
       sections.append(cases)
@@ -361,7 +360,7 @@ extension LanguageModelProviderMacro {
         \(raw: typealiasKeyword) Provider = ProviderType
 
         \(raw: staticFunctionKeyword) decode(
-          _ structuredOutput: SwiftAgent.StructuredOutputUpdate<\(raw: resolvableName).Base>
+          _ structuredOutput: SwiftAgent.StructuredOutputUpdate<\(raw: output.typeName)>
         ) -> Provider.DecodedStructuredOutput {
           .\(raw: caseName)(structuredOutput)
         }
@@ -371,7 +370,7 @@ extension LanguageModelProviderMacro {
   }
 
   static func resolvableStructuredOutputTypeName(for output: StructuredOutputProperty) -> String {
-    "Decodable\(output.identifier.text.capitalizedFirstLetter())"
+    "Decodable\(output.typeName)"
   }
 
   static func decodableWrapperName(for tool: ToolProperty) -> String {

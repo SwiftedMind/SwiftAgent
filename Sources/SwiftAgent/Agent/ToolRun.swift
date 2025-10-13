@@ -4,7 +4,11 @@ import Foundation
 import FoundationModels
 import Internal
 
-public struct ToolRun<Arguments: Generable, Output: Generable>: Identifiable {
+public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Arguments: Generable,
+  Tool.Output: Generable {
+  public typealias Arguments = Tool.Arguments
+  public typealias Output = Tool.Output
+
   private let rawContent: GeneratedContent
   private let rawOutput: GeneratedContent?
 
@@ -95,10 +99,12 @@ public extension ToolRun {
   }
 }
 
-extension ToolRun.ArgumentsPhase: Sendable where Arguments: Sendable, Arguments.PartiallyGenerated: Sendable {}
-extension ToolRun: Sendable where Arguments: Sendable, Arguments.PartiallyGenerated: Sendable, Output: Sendable {}
+extension ToolRun.ArgumentsPhase: Sendable
+  where ToolRun.Arguments: Sendable, ToolRun.Arguments.PartiallyGenerated: Sendable {}
+extension ToolRun: Sendable
+  where ToolRun.Arguments: Sendable, ToolRun.Arguments.PartiallyGenerated: Sendable, ToolRun.Output: Sendable {}
 extension ToolRun: Equatable {
-  public static func == (lhs: ToolRun<Arguments, Output>, rhs: ToolRun<Arguments, Output>) -> Bool {
+  public static func == (lhs: ToolRun, rhs: ToolRun) -> Bool {
     lhs.rawContent == rhs.rawContent && lhs.rawOutput == rhs.rawOutput
   }
 }

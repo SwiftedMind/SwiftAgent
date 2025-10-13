@@ -4,9 +4,11 @@ import Foundation
 import FoundationModels
 import Internal
 
-public protocol DecodableTool<Provider>: SwiftAgentTool {
+public protocol DecodableTool<Provider>: SwiftAgentTool where BaseTool.Arguments: Generable,
+  BaseTool.Output: Generable {
+  associatedtype BaseTool: FoundationModels.Tool
   associatedtype Provider: LanguageModelProvider
-  func decode(_ run: ToolRun<Arguments, Output>) -> Provider.DecodedToolRun
+  func decode(_ run: ToolRun<BaseTool>) -> Provider.DecodedToolRun
 }
 
 package extension DecodableTool {
@@ -25,7 +27,7 @@ package extension DecodableTool {
     rawContent: GeneratedContent,
     rawOutput: GeneratedContent?,
   ) throws -> Provider.DecodedToolRun {
-    let arguments = try Arguments(rawContent)
+    let arguments = try BaseTool.Arguments(rawContent)
     let toolRun = try toolRun(
       id: id,
       .final(arguments),
@@ -40,7 +42,7 @@ package extension DecodableTool {
     rawContent: GeneratedContent,
     rawOutput: GeneratedContent?,
   ) throws -> Provider.DecodedToolRun {
-    let arguments = try Arguments.PartiallyGenerated(rawContent)
+    let arguments = try BaseTool.Arguments.PartiallyGenerated(rawContent)
     let toolRun = try toolRun(
       id: id,
       .partial(arguments),
@@ -76,10 +78,10 @@ package extension DecodableTool {
   /// - Throws: Conversion errors if content cannot be parsed
   func toolRun(
     id: String,
-    _ arguments: ToolRun<Arguments, Output>.ArgumentsPhase,
+    _ arguments: ToolRun<BaseTool>.ArgumentsPhase,
     rawContent: GeneratedContent,
     rawOutput: GeneratedContent?,
-  ) throws -> ToolRun<Arguments, Output> {
+  ) throws -> ToolRun<BaseTool> {
     guard let rawOutput else {
       return ToolRun(
         id: id,
@@ -93,7 +95,7 @@ package extension DecodableTool {
       return try ToolRun(
         id: id,
         arguments: arguments,
-        output: Output(rawOutput),
+        output: BaseTool.Output(rawOutput),
         rawContent: rawContent,
         rawOutput: rawOutput,
       )
@@ -112,14 +114,14 @@ package extension DecodableTool {
     }
   }
 
-  func problem(from generatedContent: GeneratedContent) -> ToolRun<Arguments, Output>.Problem? {
+  func problem(from generatedContent: GeneratedContent) -> ToolRun<BaseTool>.Problem? {
     guard
       let problemReport = try? ProblemReport(generatedContent),
       problemReport.error else {
       return nil
     }
 
-    return ToolRun<Arguments, Output>.Problem(
+    return ToolRun<BaseTool>.Problem(
       reason: problemReport.reason,
       json: generatedContent.jsonString,
       details: ProblemReportDetailsExtractor.values(from: generatedContent),
