@@ -37,7 +37,7 @@ package extension DecodableTool {
     return decode(toolRun)
   }
 
-  func decodeInProgress(
+  func decodePartial(
     id: String,
     rawContent: GeneratedContent,
     rawOutput: GeneratedContent?,

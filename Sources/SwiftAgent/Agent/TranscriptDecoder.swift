@@ -106,7 +106,7 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
     do {
       switch call.status {
       case .inProgress:
-        return try tool.decodeInProgress(id: call.id, rawContent: call.arguments, rawOutput: rawOutput)
+        return try tool.decodePartial(id: call.id, rawContent: call.arguments, rawOutput: rawOutput)
       case .completed:
         return try tool.decodeCompleted(id: call.id, rawContent: call.arguments, rawOutput: rawOutput)
       default:
