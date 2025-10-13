@@ -40,7 +40,7 @@ public extension Transcript {
       public let error: TranscriptDecodingError.PromptResolution?
       package var prompt: String
 
-      package init(
+      public init(
         id: String,
         input: String,
         sources: [Provider.DecodedGrounding],
@@ -68,7 +68,7 @@ public extension Transcript {
       public var id: String
       public var summary: [String]
 
-      package init(
+      public init(
         id: String,
         summary: [String],
       ) {

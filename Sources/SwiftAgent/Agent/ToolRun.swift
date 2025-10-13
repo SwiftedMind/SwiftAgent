@@ -53,7 +53,7 @@ public struct ToolRun<Tool: SwiftAgentTool>: Identifiable {
   ///   - arguments: The parsed tool arguments
   ///   - output: The tool's output, if available
   ///   - problem: The problem payload provided when `Tool.Output` decoding fails
-  package init(
+  public init(
     id: String,
     arguments: Arguments,
     output: Tool.Output? = nil,

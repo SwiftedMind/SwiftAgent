@@ -173,7 +173,7 @@ public extension Transcript {
     public var arguments: GeneratedContent
     public var status: Status?
 
-    package init(
+    public init(
       id: String,
       callId: String,
       toolName: String,
