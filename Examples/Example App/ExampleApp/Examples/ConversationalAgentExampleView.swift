@@ -7,16 +7,12 @@ import UIKit
 
 /*
 
- TODO: Check if I can split up the huge macro into multiple ones. One thing might be the two obervable properties. The main macro could just add marker macros to the properties, and a second one then adds the boilerplate for them. Makes the main macro a lot smaller and easier to understand.
-
-  TODO: More unit tests.
-  TODO: Update the Session init to have a "tools" parameter when no @Tool properties are defined.
-  TODO: Add access level to macro generation
-  TODO: Go through the API flow and check if this is now somewhat final
-       -> Do this by finally building the example app properly
-  TODO: Start writing new documentation
-  TODO: Changelog
-  */
+ TODO: More unit tests.
+ TODO: Go through the API flow and check if this is now somewhat final
+      -> Do this by finally building the example app properly
+ TODO: Start writing new documentation
+ TODO: Changelog
+ */
 
 struct ConversationalAgentExampleView: View {
   @State private var userInput = "Compute 234 + 6 using the tool! And write a 10 paragraph story about the result. Just write the story!"

@@ -41,17 +41,18 @@ extension LanguageModelProviderMacro {
       : "\(wrapperAssignments)\n\n"
 
     let decodableToolsArrayInit = toolParameters.map { parameter in
-      let wrapperName = "Decodable\(parameter.name.capitalizedFirstLetter())Tool"
+      // Generate wrapper name based on the base tool type name
+      let wrapperName = "Decodable\(parameter.type)"
       let baseToolExpression = parameter.hasInitializer
         ? "_\(parameter.name).wrappedValue"
         : parameter.name
       // Wrap each declared tool so we can hand it to the adapter as a `DecodableTool`.
-      return "      \(wrapperName)(baseTool: \(baseToolExpression))"
+      return "    \(wrapperName)(baseTool: \(baseToolExpression))"
     }
     .joined(separator: ",\n")
 
     // Construct the literal array so the adapter receives every tool in declaration order.
-    let decodableToolsArrayCode = decodableToolsArrayInit.isEmpty ? "[]" : "[\n\(decodableToolsArrayInit)\n    ]"
+    let decodableToolsArrayCode = decodableToolsArrayInit.isEmpty ? "[]" : "[\n\(decodableToolsArrayInit)\n  ]"
 
     let initParameters = toolParameters
       .filter { !$0.hasInitializer }
@@ -171,7 +172,7 @@ extension LanguageModelProviderMacro {
     let staticFunctionKeyword = accessModifier.map { "\($0) static func" } ?? "static func"
     let propertyKeyword = accessModifier.map { "\($0) var" } ?? "var"
     let cases = tools.map { tool -> String in
-      let wrapperName = "Decodable\(tool.identifier.text.capitalizedFirstLetter())Tool"
+      let wrapperName = decodableWrapperName(for: tool)
       return "  case \(tool.identifier.text)(ToolRun<\(wrapperName)>)"
     }
     .joined(separator: "\n")
@@ -206,7 +207,7 @@ extension LanguageModelProviderMacro {
     for tool: ToolProperty,
     accessModifier: String?,
   ) -> DeclSyntax {
-    let wrapperName = "Decodable\(tool.identifier.text.capitalizedFirstLetter())Tool"
+    let wrapperName = decodableWrapperName(for: tool)
     let structKeyword = accessModifier.map { "\($0) struct" } ?? "struct"
     let typeDeclaration = "\(structKeyword) \(wrapperName)"
     let initKeyword = accessModifier.map { "\($0) init" } ?? "init"
@@ -372,5 +373,9 @@ extension LanguageModelProviderMacro {
 
   static func resolvableStructuredOutputTypeName(for output: StructuredOutputProperty) -> String {
     "Decodable\(output.identifier.text.capitalizedFirstLetter())"
+  }
+
+  static func decodableWrapperName(for tool: ToolProperty) -> String {
+    "Decodable\(tool.typeName)"
   }
 }

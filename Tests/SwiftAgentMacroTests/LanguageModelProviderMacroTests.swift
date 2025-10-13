@@ -132,7 +132,7 @@ struct LanguageModelProviderMacroTests {
 
         init(
           instructions: String,
-            apiKey: String
+          apiKey: String
         ) {
           let decodableTools: [any DecodableTool<ProviderType>] = []
           let tools: [any SwiftAgentTool] = decodableTools.map {
@@ -150,7 +150,7 @@ struct LanguageModelProviderMacroTests {
 
         init(
           instructions: String,
-            configuration: OpenAIConfiguration
+          configuration: OpenAIConfiguration
         ) {
           let decodableTools: [any DecodableTool<ProviderType>] = []
           let tools: [any SwiftAgentTool] = decodableTools.map {
@@ -219,17 +219,17 @@ struct LanguageModelProviderMacroTests {
             switch self {
 
             case let .unknown(toolCall):
-                toolCall.id
+              toolCall.id
             }
           }
         }
 
         enum DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput {
-            case unknown(SwiftAgent.Transcript.StructuredSegment)
+          case unknown(SwiftAgent.Transcript.StructuredSegment)
 
-            static func makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {
-                .unknown(segment)
-            }
+          static func makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {
+              .unknown(segment)
+          }
         }}
 
       extension ExampleSession: LanguageModelProvider, @unchecked Sendable, nonisolated Observation.Observable, SwiftAgent.RawStructuredOutputSupport {
@@ -375,8 +375,8 @@ struct LanguageModelProviderMacroTests {
           apiKey: String
         ) {
           let decodableTools: [any DecodableTool<ProviderType>] = [
-              DecodableWeatherToolTool(baseTool: _weatherTool.wrappedValue)
-            ]
+            DecodableWeatherTool(baseTool: _weatherTool.wrappedValue)
+          ]
           let tools: [any SwiftAgentTool] = decodableTools.map {
             $0 as any SwiftAgentTool
           }
@@ -395,8 +395,8 @@ struct LanguageModelProviderMacroTests {
           configuration: OpenAIConfiguration
         ) {
           let decodableTools: [any DecodableTool<ProviderType>] = [
-              DecodableWeatherToolTool(baseTool: _weatherTool.wrappedValue)
-            ]
+            DecodableWeatherTool(baseTool: _weatherTool.wrappedValue)
+          ]
           let tools: [any SwiftAgentTool] = decodableTools.map {
             $0 as any SwiftAgentTool
           }
@@ -415,7 +415,7 @@ struct LanguageModelProviderMacroTests {
         }
 
         enum DecodedToolRun: SwiftAgent.DecodedToolRun {
-          case weatherTool(ToolRun<DecodableWeatherToolTool>)
+          case weatherTool(ToolRun<DecodableWeatherTool>)
           case unknown(toolCall: SwiftAgent.Transcript.ToolCall)
 
           static func makeUnknown(toolCall: SwiftAgent.Transcript.ToolCall) -> Self {
@@ -432,7 +432,7 @@ struct LanguageModelProviderMacroTests {
           }
         }
 
-        struct DecodableWeatherToolTool: DecodableTool {
+        struct DecodableWeatherTool: DecodableTool {
           typealias Provider = ProviderType
           typealias BaseTool = WeatherTool
           typealias Arguments = BaseTool.Arguments
@@ -461,7 +461,7 @@ struct LanguageModelProviderMacroTests {
           }
 
           func decode(
-            _ run: ToolRun<DecodableWeatherToolTool>
+            _ run: ToolRun<DecodableWeatherTool>
           ) -> Provider.DecodedToolRun {
             .weatherTool(run)
           }
