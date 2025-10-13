@@ -7,6 +7,9 @@
 
 SwiftAgent simplifies AI agent development by providing a clean, intuitive API that handles all the complexity of agent loops, tool execution, and adapter communication. Inspired by Apple's FoundationModels framework, it brings the same elegant, declarative approach to cross-platform AI agent development.
 
+> [!NOTE]
+> **October 13th 2025**: I am currently close to finishing the next release for SwiftAgent. As a heads up: It will contain a lot of breaking changes as I've redesigned the entire API for the package to make it much easier to use. I've also added support for streaming responses in a (I think) cool way. I hope that this will be the last drastic API change before a stable 1.0.0 release!
+
 **⚠️ Work in Progress**: SwiftAgent is currently an early prototype. The basic agent loop with tool calling is already working, but there's lots of things left to implement. APIs may change, and breaking updates are expected. Use in production with caution.
 
 ## Table of Contents
