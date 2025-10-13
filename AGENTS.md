@@ -51,10 +51,9 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
 ### Building and Testing (use XcodeBuildMCP only)
 
 - NEVER use `swift build` or the cli version of `xcodebuild` to build or test the project! You MUST use XcodeBuildMCP
-
-#### Build SDK and Example App
-
 - Replace {working_directory} with the current working directory
+
+#### Build SDK
 
 ```
 XcodeBuildMCP.build_sim({

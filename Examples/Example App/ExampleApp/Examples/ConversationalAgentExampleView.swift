@@ -1,5 +1,6 @@
 // By Dennis Müller
 
+import struct FoundationModels.GeneratedContent
 import OpenAISession
 import SimulatedSession
 import SwiftUI
@@ -165,11 +166,11 @@ private struct ToolRunEntryView: View {
     switch toolRun {
     case let .calculator(calculatorRun):
       switch calculatorRun.arguments {
-      case let .completed(arguments):
+      case let .final(arguments):
         Text(
           "Calculator Run: \(arguments.firstNumber.formatted()) \(arguments.operation) \(arguments.secondNumber.formatted())",
         )
-      case let .inProgress(arguments):
+      case let .partial(arguments):
         Text(
           "Calculator Run: \(arguments.firstNumber?.formatted(), default: "?") \(arguments.operation, default: "?") \(arguments.secondNumber?.formatted(), default: "?")",
         )
@@ -178,9 +179,9 @@ private struct ToolRunEntryView: View {
       }
     case let .weather(weatherRun):
       switch weatherRun.arguments {
-      case let .completed(arguments):
+      case let .final(arguments):
         Text("Weather Run: \(arguments.location, default: "?")")
-      case let .inProgress(arguments):
+      case let .partial(arguments):
         Text("Weather Run: \(arguments.location, default: "?")")
       case let .failed(error):
         Text("Weather Run: \(error, default: "?")")
@@ -205,6 +206,15 @@ private struct ResponseEntryView: View {
     }
   }
 }
+
+// #Preview {
+//   NavigationStack {
+//     ToolRunEntryView(toolRun: .mockCalculatorInProgress)
+//       .navigationTitle("Agent Playground")
+//       .navigationBarTitleDisplayMode(.inline)
+//   }
+//   .preferredColorScheme(.dark)
+// }
 
 #Preview {
   NavigationStack {

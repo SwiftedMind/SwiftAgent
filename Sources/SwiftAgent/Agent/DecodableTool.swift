@@ -6,7 +6,7 @@ import Internal
 
 public protocol DecodableTool<Provider>: SwiftAgentTool {
   associatedtype Provider: LanguageModelProvider
-  func decode(_ run: ToolRun<Self>) -> Provider.DecodedToolRun
+  func decode(_ run: ToolRun<Arguments, Output>) -> Provider.DecodedToolRun
 }
 
 package extension DecodableTool {
@@ -28,7 +28,7 @@ package extension DecodableTool {
     let arguments = try Arguments(rawContent)
     let toolRun = try toolRun(
       id: id,
-      .completed(arguments),
+      .final(arguments),
       rawContent: rawContent,
       rawOutput: rawOutput,
     )
@@ -43,7 +43,7 @@ package extension DecodableTool {
     let arguments = try Arguments.PartiallyGenerated(rawContent)
     let toolRun = try toolRun(
       id: id,
-      .inProgress(arguments),
+      .partial(arguments),
       rawContent: rawContent,
       rawOutput: rawOutput,
     )
@@ -76,10 +76,10 @@ package extension DecodableTool {
   /// - Throws: Conversion errors if content cannot be parsed
   func toolRun(
     id: String,
-    _ arguments: ToolRun<Self>.Arguments,
+    _ arguments: ToolRun<Arguments, Output>.ArgumentsPhase,
     rawContent: GeneratedContent,
     rawOutput: GeneratedContent?,
-  ) throws -> ToolRun<Self> {
+  ) throws -> ToolRun<Arguments, Output> {
     guard let rawOutput else {
       return ToolRun(
         id: id,
@@ -112,14 +112,14 @@ package extension DecodableTool {
     }
   }
 
-  func problem(from generatedContent: GeneratedContent) -> ToolRun<Self>.Problem? {
+  func problem(from generatedContent: GeneratedContent) -> ToolRun<Arguments, Output>.Problem? {
     guard
       let problemReport = try? ProblemReport(generatedContent),
       problemReport.error else {
       return nil
     }
 
-    return ToolRun<Self>.Problem(
+    return ToolRun<Arguments, Output>.Problem(
       reason: problemReport.reason,
       json: generatedContent.jsonString,
       details: ProblemReportDetailsExtractor.values(from: generatedContent),

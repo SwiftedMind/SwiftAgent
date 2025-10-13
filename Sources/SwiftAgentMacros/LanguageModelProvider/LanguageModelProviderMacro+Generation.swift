@@ -172,8 +172,7 @@ extension LanguageModelProviderMacro {
     let staticFunctionKeyword = accessModifier.map { "\($0) static func" } ?? "static func"
     let propertyKeyword = accessModifier.map { "\($0) var" } ?? "var"
     let cases = tools.map { tool -> String in
-      let wrapperName = decodableWrapperName(for: tool)
-      return "  case \(tool.identifier.text)(ToolRun<\(wrapperName)>)"
+      return "  case \(tool.identifier.text)(ToolRun<\(tool.typeName).Arguments, \(tool.typeName).Output>)"
     }
     .joined(separator: "\n")
 
@@ -246,7 +245,7 @@ extension LanguageModelProviderMacro {
         }
 
         \(raw: functionKeyword) decode(
-          _ run: ToolRun<\(raw: wrapperName)>
+          _ run: ToolRun<\(raw: tool.typeName).Arguments, \(raw: tool.typeName).Output>
         ) -> Provider.DecodedToolRun {
           .\(raw: tool.identifier.text)(run)
         }
@@ -321,7 +320,7 @@ extension LanguageModelProviderMacro {
         .map { output in
           let caseName = output.identifier.text
           let resolvableTypeName = resolvableStructuredOutputTypeName(for: output)
-          return "  case \(caseName)(SwiftAgent.DecodedGeneratedContent<\(resolvableTypeName)>)"
+          return "  case \(caseName)(SwiftAgent.StructuredOutputUpdate<\(resolvableTypeName)>)"
         }
         .joined(separator: "\n")
       sections.append(cases)
@@ -362,7 +361,7 @@ extension LanguageModelProviderMacro {
         \(raw: typealiasKeyword) Provider = ProviderType
 
         \(raw: staticFunctionKeyword) decode(
-          _ structuredOutput: SwiftAgent.DecodedGeneratedContent<\(raw: resolvableName)>
+          _ structuredOutput: SwiftAgent.StructuredOutputUpdate<\(raw: resolvableName)>
         ) -> Provider.DecodedStructuredOutput {
           .\(raw: caseName)(structuredOutput)
         }

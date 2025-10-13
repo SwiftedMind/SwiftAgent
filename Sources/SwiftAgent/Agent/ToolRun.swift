@@ -4,27 +4,27 @@ import Foundation
 import FoundationModels
 import Internal
 
-public struct ToolRun<Tool: SwiftAgentTool>: Identifiable {
+public struct ToolRun<Arguments: Generable, Output: Generable>: Identifiable {
   private let rawContent: GeneratedContent
   private let rawOutput: GeneratedContent?
 
-  public enum Arguments {
-    case inProgress(Tool.Arguments.PartiallyGenerated)
-    case completed(Tool.Arguments)
+  public enum ArgumentsPhase {
+    case partial(Arguments.PartiallyGenerated)
+    case final(Arguments)
     case failed(TranscriptDecodingError.ToolRunResolution)
   }
 
   public var id: String
 
-  public var arguments: Arguments
+  public var arguments: ArgumentsPhase
 
   /// The tool's output, if available.
   ///
   /// This will be `nil` when the tool run has not yet produced a result, or when
   /// no corresponding output is found in the conversation transcript.
-  public var output: Tool.Output?
+  public var output: Output?
 
-  /// Contains the recoverable problem information when decoding `Tool.Output` fails.
+  /// Contains the recoverable problem information when decoding `Output` fails.
   ///
   /// This happens when a tool execution throws ``ToolRunProblem`` and the adapter forwards
   /// arbitrary ``GeneratedContent`` back to the agent. That content cannot be strongly typed
@@ -52,11 +52,11 @@ public struct ToolRun<Tool: SwiftAgentTool>: Identifiable {
   /// - Parameters:
   ///   - arguments: The parsed tool arguments
   ///   - output: The tool's output, if available
-  ///   - problem: The problem payload provided when `Tool.Output` decoding fails
+  ///   - problem: The problem payload provided when `Output` decoding fails
   public init(
     id: String,
-    arguments: Arguments,
-    output: Tool.Output? = nil,
+    arguments: ArgumentsPhase,
+    output: Output? = nil,
     problem: Problem? = nil,
     rawContent: GeneratedContent,
     rawOutput: GeneratedContent? = nil,
@@ -71,7 +71,7 @@ public struct ToolRun<Tool: SwiftAgentTool>: Identifiable {
 }
 
 public extension ToolRun {
-  /// Recoverable problem information returned when the tool output cannot be decoded into `Tool.Output`.
+  /// Recoverable problem information returned when the tool output cannot be decoded into `Output`.
   struct Problem: Sendable, Equatable, Hashable {
     /// The human-readable reason describing the problem.
     public let reason: String
@@ -95,12 +95,10 @@ public extension ToolRun {
   }
 }
 
-extension ToolRun.Arguments: Sendable where Tool.Arguments: Sendable, Tool.Arguments.PartiallyGenerated: Sendable,
-  Tool.Output: Sendable {}
-extension ToolRun: Sendable where Tool.Arguments: Sendable, Tool.Arguments.PartiallyGenerated: Sendable,
-  Tool.Output: Sendable {}
+extension ToolRun.ArgumentsPhase: Sendable where Arguments: Sendable, Arguments.PartiallyGenerated: Sendable {}
+extension ToolRun: Sendable where Arguments: Sendable, Arguments.PartiallyGenerated: Sendable, Output: Sendable {}
 extension ToolRun: Equatable {
-  public static func == (lhs: ToolRun<Tool>, rhs: ToolRun<Tool>) -> Bool {
+  public static func == (lhs: ToolRun<Arguments, Output>, rhs: ToolRun<Arguments, Output>) -> Bool {
     lhs.rawContent == rhs.rawContent && lhs.rawOutput == rhs.rawOutput
   }
 }

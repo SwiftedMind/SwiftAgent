@@ -237,7 +237,7 @@ struct LanguageModelProviderMacroTests {
       """
     }
   }
-  
+
   @Test("Tool, Grounding and Structured Output")
   func expandSingleToolWithDefaultInitializer() {
     assertMacro(["LanguageModelProvider": LanguageModelProviderMacro.self], indentationWidth: .spaces(2)) {
@@ -468,7 +468,7 @@ struct LanguageModelProviderMacroTests {
         }
 
         enum DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput {
-          case weatherReport(SwiftAgent.DecodedGeneratedContent<DecodableWeatherReport>)
+          case weatherReport(SwiftAgent.StructuredOutputUpdate<DecodableWeatherReport>)
           case unknown(SwiftAgent.Transcript.StructuredSegment)
 
           static func makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {
@@ -481,7 +481,7 @@ struct LanguageModelProviderMacroTests {
           typealias Provider = ProviderType
 
           static func decode(
-            _ structuredOutput: SwiftAgent.DecodedGeneratedContent<DecodableWeatherReport>
+            _ structuredOutput: SwiftAgent.StructuredOutputUpdate<DecodableWeatherReport>
           ) -> Provider.DecodedStructuredOutput {
             .weatherReport(structuredOutput)
           }
