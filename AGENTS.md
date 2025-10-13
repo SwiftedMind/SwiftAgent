@@ -78,11 +78,9 @@ XcodeBuildMCP.build_sim({
 #### Build Tests
 
 ```
-XcodeBuildMCP.build_sim({
+XcodeBuildMCP.build_macos({
   workspacePath: "{working_directory}/SwiftAgent.xcworkspace",
-  scheme: "SwiftAgentTests",
-  simulatorId: "B25FC210-C5E1-4184-975B-617E6A422954",
-	useLatestOS: true
+  scheme: "SwiftAgentTests"
 })
 ```
 
@@ -91,11 +89,9 @@ XcodeBuildMCP.build_sim({
 - Replace {working_directory} with the current working directory
 
 ```
-XcodeBuildMCP.test_sim({
+XcodeBuildMCP.test_macos({
   workspacePath: "{working_directory}/SwiftAgent.xcworkspace",
   scheme: "SwiftAgentTests",
-  simulatorName: "iPhone 17 Pro",
-  useLatestOS: true,
   extraArgs: ["-testPlan", "SwiftAgentTests"]
 })
 ```
