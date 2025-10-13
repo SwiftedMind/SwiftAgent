@@ -1,6 +1,5 @@
 // By Dennis Müller
 
-import Dependencies
 import Foundation
 import FoundationModels
 import OpenAI

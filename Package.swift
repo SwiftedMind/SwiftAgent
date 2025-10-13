@@ -14,10 +14,9 @@ let package = Package(
   ],
   dependencies: [
     .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "510.0.0"),
-    .package(url: "https://github.com/pointfreeco/swift-dependencies", from: "1.10.0"),
     .package(url: "https://github.com/MacPaw/OpenAI.git", branch: "main"),
     .package(url: "https://github.com/mattt/EventSource", from: "1.2.0"),
-    .package(url: "https://github.com/apple/swift-async-algorithms", from: "1.0.4"),
+    .package(url: "https://github.com/pointfreeco/swift-macro-testing", from: "0.6.4"),
   ],
   targets: [
     .macro(
@@ -39,7 +38,6 @@ let package = Package(
         "Internal",
         "SwiftAgentMacros",
         "EventSource",
-        .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
       ],
     ),
     .target(
@@ -49,8 +47,6 @@ let package = Package(
         "OpenAI",
         "SwiftAgentMacros",
         "EventSource",
-        .product(name: "Dependencies", package: "swift-dependencies"),
-        .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
       ],
       path: "Sources/OpenAI",
     ),
@@ -68,7 +64,14 @@ let package = Package(
       dependencies: [
         "OpenAISession",
         "SwiftAgent",
-        .product(name: "Dependencies", package: "swift-dependencies"),
+      ],
+    ),
+    .testTarget(
+      name: "SwiftAgentMacroTests",
+      dependencies: [
+        "SwiftAgentMacros",
+        .product(name: "MacroTesting", package: "swift-macro-testing"),
+        .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
       ],
     ),
   ],
