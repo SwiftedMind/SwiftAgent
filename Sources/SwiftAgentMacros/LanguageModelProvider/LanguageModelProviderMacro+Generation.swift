@@ -59,101 +59,101 @@ extension LanguageModelProviderMacro {
       .joined(separator: ",\n")
 
     let allInitParameters = initParameters.isEmpty
-      ? "instructions: String,\n    apiKey: String"
-      : "\(initParameters),\n    instructions: String,\n    apiKey: String"
+      ? "instructions: String,\n  apiKey: String"
+      : "\(initParameters),\n  instructions: String,\n  apiKey: String"
 
     // Base initializer wires direct API key authentication through the generated adapter.
     initializers.append(
       """
-        \(raw: initKeyword)(
-          \(raw: allInitParameters)
-        ) {
-        \(raw: initializerPrologueBlock)    let decodableTools: [any DecodableTool<ProviderType>] = \(
-          raw: decodableToolsArrayCode
-        )
-          let tools: [any SwiftAgentTool] = decodableTools.map { $0 as any SwiftAgentTool }
-          self.decodableTools = decodableTools
-          self.tools = tools
+      \(raw: initKeyword)(
+        \(raw: allInitParameters)
+      ) {
+      \(raw: initializerPrologueBlock)  let decodableTools: [any DecodableTool<ProviderType>] = \(
+        raw: decodableToolsArrayCode
+      )
+        let tools: [any SwiftAgentTool] = decodableTools.map { $0 as any SwiftAgentTool }
+        self.decodableTools = decodableTools
+        self.tools = tools
 
-          adapter = \(raw: provider.adapterTypeName)(
-            tools: tools,
-            instructions: instructions,
-            configuration: .direct(apiKey: apiKey)
-          )
-        }
+        adapter = \(raw: provider.adapterTypeName)(
+          tools: tools,
+          instructions: instructions,
+          configuration: .direct(apiKey: apiKey)
+        )
+      }
       """,
     )
 
     let configurationInitParameters = initParameters.isEmpty
-      ? "instructions: String,\n    configuration: \(provider.configurationTypeName)"
-      : "\(initParameters),\n    instructions: String,\n    configuration: \(provider.configurationTypeName)"
+      ? "instructions: String,\n  configuration: \(provider.configurationTypeName)"
+      : "\(initParameters),\n  instructions: String,\n  configuration: \(provider.configurationTypeName)"
 
     // Overload initializer accepts a fully-formed provider configuration instead.
     initializers.append(
       """
-        \(raw: initKeyword)(
-          \(raw: configurationInitParameters)
-        ) {
-        \(raw: initializerPrologueBlock)    let decodableTools: [any DecodableTool<ProviderType>] = \(
-          raw: decodableToolsArrayCode
-        )
-          let tools: [any SwiftAgentTool] = decodableTools.map { $0 as any SwiftAgentTool }
-          self.decodableTools = decodableTools
-          self.tools = tools
+      \(raw: initKeyword)(
+        \(raw: configurationInitParameters)
+      ) {
+      \(raw: initializerPrologueBlock)  let decodableTools: [any DecodableTool<ProviderType>] = \(
+        raw: decodableToolsArrayCode
+      )
+        let tools: [any SwiftAgentTool] = decodableTools.map { $0 as any SwiftAgentTool }
+        self.decodableTools = decodableTools
+        self.tools = tools
 
-          adapter = \(raw: provider.adapterTypeName)(
-            tools: tools,
-            instructions: instructions,
-            configuration: configuration
-          )
-        }
+        adapter = \(raw: provider.adapterTypeName)(
+          tools: tools,
+          instructions: instructions,
+          configuration: configuration
+        )
+      }
       """,
     )
 
     if toolParameters.isEmpty {
       initializers.append(
         """
-          \(raw: initKeyword)<each Tool: FoundationModels.Tool>(
-            tools: repeat each Tool,
-            instructions: String,
-            apiKey: String
-          ) where repeat (each Tool).Arguments: Generable, repeat (each Tool).Output: Generable {
-        \(raw: initializerPrologueBlock)    self.decodableTools = []
-            var wrappedTools: [any SwiftAgentTool] = []
-            for tool in repeat each tools {
-              wrappedTools.append(SwiftAgentToolWrapper(tool: tool))
-            }
-            self.tools = wrappedTools
-
-            adapter = \(raw: provider.adapterTypeName)(
-              tools: wrappedTools,
-              instructions: instructions,
-              configuration: .direct(apiKey: apiKey)
-            )
+        \(raw: initKeyword)<each Tool: FoundationModels.Tool>(
+          tools: repeat each Tool,
+          instructions: String,
+          apiKey: String
+        ) where repeat (each Tool).Arguments: Generable, repeat (each Tool).Output: Generable {
+        \(raw: initializerPrologueBlock)  self.decodableTools = []
+          var wrappedTools: [any SwiftAgentTool] = []
+          for tool in repeat each tools {
+            wrappedTools.append(SwiftAgentToolWrapper(tool: tool))
           }
+          self.tools = wrappedTools
+
+          adapter = \(raw: provider.adapterTypeName)(
+            tools: wrappedTools,
+            instructions: instructions,
+            configuration: .direct(apiKey: apiKey)
+          )
+        }
         """,
       )
 
       initializers.append(
         """
-          \(raw: initKeyword)<each Tool: FoundationModels.Tool>(
-            tools: repeat each Tool,
-            instructions: String,
-            configuration: \(raw: provider.configurationTypeName)
-          ) where repeat (each Tool).Arguments: Generable, repeat (each Tool).Output: Generable {
-        \(raw: initializerPrologueBlock)    self.decodableTools = []
-            var wrappedTools: [any SwiftAgentTool] = []
-            for tool in repeat each tools {
-              wrappedTools.append(SwiftAgentToolWrapper(tool: tool))
-            }
-            self.tools = wrappedTools
-
-            adapter = \(raw: provider.adapterTypeName)(
-              tools: wrappedTools,
-              instructions: instructions,
-              configuration: configuration
-            )
+        \(raw: initKeyword)<each Tool: FoundationModels.Tool>(
+          tools: repeat each Tool,
+          instructions: String,
+          configuration: \(raw: provider.configurationTypeName)
+        ) where repeat (each Tool).Arguments: Generable, repeat (each Tool).Output: Generable {
+        \(raw: initializerPrologueBlock)  self.decodableTools = []
+          var wrappedTools: [any SwiftAgentTool] = []
+          for tool in repeat each tools {
+            wrappedTools.append(SwiftAgentToolWrapper(tool: tool))
           }
+          self.tools = wrappedTools
+
+          adapter = \(raw: provider.adapterTypeName)(
+            tools: wrappedTools,
+            instructions: instructions,
+            configuration: configuration
+          )
+        }
         """,
       )
     }
@@ -172,12 +172,12 @@ extension LanguageModelProviderMacro {
     let propertyKeyword = accessModifier.map { "\($0) var" } ?? "var"
     let cases = tools.map { tool -> String in
       let wrapperName = "Decodable\(tool.identifier.text.capitalizedFirstLetter())Tool"
-      return "    case \(tool.identifier.text)(ToolRun<\(wrapperName)>)"
+      return "  case \(tool.identifier.text)(ToolRun<\(wrapperName)>)"
     }
     .joined(separator: "\n")
 
     let idSwitchCases = tools.map { tool -> String in
-      return "        case let .\(tool.identifier.text)(run):\n            run.id"
+      return "case let .\(tool.identifier.text)(run):\n  run.id"
     }
     .joined(separator: "\n")
 
@@ -193,9 +193,9 @@ extension LanguageModelProviderMacro {
 
       \(raw: propertyKeyword) id: String {
         switch self {
-      \(raw: idSwitchCases)
+        \(raw: idSwitchCases)
         case let .unknown(toolCall):
-            toolCall.id
+          toolCall.id
         }
       }
       }
@@ -269,7 +269,7 @@ extension LanguageModelProviderMacro {
     }
 
     let cases = groundings.map { grounding -> String in
-      "    case \(grounding.identifier.text)(\(grounding.typeName))"
+      "  case \(grounding.identifier.text)(\(grounding.typeName))"
     }
     .joined(separator: "\n")
 
@@ -320,18 +320,18 @@ extension LanguageModelProviderMacro {
         .map { output in
           let caseName = output.identifier.text
           let resolvableTypeName = resolvableStructuredOutputTypeName(for: output)
-          return "    case \(caseName)(SwiftAgent.DecodedGeneratedContent<\(resolvableTypeName)>)"
+          return "  case \(caseName)(SwiftAgent.DecodedGeneratedContent<\(resolvableTypeName)>)"
         }
         .joined(separator: "\n")
       sections.append(cases)
     }
 
-    sections.append("    case unknown(SwiftAgent.Transcript.StructuredSegment)")
+    sections.append("  case unknown(SwiftAgent.Transcript.StructuredSegment)")
     sections.append("")
     sections
-      .append("    \(staticFunctionKeyword) makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {")
-    sections.append("        .unknown(segment)")
-    sections.append("    }")
+      .append("  \(staticFunctionKeyword) makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {")
+    sections.append("      .unknown(segment)")
+    sections.append("  }")
 
     let body = sections.joined(separator: "\n")
 
