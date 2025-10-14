@@ -71,12 +71,18 @@ struct CalculatorTool: Tool {
 
 struct WeatherTool: Tool {
   let name = "get_weather"
-  let description = "Gets current weather information for a location"
+  let description = "Provides a simple weather forecast for a specific place and time"
 
   @Generable
   struct Arguments {
     @Guide(description: "The city or location to get weather for")
     let location: String
+
+    @Guide(description: "The calendar date to request the forecast for (e.g., 2024-04-01)")
+    let requestedDate: String
+
+    @Guide(description: "The time of day for the forecast (morning, afternoon, evening)")
+    let timeOfDay: String
   }
 
   @Generable
@@ -92,7 +98,7 @@ struct WeatherTool: Tool {
     try await Task.sleep(nanoseconds: 500_000_000)
 
     // Mock weather data based on location
-    let mockWeatherData = [
+    let mockWeatherData: [String: (String, Int, String, Int)] = [
       "london": ("London", 15, "Cloudy", 78),
       "paris": ("Paris", 18, "Sunny", 65),
       "tokyo": ("Tokyo", 22, "Rainy", 85),
@@ -101,7 +107,7 @@ struct WeatherTool: Tool {
     ]
 
     let locationKey = arguments.location.lowercased()
-    let weatherData = mockWeatherData[locationKey] ??
+    let baseWeatherData = mockWeatherData[locationKey] ??
       (
         arguments.location,
         Int.random(in: 10...30),
@@ -109,11 +115,25 @@ struct WeatherTool: Tool {
         Int.random(in: 40...90)
       )
 
+    let normalizedTimeOfDay = arguments.timeOfDay.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    let timeLabel: String = switch normalizedTimeOfDay {
+    case "morning":
+      "Morning"
+    case "afternoon":
+      "Afternoon"
+    case "evening":
+      "Evening"
+    default:
+      arguments.timeOfDay.capitalized
+    }
+
+    let conditionDescription = "\(baseWeatherData.2) - \(timeLabel) forecast for \(arguments.requestedDate)"
+
     return Output(
-      location: weatherData.0,
-      temperature: weatherData.1,
-      condition: weatherData.2,
-      humidity: weatherData.3,
+      location: baseWeatherData.0,
+      temperature: baseWeatherData.1,
+      condition: conditionDescription,
+      humidity: baseWeatherData.3,
     )
   }
 }

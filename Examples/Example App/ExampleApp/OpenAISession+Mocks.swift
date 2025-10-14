@@ -241,6 +241,8 @@ extension CalculatorTool.Output {
 extension WeatherTool.Arguments {
   static let mock = WeatherTool.Arguments(
     location: "San Francisco",
+    requestedDate: "2024-04-01",
+    timeOfDay: "Afternoon",
   )
 }
 
@@ -248,7 +250,9 @@ extension WeatherTool.Arguments.PartiallyGenerated {
   static let mock = try! WeatherTool.Arguments.PartiallyGenerated(
     try! GeneratedContent(json: """
     {
-      "location": "San Fra"
+      "location": "San Fra",
+      "requestedDate": "2024-0",
+      "timeOfDay": "After"
     }
     """),
   )
@@ -258,7 +262,7 @@ extension WeatherTool.Output {
   static let mock = WeatherTool.Output(
     location: "San Francisco",
     temperature: 18,
-    condition: "Partly Cloudy",
+    condition: "Partly Cloudy - Afternoon forecast for 2024-04-01",
     humidity: 72,
   )
 }

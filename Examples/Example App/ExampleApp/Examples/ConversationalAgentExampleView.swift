@@ -5,17 +5,8 @@ import SimulatedSession
 import SwiftUI
 import UIKit
 
-/*
-
- TODO: More unit tests.
- TODO: Go through the API flow and check if this is now somewhat final
-      -> Do this by finally building the example app properly
- TODO: Start writing new documentation
- TODO: Changelog
- */
-
 struct ConversationalAgentExampleView: View {
-  @State private var userInput = "Compute 234 + 6 using the tool! And write a 10 paragraph story about the result. Just write the story!"
+  @State private var userInput = "Choose a random city and request a weather report. Then use the calculator to multiply the temperature by 5 and finally answer with a short story (1-2 paragraphs) involving the tool call outputs in some funny way."
   @State private var transcript: OpenAISession.DecodedTranscript = .init()
   @State private var streamingTranscript: OpenAISession.DecodedTranscript = .init()
   @State private var session: OpenAISession?
@@ -84,12 +75,6 @@ struct ConversationalAgentExampleView: View {
       """,
       configuration: .direct(apiKey: Secret.OpenAI.apiKey),
     )
-
-    Task {
-      // print("NOW")
-      // let test = try await session!.weatherReport.respond(to: "Make up a weather report")
-      // print(test.content)
-    }
   }
 
   // MARK: - Actions
@@ -166,14 +151,7 @@ private struct ToolRunEntryView: View {
     case let .calculator(calculatorRun):
       CalculatorToolRunView(calculatorRun: calculatorRun)
     case let .weather(weatherRun):
-      switch weatherRun.arguments {
-      case let .final(arguments):
-        Text("Weather Run: \(arguments.location, default: "?")")
-      case let .partial(arguments):
-        Text("Weather Run: \(arguments.location, default: "?")")
-      default:
-        EmptyView()
-      }
+      WeatherToolRunView(weatherRun: weatherRun)
     case let .unknown(toolCall):
       Text("Unknown Run: \(toolCall.toolName)")
     }

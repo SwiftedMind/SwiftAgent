@@ -9,29 +9,30 @@ struct CalculatorToolRunView: View {
   var calculatorRun: ToolRun<CalculatorTool>
 
   var body: some View {
-    if let arguments = calculatorRun.normalizedArguments {
-      VStack(spacing: 5) {
-        HStack(spacing: 10) {
-          operandView(for: arguments.firstNumber)
-          operatorView(for: arguments.operation)
-          operandView(for: arguments.secondNumber)
+    GroupBox("Calculator") {
+      if let arguments = calculatorRun.normalizedArguments {
+        VStack(spacing: 5) {
+          HStack(spacing: 10) {
+            operandView(for: arguments.firstNumber)
+              .opacity(calculatorRun.hasOutput ? 0.5 : 1)
+            operatorView(for: arguments.operation)
+            operandView(for: arguments.secondNumber)
+              .opacity(calculatorRun.hasOutput ? 0.5 : 1)
+            if let output = calculatorRun.output {
+              operatorView(for: "=")
+              operandView(for: output.result)
+                .transition(.opacity.combined(with: .scale(1.2)))
+            }
+          }
+          .geometryGroup()
         }
-        .scaleEffect(calculatorRun.hasOutput ? 0.8 : 1)
-        .opacity(calculatorRun.hasOutput ? 0.5 : 1)
+        .padding(5)
         .geometryGroup()
-        if let output = calculatorRun.output {
-          Capsule()
-            .frame(width: 150, height: 2)
-            .transition(.opacity.combined(with: .scale))
-          operandView(for: output.result)
-            .transition(.opacity.combined(with: .scale))
-        }
+      } else if let error = calculatorRun.error {
+        Text("Calculator Error: \(error.localizedDescription)")
+          .foregroundStyle(.secondary)
+          .multilineTextAlignment(.leading)
       }
-      .geometryGroup()
-    } else if let error = calculatorRun.error {
-      Text("Calculator Error: \(error.localizedDescription)")
-        .foregroundStyle(.secondary)
-        .multilineTextAlignment(.center)
     }
   }
 
@@ -43,6 +44,7 @@ struct CalculatorToolRunView: View {
       .monospaced()
       .contentTransition(.numericText())
       .blur(radius: value == nil ? 10 : 0)
+      .transition(.opacity.combined(with: .scale(1.2)))
   }
 
   @ViewBuilder
@@ -53,16 +55,17 @@ struct CalculatorToolRunView: View {
       .monospaced()
       .foregroundStyle(.secondary)
       .blur(radius: value == nil ? 10 : 0)
+      .transition(.opacity.combined(with: .scale(1.2)))
   }
 }
 
 #Preview("Calculator Tool Run") {
-  @Previewable @State var selectedScenario: CalculatorToolRunPreviewScenario = .emptyArguments
+  @Previewable @State var selectedScenario: CalculatorToolRunPreviewScenario = .completed
 
   VStack {
     Spacer()
     CalculatorToolRunView(calculatorRun: selectedScenario.toolRun)
-      .frame(maxWidth: .infinity)
+      .frame(maxWidth: .infinity, alignment: .leading)
       .animation(.default, value: selectedScenario.toolRun)
     Spacer()
     Picker("Scenario", selection: $selectedScenario) {
@@ -92,7 +95,7 @@ private enum CalculatorToolRunPreviewScenario: String, CaseIterable, Identifiabl
     case .emptyArguments: "Empty"
     case .firstNumberOnly: "1"
     case .awaitingSecondNumber: "2"
-    case .completed: "3"
+    case .completed: "Done"
     case .error: "Error"
     }
   }
