@@ -38,7 +38,7 @@ public extension Transcript {
       public var input: String
       public var sources: [Provider.DecodedGrounding]
       public let error: TranscriptDecodingError.PromptResolution?
-      package var prompt: String
+      public var prompt: String
 
       public init(
         id: String,
@@ -92,20 +92,32 @@ public extension Transcript {
         self.status = status
       }
 
-      public var text: String? {
-        var components: [String] = []
-        for segment in segments {
+      public var textSegments: [TextSegment] {
+        segments.compactMap { segment in
           switch segment {
           case let .text(textSegment):
-            components.append(textSegment.content)
+            textSegment
           case .structure:
-            return nil
+            nil
           }
         }
+      }
 
-        guard !components.isEmpty else { return nil }
+      public var structuredSegments: [StructuredSegment] {
+        segments.compactMap { segment in
+          switch segment {
+          case let .structure(structuredSegment):
+            structuredSegment
+          case .text:
+            nil
+          }
+        }
+      }
 
-        return components.joined(separator: "\n")
+      public var text: String? {
+        let contents = textSegments.map(\.content)
+        if contents.isEmpty { return nil }
+        return contents.joined(separator: "\n")
       }
     }
 

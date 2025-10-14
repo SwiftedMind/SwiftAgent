@@ -10,17 +10,26 @@ struct CalculatorToolRunView: View {
 
   var body: some View {
     if let arguments = calculatorRun.normalizedArguments {
-      HStack(spacing: 12) {
-        operandView(for: arguments.firstNumber)
-        operatorView(for: arguments.operation)
-        operandView(for: arguments.secondNumber)
+      VStack(spacing: 5) {
+        HStack(spacing: 10) {
+          operandView(for: arguments.firstNumber)
+          operatorView(for: arguments.operation)
+          operandView(for: arguments.secondNumber)
+        }
+        .scaleEffect(calculatorRun.hasOutput ? 0.8 : 1)
+        .opacity(calculatorRun.hasOutput ? 0.5 : 1)
+        .geometryGroup()
+        if let output = calculatorRun.output {
+          Capsule()
+            .frame(width: 150, height: 2)
+            .transition(.opacity.combined(with: .scale))
+          operandView(for: output.result)
+            .transition(.opacity.combined(with: .scale))
+        }
       }
-      .font(.largeTitle)
-      .bold()
-      .monospaced()
-      .contentTransition(.numericText())
+      .geometryGroup()
     } else if let error = calculatorRun.error {
-      Text("Calculator Run Error: \(error.localizedDescription)")
+      Text("Calculator Error: \(error.localizedDescription)")
         .foregroundStyle(.secondary)
         .multilineTextAlignment(.center)
     }
@@ -29,14 +38,19 @@ struct CalculatorToolRunView: View {
   @ViewBuilder
   private func operandView(for value: Double?) -> some View {
     Text(value?.formatted() ?? "0")
-      .frame(minWidth: 48)
+      .font(.largeTitle)
+      .bold()
+      .monospaced()
+      .contentTransition(.numericText())
       .blur(radius: value == nil ? 10 : 0)
   }
 
   @ViewBuilder
   private func operatorView(for value: String?) -> some View {
     Text(value ?? "?")
-      .frame(minWidth: 48)
+      .font(.largeTitle)
+      .bold()
+      .monospaced()
       .foregroundStyle(.secondary)
       .blur(radius: value == nil ? 10 : 0)
   }
@@ -75,129 +89,42 @@ private enum CalculatorToolRunPreviewScenario: String, CaseIterable, Identifiabl
 
   var label: LocalizedStringKey {
     switch self {
-    case .emptyArguments:
-      "Empty"
-    case .firstNumberOnly:
-      "First Number"
-    case .awaitingSecondNumber:
-      "Operation"
-    case .completed:
-      "Complete"
-    case .error:
-      "Error"
+    case .emptyArguments: "Empty"
+    case .firstNumberOnly: "1"
+    case .awaitingSecondNumber: "2"
+    case .completed: "3"
+    case .error: "Error"
     }
   }
 
   var toolRun: ToolRun<CalculatorTool> {
     switch self {
     case .emptyArguments:
-      partialRun(
+      try! ToolRun<CalculatorTool>.partial(
         id: "0",
-        argumentsJSON: #"{}"#
+        json: #"{}"#,
       )
     case .firstNumberOnly:
-      partialRun(
+      try! ToolRun<CalculatorTool>.partial(
         id: "0",
-        argumentsJSON: #"{ "firstNumber": 234.0 }"#
+        json: #"{ "firstNumber": 234.0 }"#,
       )
     case .awaitingSecondNumber:
-      partialRun(
+      try! ToolRun<CalculatorTool>.partial(
         id: "0",
-        argumentsJSON: #"{ "firstNumber": 234.0, "operation": "+" }"#
+        json: #"{ "firstNumber": 234.0, "operation": "+" }"#,
       )
     case .completed:
-      completedRun(
+      try! ToolRun<CalculatorTool>.completed(
         id: "0",
-        firstNumber: 234.0,
-        operation: "+",
-        secondNumber: 6.0
+        json: #"{ "firstNumber": 234.0, "operation": "+", "secondNumber": 6.0 }"#,
+        output: CalculatorTool.Output(result: 240),
       )
     case .error:
-      errorRun(id: "0")
+      try! ToolRun<CalculatorTool>.error(
+        id: "0",
+        error: .resolutionFailed(description: "Something went wrong"),
+      )
     }
-  }
-}
-
-private extension CalculatorToolRunPreviewScenario {
-  func partialRun(id: String, argumentsJSON: String) -> ToolRun<CalculatorTool> {
-    let rawArguments = generatedContent(fromJson: argumentsJSON)
-    let partiallyGeneratedArguments = try! CalculatorTool.Arguments.PartiallyGenerated(rawArguments)
-
-    return ToolRun<CalculatorTool>(
-      id: id,
-      arguments: .partial(partiallyGeneratedArguments),
-      output: nil,
-      problem: nil,
-      rawArguments: rawArguments,
-      rawOutput: nil
-    )
-  }
-
-  func completedRun(
-    id: String,
-    firstNumber: Double,
-    operation: String,
-    secondNumber: Double
-  ) -> ToolRun<CalculatorTool> {
-    let arguments = CalculatorTool.Arguments(
-      firstNumber: firstNumber,
-      operation: operation,
-      secondNumber: secondNumber
-    )
-
-    let rawArguments = generatedContent(
-      fromJson: #"{ "firstNumber": \#(firstNumber), "operation": "\#(operation)", "secondNumber": \#(secondNumber) }"#
-    )
-
-    let result = evaluate(firstNumber: firstNumber, operation: operation, secondNumber: secondNumber)
-    let output = CalculatorTool.Output(
-      result: result,
-      expression: "\(firstNumber) \(operation) \(secondNumber) = \(result)"
-    )
-
-    let rawOutput = generatedContent(
-      fromJson: #"{ "result": \#(result), "expression": "\#(output.expression)" }"#
-    )
-
-    return ToolRun<CalculatorTool>(
-      id: id,
-      arguments: .final(arguments),
-      output: output,
-      problem: nil,
-      rawArguments: rawArguments,
-      rawOutput: rawOutput
-    )
-  }
-
-  func errorRun(id: String) -> ToolRun<CalculatorTool> {
-    ToolRun<CalculatorTool>(
-      id: id,
-      output: nil,
-      problem: nil,
-      error: TranscriptDecodingError.ToolRunResolution.resolutionFailed(
-        description: "Preview failed to resolve tool run"
-      ),
-      rawArguments: GeneratedContent(kind: .null),
-      rawOutput: nil
-    )
-  }
-
-  func evaluate(firstNumber: Double, operation: String, secondNumber: Double) -> Double {
-    switch operation {
-    case "+":
-      firstNumber + secondNumber
-    case "-":
-      firstNumber - secondNumber
-    case "*":
-      firstNumber * secondNumber
-    case "/":
-      secondNumber == 0 ? .infinity : firstNumber / secondNumber
-    default:
-      .nan
-    }
-  }
-
-  func generatedContent(fromJson json: String) -> GeneratedContent {
-    try! GeneratedContent(json: json)
   }
 }

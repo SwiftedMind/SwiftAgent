@@ -5,69 +5,83 @@ import FoundationModels
 import Internal
 
 public struct StructuredOutputUpdate<Output: StructuredOutput>: Identifiable {
-  public enum Phase {
+  public enum Content {
     case partial(Output.Schema.PartiallyGenerated)
     case final(Output.Schema)
   }
 
   @dynamicMemberLookup
-  public struct Normalized {
+  public struct NormalizedContent {
     public var isFinal: Bool
-    public var schema: Output.Schema.PartiallyGenerated
+    public var content: Output.Schema.PartiallyGenerated
 
-    init(isFinal: Bool, schema: Output.Schema.PartiallyGenerated) {
+    init(isFinal: Bool, content: Output.Schema.PartiallyGenerated) {
       self.isFinal = isFinal
-      self.schema = schema
+      self.content = content
     }
 
     public subscript<Value>(dynamicMember keyPath: KeyPath<Output.Schema.PartiallyGenerated, Value>) -> Value {
-      schema[keyPath: keyPath]
+      content[keyPath: keyPath]
     }
   }
 
-  public var raw: GeneratedContent
   public var id: String
-  public var phase: Phase?
-  public var normalized: Normalized?
-
-  // TODO: Proper error type?
+  public var rawContent: GeneratedContent
+  public var content: Content?
+  public var normalizedContent: NormalizedContent?
   public var error: GeneratedContent?
 
-  public init(id: String, phase: Phase, raw: GeneratedContent) {
+  public init(id: String, content: Content, rawContent: GeneratedContent) {
     self.id = id
-    self.phase = phase
-    self.raw = raw
-    normalized = Self.makeNormalized(from: phase, raw: raw)
+    self.content = content
+    self.rawContent = rawContent
+    normalizedContent = Self.makeNormalized(from: content, raw: rawContent)
   }
 
-  public init(id: String, error: GeneratedContent, raw: GeneratedContent) {
+  public init(id: String, error: GeneratedContent, rawContent: GeneratedContent) {
     self.id = id
     self.error = error
-    self.raw = raw
+    self.rawContent = rawContent
+  }
+
+  public static func partial(id: String, json: String) throws -> StructuredOutputUpdate<Output> {
+    let rawContent = try GeneratedContent(json: json)
+    let content = try Output.Schema.PartiallyGenerated(rawContent)
+    return StructuredOutputUpdate(id: id, content: .partial(content), rawContent: rawContent)
+  }
+
+  public static func final(id: String, json: String) throws -> StructuredOutputUpdate<Output> {
+    let rawContent = try GeneratedContent(json: json)
+    let content = try Output.Schema(rawContent)
+    return StructuredOutputUpdate(id: id, content: .final(content), rawContent: rawContent)
+  }
+
+  public static func error(id: String, error: GeneratedContent) throws -> StructuredOutputUpdate<Output> {
+    StructuredOutputUpdate(id: id, error: error, rawContent: error)
   }
 }
 
 private extension StructuredOutputUpdate {
-  static func makeNormalized(from phase: Phase, raw: GeneratedContent) -> Normalized? {
-    switch phase {
-    case let .partial(schema):
-      Normalized(isFinal: false, schema: schema)
-    case let .final(schema):
-      Normalized(isFinal: true, schema: schema.asPartiallyGenerated())
+  static func makeNormalized(from content: Content, raw: GeneratedContent) -> NormalizedContent? {
+    switch content {
+    case let .partial(content):
+      NormalizedContent(isFinal: false, content: content)
+    case let .final(content):
+      NormalizedContent(isFinal: true, content: content.asPartiallyGenerated())
     }
   }
 }
 
-extension StructuredOutputUpdate.Phase: Sendable where Output.Schema: Sendable,
+extension StructuredOutputUpdate.Content: Sendable where Output.Schema: Sendable,
   Output.Schema.PartiallyGenerated: Sendable {}
-extension StructuredOutputUpdate.Phase: Equatable where Output.Schema: Equatable,
+extension StructuredOutputUpdate.Content: Equatable where Output.Schema: Equatable,
   Output.Schema.PartiallyGenerated: Equatable {}
 extension StructuredOutputUpdate: Sendable where Output.Schema: Sendable,
   Output.Schema.PartiallyGenerated: Sendable {}
-extension StructuredOutputUpdate.Normalized: Sendable where Output.Schema.PartiallyGenerated: Sendable {}
+extension StructuredOutputUpdate.NormalizedContent: Sendable where Output.Schema.PartiallyGenerated: Sendable {}
 extension StructuredOutputUpdate: Equatable {
   public static func == (lhs: StructuredOutputUpdate<Output>,
                          rhs: StructuredOutputUpdate<Output>) -> Bool {
-    lhs.id == rhs.id && lhs.raw == rhs.raw
+    lhs.id == rhs.id && lhs.rawContent == rhs.rawContent
   }
 }

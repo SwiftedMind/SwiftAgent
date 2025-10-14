@@ -43,7 +43,6 @@ struct CalculatorTool: Tool {
   @Generable
   struct Output {
     let result: Double
-    let expression: String
   }
 
   func call(arguments: Arguments) async throws -> Output {
@@ -66,8 +65,7 @@ struct CalculatorTool: Tool {
       throw ToolError.unsupportedOperation(arguments.operation)
     }
 
-    let expression = "\(arguments.firstNumber) \(arguments.operation) \(arguments.secondNumber) = \(result)"
-    return Output(result: result, expression: expression)
+    return Output(result: result)
   }
 }
 

@@ -233,7 +233,6 @@ extension CalculatorTool.Arguments.PartiallyGenerated {
 extension CalculatorTool.Output {
   static let mock = CalculatorTool.Output(
     result: 42.0,
-    expression: "15.0 + 27.0 = 42.0",
   )
 }
 
@@ -269,20 +268,20 @@ extension WeatherTool.Output {
 extension StructuredOutputUpdate<WeatherReport> {
   static let mockFinal = StructuredOutputUpdate<WeatherReport>(
     id: "weather-report-001",
-    phase: .final(WeatherReport.Schema.mock),
-    raw: GeneratedContent(kind: .null),
+    content: .final(WeatherReport.Schema.mock),
+    rawContent: GeneratedContent(kind: .null),
   )
 
   static let mockPartial = StructuredOutputUpdate<WeatherReport>(
     id: "weather-report-002",
-    phase: .partial(WeatherReport.Schema.PartiallyGenerated.mock),
-    raw: GeneratedContent(kind: .null),
+    content: .partial(WeatherReport.Schema.PartiallyGenerated.mock),
+    rawContent: GeneratedContent(kind: .null),
   )
 
   static let mockFailed = StructuredOutputUpdate<WeatherReport>(
     id: "weather-report-003",
     error: GeneratedContent.mockUnknown,
-    raw: GeneratedContent(kind: .null),
+    rawContent: GeneratedContent(kind: .null),
   )
 }
 

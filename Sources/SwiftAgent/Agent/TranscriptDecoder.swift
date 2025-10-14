@@ -169,33 +169,33 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
     status: Transcript.Status,
     with resolvableType: DecodableType.Type,
   ) -> Provider.DecodedStructuredOutput where DecodableType.Provider == Provider {
-    var phase: StructuredOutputUpdate<DecodableType.Base>.Phase?
+    var content: StructuredOutputUpdate<DecodableType.Base>.Content?
     var structuredOutput: StructuredOutputUpdate<DecodableType.Base>
 
     do {
       switch status {
       case .completed:
-        phase = try .final(resolvableType.Base.Schema(structuredSegment.content))
+        content = try .final(resolvableType.Base.Schema(structuredSegment.content))
       case .inProgress:
-        phase = try .partial(resolvableType.Base.Schema.PartiallyGenerated(structuredSegment.content))
+        content = try .partial(resolvableType.Base.Schema.PartiallyGenerated(structuredSegment.content))
       default:
-        phase = nil
+        content = nil
       }
     } catch {
-      phase = nil
+      content = nil
     }
 
-    if let phase {
+    if let content {
       structuredOutput = StructuredOutputUpdate<DecodableType.Base>(
         id: structuredSegment.id,
-        phase: phase,
-        raw: structuredSegment.content,
+        content: content,
+        rawContent: structuredSegment.content,
       )
     } else {
       structuredOutput = StructuredOutputUpdate<DecodableType.Base>(
         id: structuredSegment.id,
         error: structuredSegment.content,
-        raw: structuredSegment.content,
+        rawContent: structuredSegment.content,
       )
     }
 

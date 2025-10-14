@@ -117,6 +117,56 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     self.rawArguments = rawArguments
     self.rawOutput = rawOutput
   }
+
+  public static func partial(
+    id: String,
+    json: String,
+  ) throws -> ToolRun<Tool> {
+    let rawArguments = try GeneratedContent(json: json)
+    let arguments = try Arguments.PartiallyGenerated(rawArguments)
+    return self.init(
+      id: id,
+      arguments: .partial(arguments),
+      rawArguments: rawArguments,
+    )
+  }
+
+  public static func completed(
+    id: String,
+    json: String,
+    output: Output,
+  ) throws -> ToolRun<Tool> {
+    let rawArguments = try GeneratedContent(json: json)
+    let arguments = try Arguments(rawArguments)
+    return self.init(
+      id: id,
+      arguments: .final(arguments),
+      output: output,
+      rawArguments: rawArguments,
+    )
+  }
+
+  public static func completed(
+    id: String,
+    json: String,
+    problem: Problem,
+  ) throws -> ToolRun<Tool> {
+    let rawArguments = try GeneratedContent(json: json)
+    let arguments = try Arguments(rawArguments)
+    return self.init(
+      id: id,
+      arguments: .final(arguments),
+      problem: problem,
+      rawArguments: rawArguments,
+    )
+  }
+
+  public static func error(
+    id: String,
+    error: TranscriptDecodingError.ToolRunResolution,
+  ) throws -> ToolRun<Tool> {
+    self.init(id: id, error: error, rawArguments: GeneratedContent(kind: .null))
+  }
 }
 
 public extension ToolRun {
