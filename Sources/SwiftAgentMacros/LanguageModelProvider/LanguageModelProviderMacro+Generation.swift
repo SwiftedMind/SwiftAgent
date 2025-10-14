@@ -204,15 +204,13 @@ extension LanguageModelProviderMacro {
 
   static func generateDecodableWrapper(
     for tool: ToolProperty,
-    accessModifier: String?,
+    accessModifier _: String?,
   ) -> DeclSyntax {
     let wrapperName = decodableWrapperName(for: tool)
-    let structKeyword = accessModifier.map { "\($0) struct" } ?? "struct"
-    let typeDeclaration = "\(structKeyword) \(wrapperName)"
-    let initKeyword = accessModifier.map { "\($0) init" } ?? "init"
-    let propertyKeyword = accessModifier.map { "\($0) var" } ?? "var"
-    let functionKeyword = accessModifier.map { "\($0) func" } ?? "func"
-    let typealiasKeyword = accessModifier.map { "\($0) typealias" } ?? "typealias"
+    let typeDeclaration = "private struct \(wrapperName)"
+    let typealiasKeyword = "typealias"
+    let propertyKeyword = "var"
+    let functionKeyword = "func"
 
     return
       """
@@ -224,7 +222,7 @@ extension LanguageModelProviderMacro {
 
         private let baseTool: BaseTool
 
-        \(raw: initKeyword)(baseTool: \(raw: tool.typeName)) {
+        init(baseTool: \(raw: tool.typeName)) {
           self.baseTool = baseTool
         }
 
@@ -343,11 +341,11 @@ extension LanguageModelProviderMacro {
 
   static func generateDecodableStructuredOutputTypes(
     for outputs: [StructuredOutputProperty],
-    accessModifier: String?,
+    accessModifier _: String?,
   ) -> [DeclSyntax] {
-    let structKeyword = accessModifier.map { "\($0) struct" } ?? "struct"
-    let staticFunctionKeyword = accessModifier.map { "\($0) static func" } ?? "static func"
-    let typealiasKeyword = accessModifier.map { "\($0) typealias" } ?? "typealias"
+    let structKeyword = "private struct"
+    let staticFunctionKeyword = "static func"
+    let typealiasKeyword = "typealias"
     return outputs.map { output -> DeclSyntax in
       let resolvableName = resolvableStructuredOutputTypeName(for: output)
       let schemaType = output.typeName

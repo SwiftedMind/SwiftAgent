@@ -119,7 +119,7 @@ struct OpenAIStreamingStructuredOutputTests {
       return
     }
 
-    #expect(structuredSegment.typeName == ExampleSession.DecodableWeatherForecast.name)
+    #expect(structuredSegment.typeName == WeatherForecast.name)
   }
 }
 

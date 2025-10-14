@@ -165,18 +165,7 @@ private struct ToolRunEntryView: View {
   var body: some View {
     switch toolRun {
     case let .calculator(calculatorRun):
-      switch calculatorRun.arguments {
-      case let .final(arguments):
-        Text(
-          "Calculator Run: \(arguments.firstNumber.formatted()) \(arguments.operation) \(arguments.secondNumber.formatted())",
-        )
-      case let .partial(arguments):
-        Text(
-          "Calculator Run: \(arguments.firstNumber?.formatted(), default: "?") \(arguments.operation, default: "?") \(arguments.secondNumber?.formatted(), default: "?")",
-        )
-      case let .failed(error):
-        Text("Calculator Run: \(error, default: "?")")
-      }
+      CalculatorToolRunView(calculatorRun: calculatorRun)
     case let .weather(weatherRun):
       switch weatherRun.arguments {
       case let .final(arguments):
@@ -188,6 +177,25 @@ private struct ToolRunEntryView: View {
       }
     case let .unknown(toolCall):
       Text("Unknown Run: \(toolCall.toolName)")
+    }
+  }
+}
+
+private struct CalculatorToolRunView: View {
+  let calculatorRun: ToolRun<CalculatorTool>
+
+  var body: some View {
+    switch calculatorRun.arguments {
+    case let .final(arguments):
+      Text(
+        "Calculator Run: \(arguments.firstNumber.formatted()) \(arguments.operation) \(arguments.secondNumber.formatted())",
+      )
+    case let .partial(arguments):
+      Text(
+        "Calculator Run: \(arguments.firstNumber?.formatted(), default: "?") \(arguments.operation, default: "?") \(arguments.secondNumber?.formatted(), default: "?")",
+      )
+    case let .failed(error):
+      Text("Calculator Run: \(error, default: "?")")
     }
   }
 }
@@ -207,14 +215,17 @@ private struct ResponseEntryView: View {
   }
 }
 
-// #Preview {
-//   NavigationStack {
-//     ToolRunEntryView(toolRun: .mockCalculatorInProgress)
-//       .navigationTitle("Agent Playground")
-//       .navigationBarTitleDisplayMode(.inline)
-//   }
-//   .preferredColorScheme(.dark)
-// }
+// TODO: Must define this outside the #Preview macro, because inside of it, we don't have access to the generated code
+let mockToolRun = OpenAISession.DecodedToolRun.calculator(.mockPartial)
+
+#Preview {
+  NavigationStack {
+    ToolRunEntryView(toolRun: mockToolRun)
+      .navigationTitle("Agent Playground")
+      .navigationBarTitleDisplayMode(.inline)
+  }
+  .preferredColorScheme(.dark)
+}
 
 #Preview {
   NavigationStack {

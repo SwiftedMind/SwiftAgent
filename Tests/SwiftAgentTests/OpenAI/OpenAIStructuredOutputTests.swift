@@ -121,7 +121,7 @@ struct OpenAIStructuredOutputTests {
       return
     }
 
-    #expect(structuredSegment.typeName == ExampleSession.DecodableWeatherForecast.name)
+    #expect(structuredSegment.typeName == WeatherForecast.name)
 
     do {
       let decodedForecast = try WeatherForecast.Schema(structuredSegment.content)
