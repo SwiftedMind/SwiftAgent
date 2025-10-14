@@ -30,7 +30,7 @@ package extension DecodableTool {
     let arguments = try BaseTool.Arguments(rawContent)
     let toolRun = try toolRun(
       id: id,
-      .final(arguments),
+      arguments: .final(arguments),
       rawContent: rawContent,
       rawOutput: rawOutput,
     )
@@ -45,7 +45,7 @@ package extension DecodableTool {
     let arguments = try BaseTool.Arguments.PartiallyGenerated(rawContent)
     let toolRun = try toolRun(
       id: id,
-      .partial(arguments),
+      arguments: .partial(arguments),
       rawContent: rawContent,
       rawOutput: rawOutput,
     )
@@ -58,9 +58,9 @@ package extension DecodableTool {
     rawContent: GeneratedContent,
     rawOutput: GeneratedContent?,
   ) throws -> Provider.DecodedToolRun {
-    let toolRun = try toolRun(
+    let toolRun = ToolRun<BaseTool>(
       id: id,
-      .failed(error),
+      error: error,
       rawContent: rawContent,
       rawOutput: rawOutput,
     )
@@ -78,7 +78,7 @@ package extension DecodableTool {
   /// - Throws: Conversion errors if content cannot be parsed
   func toolRun(
     id: String,
-    _ arguments: ToolRun<BaseTool>.ArgumentsPhase,
+    arguments: ToolRun<BaseTool>.ArgumentsPhase,
     rawContent: GeneratedContent,
     rawOutput: GeneratedContent?,
   ) throws -> ToolRun<BaseTool> {

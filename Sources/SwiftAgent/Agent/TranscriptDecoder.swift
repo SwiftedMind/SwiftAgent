@@ -94,12 +94,8 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
 
   public func decode(_ call: ToolCall, rawOutput: GeneratedContent?) -> Provider.DecodedToolRun {
     guard let tool = toolsByName[call.toolName] else {
-      let availableTools = toolsByName.keys.sorted().joined(separator: ", ")
       let error = TranscriptDecodingError.ToolRunResolution.unknownTool(name: call.toolName)
-      AgentLog.error(
-        error,
-        context: "Tool resolution failed. Available tools: \(availableTools)",
-      )
+      AgentLog.error(error, context: "Tool resolution failed")
       return Provider.DecodedToolRun.makeUnknown(toolCall: call)
     }
 
@@ -110,7 +106,12 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
       case .completed:
         return try tool.decodeCompleted(id: call.id, rawContent: call.arguments, rawOutput: rawOutput)
       default:
-        return Provider.DecodedToolRun.makeUnknown(toolCall: call)
+        return try tool.decodeFailed(
+          id: call.id,
+          error: .resolutionFailed(description: "Tool run failed"),
+          rawContent: call.arguments,
+          rawOutput: rawOutput,
+        )
       }
     } catch {
       AgentLog.error(error, context: "Tool resolution for '\(call.toolName)'")
@@ -168,7 +169,8 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
     status: Transcript.Status,
     with resolvableType: DecodableType.Type,
   ) -> Provider.DecodedStructuredOutput where DecodableType.Provider == Provider {
-    var phase: StructuredOutputUpdate<DecodableType.Base>.Phase
+    var phase: StructuredOutputUpdate<DecodableType.Base>.Phase?
+    var structuredOutput: StructuredOutputUpdate<DecodableType.Base>
 
     do {
       switch status {
@@ -177,17 +179,25 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
       case .inProgress:
         phase = try .partial(resolvableType.Base.Schema.PartiallyGenerated(structuredSegment.content))
       default:
-        phase = .failed(structuredSegment.content)
+        phase = nil
       }
     } catch {
-      phase = .failed(structuredSegment.content)
+      phase = nil
     }
 
-    let structuredOutput = StructuredOutputUpdate<DecodableType.Base>(
-      id: structuredSegment.id,
-      phase: phase,
-      raw: structuredSegment.content,
-    )
+    if let phase {
+      structuredOutput = StructuredOutputUpdate<DecodableType.Base>(
+        id: structuredSegment.id,
+        phase: phase,
+        raw: structuredSegment.content,
+      )
+    } else {
+      structuredOutput = StructuredOutputUpdate<DecodableType.Base>(
+        id: structuredSegment.id,
+        error: structuredSegment.content,
+        raw: structuredSegment.content,
+      )
+    }
 
     return DecodableType.decode(structuredOutput)
   }

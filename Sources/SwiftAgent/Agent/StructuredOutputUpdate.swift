@@ -8,7 +8,6 @@ public struct StructuredOutputUpdate<Output: StructuredOutput>: Identifiable {
   public enum Phase {
     case partial(Output.Schema.PartiallyGenerated)
     case final(Output.Schema)
-    case failed(GeneratedContent)
   }
 
   @dynamicMemberLookup
@@ -26,21 +25,25 @@ public struct StructuredOutputUpdate<Output: StructuredOutput>: Identifiable {
     }
   }
 
-  private let raw: GeneratedContent
+  public var raw: GeneratedContent
   public var id: String
-  public var phase: Phase
+  public var phase: Phase?
+  public var normalized: Normalized?
 
-  /// Provides a UI-stable, partial-shaped view of the schema.
-  /// Even when the underlying schema is final, this exposes it as
-  /// `Output.Schema.PartiallyGenerated` so SwiftUI view identities remain stable.
-  /// Use `isFinal` to determine whether the values represent the completed schema.
-  public let normalized: Normalized?
+  // TODO: Proper error type?
+  public var error: GeneratedContent?
 
   public init(id: String, phase: Phase, raw: GeneratedContent) {
     self.id = id
     self.phase = phase
     self.raw = raw
     normalized = Self.makeNormalized(from: phase, raw: raw)
+  }
+
+  public init(id: String, error: GeneratedContent, raw: GeneratedContent) {
+    self.id = id
+    self.error = error
+    self.raw = raw
   }
 }
 
@@ -51,8 +54,6 @@ private extension StructuredOutputUpdate {
       Normalized(isFinal: false, schema: schema)
     case let .final(schema):
       Normalized(isFinal: true, schema: schema.asPartiallyGenerated())
-    case .failed:
-      nil
     }
   }
 }

@@ -9,13 +9,10 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
   public typealias Arguments = Tool.Arguments
   public typealias Output = Tool.Output
 
-  private let rawContent: GeneratedContent
-  private let rawOutput: GeneratedContent?
-
+  /// The arguments phase of the tool run.
   public enum ArgumentsPhase {
     case partial(Arguments.PartiallyGenerated)
     case final(Arguments)
-    case failed(TranscriptDecodingError.ToolRunResolution)
   }
 
   @dynamicMemberLookup
@@ -33,15 +30,23 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     }
   }
 
+  /// The ID of the tool run.
   public var id: String
 
-  public var arguments: ArgumentsPhase
+  /// The raw content of the tool run.
+  public var rawContent: GeneratedContent
+
+  /// The raw output of the tool run.
+  public var rawOutput: GeneratedContent?
+
+  /// The arguments phase of the tool run.
+  public var arguments: ArgumentsPhase?
 
   /// Provides a UI-stable, partial-shaped view of the tool arguments.
   /// Even when the underlying arguments are final, this exposes them
   /// as `Arguments.PartiallyGenerated` so SwiftUI view identities do not change.
   /// Use `isFinal` to know whether the values represent a completed set.
-  public let normalizedArguments: NormalizedArguments?
+  public var normalizedArguments: NormalizedArguments?
 
   /// The tool's output, if available.
   ///
@@ -57,6 +62,9 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
   /// via this property.
   public var problem: Problem?
 
+  /// The error of the tool run.
+  public var error: TranscriptDecodingError.ToolRunResolution?
+
   /// Indicates whether the tool run has produced a typed output.
   public var hasOutput: Bool {
     output != nil
@@ -67,17 +75,16 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     problem != nil
   }
 
-  /// Indicates that the tool run is still awaiting an output.
-  public var isPending: Bool {
-    output == nil && problem == nil
+  /// Indicates whether a problem payload is available.
+  public var hasError: Bool {
+    error != nil
   }
 
-  /// Creates a new tool run with the given arguments, optional output, and optional problem payload.
-  ///
-  /// - Parameters:
-  ///   - arguments: The parsed tool arguments
-  ///   - output: The tool's output, if available
-  ///   - problem: The problem payload provided when `Output` decoding fails
+  /// Indicates that the tool run is still awaiting an output.
+  public var isPending: Bool {
+    output == nil && problem == nil && error == nil
+  }
+
   public init(
     id: String,
     arguments: ArgumentsPhase,
@@ -93,6 +100,22 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     self.rawContent = rawContent
     self.rawOutput = rawOutput
     normalizedArguments = Self.makeNormalizedArguments(from: arguments, rawContent: rawContent)
+  }
+
+  public init(
+    id: String,
+    output: Output? = nil,
+    problem: Problem? = nil,
+    error: TranscriptDecodingError.ToolRunResolution,
+    rawContent: GeneratedContent,
+    rawOutput: GeneratedContent? = nil,
+  ) {
+    self.id = id
+    self.output = output
+    self.problem = problem
+    self.error = error
+    self.rawContent = rawContent
+    self.rawOutput = rawOutput
   }
 }
 
@@ -131,8 +154,6 @@ private extension ToolRun {
       NormalizedArguments(isFinal: false, arguments: arguments)
     case let .final(arguments):
       NormalizedArguments(isFinal: true, arguments: arguments.asPartiallyGenerated())
-    case .failed:
-      nil
     }
   }
 }

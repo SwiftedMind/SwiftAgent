@@ -147,9 +147,9 @@ extension ToolRun<CalculatorTool> {
 
   static let mockFailed = ToolRun<CalculatorTool>(
     id: "calc-003",
-    arguments: .failed(TranscriptDecodingError.ToolRunResolution.mock),
     output: nil,
     problem: nil,
+    error: TranscriptDecodingError.ToolRunResolution.mock,
     rawContent: GeneratedContent(kind: .null),
     rawOutput: nil,
   )
@@ -176,9 +176,9 @@ extension ToolRun<WeatherTool> {
 
   static let mockFailed = ToolRun<WeatherTool>(
     id: "weather-003",
-    arguments: .failed(TranscriptDecodingError.ToolRunResolution.mock),
     output: nil,
     problem: nil,
+    error: TranscriptDecodingError.ToolRunResolution.mock,
     rawContent: GeneratedContent(kind: .null),
     rawOutput: nil,
   )
@@ -256,7 +256,7 @@ extension StructuredOutputUpdate<WeatherReport> {
 
   static let mockFailed = StructuredOutputUpdate<WeatherReport>(
     id: "weather-report-003",
-    phase: .failed(GeneratedContent.mockUnknown),
+    error: GeneratedContent.mockUnknown,
     raw: GeneratedContent(kind: .null),
   )
 }

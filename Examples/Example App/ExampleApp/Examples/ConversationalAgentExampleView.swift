@@ -172,8 +172,8 @@ private struct ToolRunEntryView: View {
         Text("Weather Run: \(arguments.location, default: "?")")
       case let .partial(arguments):
         Text("Weather Run: \(arguments.location, default: "?")")
-      case let .failed(error):
-        Text("Weather Run: \(error, default: "?")")
+      default:
+        EmptyView()
       }
     case let .unknown(toolCall):
       Text("Unknown Run: \(toolCall.toolName)")
@@ -189,7 +189,7 @@ private struct CalculatorToolRunView: View {
       Text(
         "Calculator Run: \(arguments.firstNumber?.formatted() ?? "?") \(arguments.operation ?? "?") \(arguments.secondNumber?.formatted() ?? "?")",
       )
-    } else if case let .failed(error) = calculatorRun.arguments {
+    } else if let error = calculatorRun.error {
       Text("Calculator Run: \(error, default: "?")")
     } else {
       Text("Calculator Run: Pending arguments")
