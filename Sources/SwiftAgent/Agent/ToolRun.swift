@@ -18,9 +18,30 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     case failed(TranscriptDecodingError.ToolRunResolution)
   }
 
+  @dynamicMemberLookup
+  public struct NormalizedArguments {
+    public var isFinal: Bool
+    public var arguments: Arguments.PartiallyGenerated
+
+    init(isFinal: Bool, arguments: Arguments.PartiallyGenerated) {
+      self.isFinal = isFinal
+      self.arguments = arguments
+    }
+
+    public subscript<Value>(dynamicMember keyPath: KeyPath<Arguments.PartiallyGenerated, Value>) -> Value {
+      arguments[keyPath: keyPath]
+    }
+  }
+
   public var id: String
 
   public var arguments: ArgumentsPhase
+
+  /// Provides a UI-stable, partial-shaped view of the tool arguments.
+  /// Even when the underlying arguments are final, this exposes them
+  /// as `Arguments.PartiallyGenerated` so SwiftUI view identities do not change.
+  /// Use `isFinal` to know whether the values represent a completed set.
+  public let normalizedArguments: NormalizedArguments?
 
   /// The tool's output, if available.
   ///
@@ -71,6 +92,7 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     self.problem = problem
     self.rawContent = rawContent
     self.rawOutput = rawOutput
+    normalizedArguments = Self.makeNormalizedArguments(from: arguments, rawContent: rawContent)
   }
 }
 
@@ -99,8 +121,26 @@ public extension ToolRun {
   }
 }
 
+private extension ToolRun {
+  static func makeNormalizedArguments(
+    from phase: ArgumentsPhase,
+    rawContent: GeneratedContent,
+  ) -> NormalizedArguments? {
+    switch phase {
+    case let .partial(arguments):
+      NormalizedArguments(isFinal: false, arguments: arguments)
+    case let .final(arguments):
+      NormalizedArguments(isFinal: true, arguments: arguments.asPartiallyGenerated())
+    case .failed:
+      nil
+    }
+  }
+}
+
 extension ToolRun.ArgumentsPhase: Sendable
   where ToolRun.Arguments: Sendable, ToolRun.Arguments.PartiallyGenerated: Sendable {}
+extension ToolRun.NormalizedArguments: Sendable
+  where ToolRun.Arguments.PartiallyGenerated: Sendable {}
 extension ToolRun: Sendable
   where ToolRun.Arguments: Sendable, ToolRun.Arguments.PartiallyGenerated: Sendable, ToolRun.Output: Sendable {}
 extension ToolRun: Equatable {

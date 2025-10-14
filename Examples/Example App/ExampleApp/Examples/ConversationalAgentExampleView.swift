@@ -182,20 +182,18 @@ private struct ToolRunEntryView: View {
 }
 
 private struct CalculatorToolRunView: View {
-  let calculatorRun: ToolRun<CalculatorTool>
+  var calculatorRun: ToolRun<CalculatorTool>
 
   var body: some View {
-    switch calculatorRun.arguments {
-    case let .final(arguments):
+    if let arguments = calculatorRun.normalizedArguments {
       Text(
-        "Calculator Run: \(arguments.firstNumber.formatted()) \(arguments.operation) \(arguments.secondNumber.formatted())",
+        "Calculator Run: \(arguments.firstNumber?.formatted() ?? "?") \(arguments.operation ?? "?") \(arguments.secondNumber?.formatted() ?? "?")",
       )
-    case let .partial(arguments):
-      Text(
-        "Calculator Run: \(arguments.firstNumber?.formatted(), default: "?") \(arguments.operation, default: "?") \(arguments.secondNumber?.formatted(), default: "?")",
-      )
-    case let .failed(error):
+    } else if case let .failed(error) = calculatorRun.arguments {
       Text("Calculator Run: \(error, default: "?")")
+    } else {
+      Text("Calculator Run: Pending arguments")
+        .foregroundStyle(.secondary)
     }
   }
 }
