@@ -35,6 +35,8 @@ public protocol AdapterGenerationOptions<Model>: Sendable {
   associatedtype Model: AdapterModel
   associatedtype GenerationOptionsError: Error & LocalizedError
 
+  var minimumStreamingSnapshotInterval: Duration? { get }
+
   init()
 
   static func automatic(for model: Model) -> Self

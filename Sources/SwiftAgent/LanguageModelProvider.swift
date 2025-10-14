@@ -211,10 +211,8 @@ package extension LanguageModelProvider {
         var generatedTranscript = Transcript(entries: [promptEntry])
         var generatedUsage: TokenUsage = .zero
 
-        // TODO: Make throttle configurable
-        // Throttle-latest: emit at most once per interval with the freshest state
         let clock = ContinuousClock()
-        let throttleInterval: Duration = .seconds(0.1)
+        let minimumStreamingSnapshotInterval: Duration = options?.minimumStreamingSnapshotInterval ?? .seconds(0.1)
         var nextEmitDeadline = clock.now
 
         for try await update in stream {
@@ -241,7 +239,7 @@ package extension LanguageModelProvider {
             await appendTranscript(generatedTranscript.entries)
             await mergeTokenUsage(generatedUsage)
 
-            nextEmitDeadline = now.advanced(by: throttleInterval)
+            nextEmitDeadline = now.advanced(by: minimumStreamingSnapshotInterval)
           }
         }
 

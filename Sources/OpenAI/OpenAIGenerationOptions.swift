@@ -23,6 +23,11 @@ public struct OpenAIGenerationOptions: AdapterGenerationOptions {
     return options
   }
 
+  /// Minimum time between emitted streaming snapshots.
+  /// - nil: use SDK default (currently 100ms)
+  /// - .zero: emit on every update (no throttling; not recommended for UI applications)
+  public var minimumStreamingSnapshotInterval: Duration?
+
   /// Specifies additional outputs to include with the response, such as code interpreter results, search outputs, or
   /// logprobs.
   public var include: [Include]?
