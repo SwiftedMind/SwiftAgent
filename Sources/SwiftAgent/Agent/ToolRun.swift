@@ -34,7 +34,7 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
   public var id: String
 
   /// The raw content of the tool run.
-  public var rawContent: GeneratedContent
+  public var rawArguments: GeneratedContent
 
   /// The raw output of the tool run.
   public var rawOutput: GeneratedContent?
@@ -90,16 +90,16 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     arguments: ArgumentsPhase,
     output: Output? = nil,
     problem: Problem? = nil,
-    rawContent: GeneratedContent,
+    rawArguments: GeneratedContent,
     rawOutput: GeneratedContent? = nil,
   ) {
     self.id = id
     self.arguments = arguments
     self.output = output
     self.problem = problem
-    self.rawContent = rawContent
+    self.rawArguments = rawArguments
     self.rawOutput = rawOutput
-    normalizedArguments = Self.makeNormalizedArguments(from: arguments, rawContent: rawContent)
+    normalizedArguments = Self.makeNormalizedArguments(from: arguments, rawArguments: rawArguments)
   }
 
   public init(
@@ -107,14 +107,14 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     output: Output? = nil,
     problem: Problem? = nil,
     error: TranscriptDecodingError.ToolRunResolution,
-    rawContent: GeneratedContent,
+    rawArguments: GeneratedContent,
     rawOutput: GeneratedContent? = nil,
   ) {
     self.id = id
     self.output = output
     self.problem = problem
     self.error = error
-    self.rawContent = rawContent
+    self.rawArguments = rawArguments
     self.rawOutput = rawOutput
   }
 }
@@ -147,7 +147,7 @@ public extension ToolRun {
 private extension ToolRun {
   static func makeNormalizedArguments(
     from phase: ArgumentsPhase,
-    rawContent: GeneratedContent,
+    rawArguments: GeneratedContent,
   ) -> NormalizedArguments? {
     switch phase {
     case let .partial(arguments):
@@ -166,6 +166,6 @@ extension ToolRun: Sendable
   where ToolRun.Arguments: Sendable, ToolRun.Arguments.PartiallyGenerated: Sendable, ToolRun.Output: Sendable {}
 extension ToolRun: Equatable {
   public static func == (lhs: ToolRun, rhs: ToolRun) -> Bool {
-    lhs.rawContent == rhs.rawContent && lhs.rawOutput == rhs.rawOutput
+    lhs.rawArguments == rhs.rawArguments && lhs.rawOutput == rhs.rawOutput
   }
 }

@@ -1,6 +1,5 @@
 // By Dennis Müller
 
-import struct FoundationModels.GeneratedContent
 import OpenAISession
 import SimulatedSession
 import SwiftUI
@@ -181,23 +180,6 @@ private struct ToolRunEntryView: View {
   }
 }
 
-private struct CalculatorToolRunView: View {
-  var calculatorRun: ToolRun<CalculatorTool>
-
-  var body: some View {
-    if let arguments = calculatorRun.normalizedArguments {
-      Text(
-        "Calculator Run: \(arguments.firstNumber?.formatted() ?? "?") \(arguments.operation ?? "?") \(arguments.secondNumber?.formatted() ?? "?")",
-      )
-    } else if let error = calculatorRun.error {
-      Text("Calculator Run: \(error, default: "?")")
-    } else {
-      Text("Calculator Run: Pending arguments")
-        .foregroundStyle(.secondary)
-    }
-  }
-}
-
 private struct ResponseEntryView: View {
   let response: OpenAISession.DecodedTranscript.Response
 
@@ -211,18 +193,6 @@ private struct ResponseEntryView: View {
       }
     }
   }
-}
-
-// TODO: Must define this outside the #Preview macro, because inside of it, we don't have access to the generated code
-let mockToolRun = OpenAISession.DecodedToolRun.calculator(.mockPartial)
-
-#Preview {
-  NavigationStack {
-    ToolRunEntryView(toolRun: mockToolRun)
-      .navigationTitle("Agent Playground")
-      .navigationBarTitleDisplayMode(.inline)
-  }
-  .preferredColorScheme(.dark)
 }
 
 #Preview {

@@ -24,14 +24,14 @@ package extension DecodableTool {
   /// - Throws: Conversion or resolution errors
   func decodeCompleted(
     id: String,
-    rawContent: GeneratedContent,
+    rawArguments: GeneratedContent,
     rawOutput: GeneratedContent?,
   ) throws -> Provider.DecodedToolRun {
-    let arguments = try BaseTool.Arguments(rawContent)
+    let arguments = try BaseTool.Arguments(rawArguments)
     let toolRun = try toolRun(
       id: id,
       arguments: .final(arguments),
-      rawContent: rawContent,
+      rawArguments: rawArguments,
       rawOutput: rawOutput,
     )
     return decode(toolRun)
@@ -39,14 +39,14 @@ package extension DecodableTool {
 
   func decodePartial(
     id: String,
-    rawContent: GeneratedContent,
+    rawArguments: GeneratedContent,
     rawOutput: GeneratedContent?,
   ) throws -> Provider.DecodedToolRun {
-    let arguments = try BaseTool.Arguments.PartiallyGenerated(rawContent)
+    let arguments = try BaseTool.Arguments.PartiallyGenerated(rawArguments)
     let toolRun = try toolRun(
       id: id,
       arguments: .partial(arguments),
-      rawContent: rawContent,
+      rawArguments: rawArguments,
       rawOutput: rawOutput,
     )
     return decode(toolRun)
@@ -55,13 +55,13 @@ package extension DecodableTool {
   func decodeFailed(
     id: String,
     error: TranscriptDecodingError.ToolRunResolution,
-    rawContent: GeneratedContent,
+    rawArguments: GeneratedContent,
     rawOutput: GeneratedContent?,
   ) throws -> Provider.DecodedToolRun {
     let toolRun = ToolRun<BaseTool>(
       id: id,
       error: error,
-      rawContent: rawContent,
+      rawArguments: rawArguments,
       rawOutput: rawOutput,
     )
     return decode(toolRun)
@@ -79,14 +79,14 @@ package extension DecodableTool {
   func toolRun(
     id: String,
     arguments: ToolRun<BaseTool>.ArgumentsPhase,
-    rawContent: GeneratedContent,
+    rawArguments: GeneratedContent,
     rawOutput: GeneratedContent?,
   ) throws -> ToolRun<BaseTool> {
     guard let rawOutput else {
       return ToolRun(
         id: id,
         arguments: arguments,
-        rawContent: rawContent,
+        rawArguments: rawArguments,
         rawOutput: rawOutput,
       )
     }
@@ -96,7 +96,7 @@ package extension DecodableTool {
         id: id,
         arguments: arguments,
         output: BaseTool.Output(rawOutput),
-        rawContent: rawContent,
+        rawArguments: rawArguments,
         rawOutput: rawOutput,
       )
     } catch {
@@ -108,7 +108,7 @@ package extension DecodableTool {
         id: id,
         arguments: arguments,
         problem: problem,
-        rawContent: rawContent,
+        rawArguments: rawArguments,
         rawOutput: rawOutput,
       )
     }

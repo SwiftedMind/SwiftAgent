@@ -132,16 +132,16 @@ extension ToolRun<CalculatorTool> {
     arguments: .final(CalculatorTool.Arguments.mock),
     output: CalculatorTool.Output.mock,
     problem: nil,
-    rawContent: GeneratedContent(kind: .null),
+    rawArguments: GeneratedContent(kind: .null),
     rawOutput: GeneratedContent(kind: .null),
   )
 
   static let mockPartial = ToolRun<CalculatorTool>(
     id: "calc-002",
-    arguments: .partial(CalculatorTool.Arguments.PartiallyGenerated.mock),
+    arguments: .partial(CalculatorTool.Arguments.PartiallyGenerated.mock0),
     output: nil,
     problem: nil,
-    rawContent: GeneratedContent(kind: .null),
+    rawArguments: GeneratedContent(kind: .null),
     rawOutput: nil,
   )
 
@@ -150,7 +150,7 @@ extension ToolRun<CalculatorTool> {
     output: nil,
     problem: nil,
     error: TranscriptDecodingError.ToolRunResolution.mock,
-    rawContent: GeneratedContent(kind: .null),
+    rawArguments: GeneratedContent(kind: .null),
     rawOutput: nil,
   )
 }
@@ -161,7 +161,7 @@ extension ToolRun<WeatherTool> {
     arguments: .final(WeatherTool.Arguments.mock),
     output: WeatherTool.Output.mock,
     problem: nil,
-    rawContent: GeneratedContent(kind: .null),
+    rawArguments: GeneratedContent(kind: .null),
     rawOutput: GeneratedContent(kind: .null),
   )
 
@@ -170,7 +170,7 @@ extension ToolRun<WeatherTool> {
     arguments: .partial(WeatherTool.Arguments.PartiallyGenerated.mock),
     output: nil,
     problem: nil,
-    rawContent: GeneratedContent(kind: .null),
+    rawArguments: GeneratedContent(kind: .null),
     rawOutput: nil,
   )
 
@@ -179,7 +179,7 @@ extension ToolRun<WeatherTool> {
     output: nil,
     problem: nil,
     error: TranscriptDecodingError.ToolRunResolution.mock,
-    rawContent: GeneratedContent(kind: .null),
+    rawArguments: GeneratedContent(kind: .null),
     rawOutput: nil,
   )
 }
@@ -195,11 +195,36 @@ extension CalculatorTool.Arguments {
 }
 
 extension CalculatorTool.Arguments.PartiallyGenerated {
-  static let mock = try! CalculatorTool.Arguments.PartiallyGenerated(
+  static let mock0 = try! CalculatorTool.Arguments.PartiallyGenerated(
+    try! GeneratedContent(json: """
+    {
+    }
+    """),
+  )
+
+  static let mock1 = try! CalculatorTool.Arguments.PartiallyGenerated(
+    try! GeneratedContent(json: """
+    {
+      "firstNumber": 15.0
+    }
+    """),
+  )
+
+  static let mock2 = try! CalculatorTool.Arguments.PartiallyGenerated(
     try! GeneratedContent(json: """
     {
       "firstNumber": 15.0,
       "operation": "+"
+    }
+    """),
+  )
+
+  static let mock3 = try! CalculatorTool.Arguments.PartiallyGenerated(
+    try! GeneratedContent(json: """
+    {
+      "firstNumber": 15.0,
+      "operation": "+",
+      "secondNumber": 32.0
     }
     """),
   )

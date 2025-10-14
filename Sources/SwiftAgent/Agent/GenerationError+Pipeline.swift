@@ -86,16 +86,16 @@ public extension GenerationError {
   /// Maps parsing errors from structured content into `GenerationError`.
   static func fromParsing(
     _ error: any Error,
-    rawContent: String? = nil,
+    rawArguments: String? = nil,
   ) -> GenerationError {
     if let generationError = error as? GenerationError {
       return generationError
     }
 
-    if let rawContent {
+    if let rawArguments {
       return .structuredContentParsingFailed(
         StructuredContentParsingFailedContext(
-          rawContent: rawContent,
+          rawContent: rawArguments,
           underlyingError: error,
         ),
       )

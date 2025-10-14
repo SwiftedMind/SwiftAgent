@@ -102,14 +102,14 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
     do {
       switch call.status {
       case .inProgress:
-        return try tool.decodePartial(id: call.id, rawContent: call.arguments, rawOutput: rawOutput)
+        return try tool.decodePartial(id: call.id, rawArguments: call.arguments, rawOutput: rawOutput)
       case .completed:
-        return try tool.decodeCompleted(id: call.id, rawContent: call.arguments, rawOutput: rawOutput)
+        return try tool.decodeCompleted(id: call.id, rawArguments: call.arguments, rawOutput: rawOutput)
       default:
         return try tool.decodeFailed(
           id: call.id,
           error: .resolutionFailed(description: "Tool run failed"),
-          rawContent: call.arguments,
+          rawArguments: call.arguments,
           rawOutput: rawOutput,
         )
       }
