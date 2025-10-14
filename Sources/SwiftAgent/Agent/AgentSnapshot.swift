@@ -30,7 +30,7 @@ public struct AgentSnapshot<Content: Generable, Provider: LanguageModelProvider>
   ///
   /// For text responses, this will be a `String`. For structured responses,
   /// this will be an instance of the requested `@Generable` type.
-  public var content: Content?
+  public var content: Content.PartiallyGenerated?
   /// The current conversation transcript.
   ///
   /// This includes all entries that have been added during the current generation,
@@ -51,7 +51,7 @@ public struct AgentSnapshot<Content: Generable, Provider: LanguageModelProvider>
   ///   - transcript: The current conversation transcript
   ///   - tokenUsage: Current token usage statistics, if available
   public init(
-    content: Content? = nil,
+    content: Content.PartiallyGenerated? = nil,
     transcript: Transcript,
     tokenUsage: TokenUsage? = nil,
   ) {
@@ -61,4 +61,4 @@ public struct AgentSnapshot<Content: Generable, Provider: LanguageModelProvider>
   }
 }
 
-extension AgentSnapshot: Sendable where Content: Sendable {}
+extension AgentSnapshot: Sendable where Content: Sendable, Content.PartiallyGenerated: Sendable {}

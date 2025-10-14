@@ -32,29 +32,34 @@ struct OpenAIStreamingStructuredOutputTests {
   }
 
   @Test("Single response")
-  func structuredResponseIsDecoded() async throws {
-    let generatedTranscript = try await processStreamResponse()
-    try await validateHTTPRequests()
-    validateAgentResponse(generatedTranscript: generatedTranscript)
+  func singleResponse() async throws {
+    try await processStreamResponse()
+    try await validateRecordedHTTPRequests()
   }
 
-  private func processStreamResponse() async throws -> Transcript {
+  private func processStreamResponse() async throws {
     let stream = try session.weatherForecast.streamGeneration(
       from: "Provide the latest weather update.",
       using: .gpt5_mini,
-      options: .init(include: [.reasoning_encryptedContent]),
+      options: .init(include: [.reasoning_encryptedContent], minimumStreamingSnapshotInterval: .zero),
     )
 
     var generatedTranscript = Transcript()
+    var generatedOutputSnapshots: [WeatherForecast.Schema.PartiallyGenerated] = []
 
     for try await snapshot in stream {
       generatedTranscript = snapshot.transcript
+
+      if let content = snapshot.content {
+        generatedOutputSnapshots.append(content)
+      }
     }
 
-    return generatedTranscript
+    validateAgentResponse(generatedTranscript: generatedTranscript)
+    validateGeneratedOutput(generatedOutputs: generatedOutputSnapshots)
   }
 
-  private func validateHTTPRequests() async throws {
+  private func validateRecordedHTTPRequests() async throws {
     let recordedRequests = await mockHTTPClient.recordedRequests()
 
     let request = try #require(recordedRequests.first)
@@ -87,6 +92,46 @@ struct OpenAIStreamingStructuredOutputTests {
     guard request.body.text == .jsonSchema(expectedOutputConfig) else {
       Issue.record("Expected text configuration format to be present")
       return
+    }
+  }
+
+  private func validateGeneratedOutput(generatedOutputs: [WeatherForecast.Schema.PartiallyGenerated]) {
+    print(
+      "Generated outputs: \(generatedOutputs.map { "(\($0.temperatureCelsius, default: "nil"), \($0.condition, default: "nil"))" }.joined(separator: "\n"))",
+    )
+
+    // Test the streaming progression
+    #expect(generatedOutputs.count == 19)
+
+    // Initial values should be nil
+    for index in 0...4 {
+      #expect(generatedOutputs[index].temperatureCelsius == nil)
+      #expect(generatedOutputs[index].condition == nil)
+    }
+
+    // Temperature starts getting set to 22.0
+    for index in 5...7 {
+      #expect(generatedOutputs[index].temperatureCelsius == 22.0)
+      #expect(generatedOutputs[index].condition == nil)
+    }
+
+    // Condition starts getting set incrementally
+    #expect(generatedOutputs[8].temperatureCelsius == 22.0)
+    #expect(generatedOutputs[8].condition == "")
+
+    #expect(generatedOutputs[9].temperatureCelsius == 22.0)
+    #expect(generatedOutputs[9].condition == "Part")
+
+    #expect(generatedOutputs[10].temperatureCelsius == 22.0)
+    #expect(generatedOutputs[10].condition == "Partly")
+
+    #expect(generatedOutputs[11].temperatureCelsius == 22.0)
+    #expect(generatedOutputs[11].condition == "Partly Cloud")
+
+    // Final output should have complete values
+    for index in 12...18 {
+      #expect(generatedOutputs[index].temperatureCelsius == 22.0)
+      #expect(generatedOutputs[index].condition == "Partly Cloudy")
     }
   }
 

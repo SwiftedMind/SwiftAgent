@@ -23,11 +23,6 @@ public struct OpenAIGenerationOptions: AdapterGenerationOptions {
     return options
   }
 
-  /// Minimum time between emitted streaming snapshots.
-  /// - nil: use SDK default (currently 100ms)
-  /// - .zero: emit on every update (no throttling; not recommended for UI applications)
-  public var minimumStreamingSnapshotInterval: Duration?
-
   /// Specifies additional outputs to include with the response, such as code interpreter results, search outputs, or
   /// logprobs.
   public var include: [Include]?
@@ -65,6 +60,11 @@ public struct OpenAIGenerationOptions: AdapterGenerationOptions {
   /// Defines how the model should handle inputs that exceed the context window limits.
   public var truncation: Truncation?
 
+  /// Minimum time between emitted streaming snapshots.
+  /// - nil: use SDK default (currently 100ms)
+  /// - .zero: emit on every update (no throttling; not recommended for UI applications)
+  public var minimumStreamingSnapshotInterval: Duration?
+
   public init() {}
 
   public init(
@@ -78,6 +78,7 @@ public struct OpenAIGenerationOptions: AdapterGenerationOptions {
     toolChoice: ToolChoice? = nil,
     topP: Double? = nil,
     truncation: Truncation? = nil,
+    minimumStreamingSnapshotInterval: Duration? = nil,
   ) {
     self.include = include
     self.maxOutputTokens = maxOutputTokens
@@ -89,6 +90,7 @@ public struct OpenAIGenerationOptions: AdapterGenerationOptions {
     self.toolChoice = toolChoice
     self.topP = topP
     self.truncation = truncation
+    self.minimumStreamingSnapshotInterval = minimumStreamingSnapshotInterval
   }
 
   public func validate(for model: Model) throws(OpenAIGenerationOptionsError) {

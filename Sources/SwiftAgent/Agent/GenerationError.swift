@@ -13,6 +13,8 @@ public enum GenerationError: Error, LocalizedError {
   case unsupportedToolCalled(UnsupportedToolCalledContext)
   /// The model returned empty content when specific content was expected.
   case emptyMessageContent(EmptyMessageContentContext)
+  /// The model returned text content when structured content was expected.
+  case unexpectedTextResponse(UnexpectedTextResponseContext)
   /// Failed to parse structured content returned by the model.
   case structuredContentParsingFailed(StructuredContentParsingFailedContext)
   /// The model refused to generate the requested content type.
@@ -37,6 +39,8 @@ public enum GenerationError: Error, LocalizedError {
       return "Model called unsupported tool: \(context.toolName)"
     case let .emptyMessageContent(context):
       return "Model returned empty content when expecting \(context.expectedType)"
+    case .unexpectedTextResponse:
+      return "Model returned text content when expecting structured content"
     case let .structuredContentParsingFailed(context):
       return "Failed to parse structured content: \(context.underlyingError)"
     case let .contentRefusal(context):
@@ -169,6 +173,11 @@ public extension GenerationError {
     public init(expectedType: String) {
       self.expectedType = expectedType
     }
+  }
+
+  /// Context information for unexpected text response errors.
+  struct UnexpectedTextResponseContext: Sendable {
+    public init() {}
   }
 
   /// Context information for structured content parsing failures.

@@ -107,7 +107,7 @@ package extension LanguageModelProvider {
         generatedTranscript.upsert(entry)
 
         // Handle content extraction based on type
-        if Content.self == String.self {
+        if type == nil {
           // For String content, we accumulate all text segments and process at the end
           continue
         } else {
@@ -148,7 +148,7 @@ package extension LanguageModelProvider {
     try Task.checkCancellation()
 
     // Handle final content extraction for String type
-    if Content.self == String.self {
+    if type == nil {
       let finalResponseSegments = generatedTranscript
         .compactMap { entry -> [String]? in
           guard case let .response(response) = entry else { return nil }
@@ -195,6 +195,32 @@ package extension LanguageModelProvider {
   ) -> AsyncThrowingStream<Snapshot<Content>, any Error> {
     let setup = AsyncThrowingStream<AgentSnapshot<Content, Self>, any Error>.makeStream()
 
+    func yieldSnapshot(
+      with generatedTranscript: Transcript,
+      generatedUsage: TokenUsage,
+      continuation: AsyncThrowingStream<AgentSnapshot<Content, Self>, any Error>.Continuation,
+    ) {
+      var content: Content.PartiallyGenerated?
+      if type != nil {
+        do {
+          if let structuredSegment = try generatedTranscript.structuredOutputFromLastResponse() {
+            switch structuredSegment.status {
+            case .inProgress, .completed:
+              // In a streaming response, we only ever return the partially generated content
+              content = try Content.PartiallyGenerated(structuredSegment.segment.content)
+            case .incomplete:
+              continuation.finish(throwing: GenerationError.providerError(.init(message: "Incomplete response")))
+            }
+          }
+        } catch {
+          continuation.finish(throwing: error)
+          return
+        }
+      }
+
+      continuation.yield(Snapshot(content: content, transcript: generatedTranscript, tokenUsage: generatedUsage))
+    }
+
     let task = Task<Void, Never> { [continuation = setup.continuation] in
       do {
         let promptEntry = Transcript.Entry.prompt(prompt)
@@ -211,6 +237,9 @@ package extension LanguageModelProvider {
         var generatedTranscript = Transcript(entries: [promptEntry])
         var generatedUsage: TokenUsage = .zero
 
+        // Track last emitted state
+        var lastEmittedKey: (Transcript, TokenUsage)? = nil
+
         let clock = ContinuousClock()
         let minimumStreamingSnapshotInterval: Duration = options?.minimumStreamingSnapshotInterval ?? .seconds(0.1)
         var nextEmitDeadline = clock.now
@@ -219,42 +248,24 @@ package extension LanguageModelProvider {
           switch update {
           case let .transcript(entry):
             generatedTranscript.upsert(entry)
+            await upsertTranscript(entry)
 
           case let .tokenUsage(usage):
             generatedUsage.merge(usage)
+            await mergeTokenUsage(usage)
           }
 
           // Throttle-latest: emit at most once per interval with the freshest state
           let now = clock.now
           if now >= nextEmitDeadline {
-            continuation.yield(
-              Snapshot(
-                content: nil,
-                transcript: generatedTranscript,
-                tokenUsage: generatedUsage,
-              ),
-            )
-
-            // Update the provider's transcript and token usage when the stream is finished
-            await appendTranscript(generatedTranscript.entries)
-            await mergeTokenUsage(generatedUsage)
-
+            yieldSnapshot(with: generatedTranscript, generatedUsage: generatedUsage, continuation: continuation)
             nextEmitDeadline = now.advanced(by: minimumStreamingSnapshotInterval)
           }
         }
 
-        // Update the transcript and token usage when the stream is finished
-        await appendTranscript(generatedTranscript.entries)
-        await mergeTokenUsage(generatedUsage)
+        // Yield one last time (due to throttling, the latest event might not have been yielded yet)
+        yieldSnapshot(with: generatedTranscript, generatedUsage: generatedUsage, continuation: continuation)
 
-        // TODO: Send the final, parsed content, if type != String.self
-        continuation.yield(
-          Snapshot(
-            content: nil,
-            transcript: generatedTranscript,
-            tokenUsage: generatedUsage,
-          ),
-        )
         continuation.finish()
       } catch {
         continuation.finish(throwing: error)

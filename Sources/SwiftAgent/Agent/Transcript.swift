@@ -24,6 +24,51 @@ public struct Transcript: Sendable, Equatable {
     let decoder = session.decoder()
     return try decoder.decode(self)
   }
+
+  package func structuredOutputFromLastResponse() throws -> LastResponseStructuredOutput? {
+    guard let response = entries
+      .reversed()
+      .first(where: {
+        if case .response = $0 { return true }
+        return false
+      })
+      .flatMap({ entry -> Response? in
+        if case let .response(response) = entry {
+          return response
+        }
+        return nil
+      }) else {
+      return nil
+    }
+
+    // Response is still empty, so data might still be streaming in
+    if response.segments.isEmpty {
+      return nil
+    }
+
+    // Text is forbidden in structured-only mode
+    if !response.textSegments.isEmpty {
+      throw GenerationError.unexpectedTextResponse(.init())
+    }
+
+    // We only ever support one structured segment
+    let structuredSegments = response.structuredSegments
+    if structuredSegments.count != 1 {
+      throw GenerationError.unexpectedStructuredResponse(.init())
+    }
+
+    return LastResponseStructuredOutput(
+      status: response.status,
+      segment: structuredSegments[0],
+    )
+  }
+}
+
+package extension Transcript {
+  struct LastResponseStructuredOutput: Sendable, Equatable {
+    var status: Transcript.Status
+    let segment: Transcript.StructuredSegment
+  }
 }
 
 // MARK: - RandomAccessCollection Conformance
