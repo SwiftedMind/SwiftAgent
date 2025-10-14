@@ -21,6 +21,8 @@
   enum GenerationError { ... }
   ```
 
+- **Streaming Snapshot Interval Requirement**: The `AdapterGenerationOptions` protocol now requires a `minimumStreamingSnapshotInterval` property. Implementers of custom adapters must add this property to their `GenerationOptions` type. Set it to `nil` to keep the SDK default (currently 100ms), `Duration.zero` to emit on every update, or supply a custom `Duration` to control streaming emission cadence.
+
 ### Added
 
 - **PromptTag Single Content Initializer**: Added convenience initializer for `PromptTag` that accepts a single `PromptRepresentable` content parameter, improving API ergonomics for simple use cases.
@@ -76,6 +78,18 @@
       return Output(summary: customer.summary)
     }
   }
+  ```
+
+- **Configurable Streaming Snapshot Interval**: Added `minimumStreamingSnapshotInterval` to `OpenAIGenerationOptions` to control how often streaming snapshots are emitted during `respond`/`streamResponse`. This enables smoother UI updates or reduced CPU usage depending on your needs.
+
+  ```swift
+  var options = OpenAIGenerationOptions()
+  options.minimumStreamingSnapshotInterval = .milliseconds(50) // 50ms cadence
+  let stream = session.processResponseStream(
+    from: .init("Explain async/await"),
+    using: .gpt4o,
+    options: options
+  )
   ```
 
 ### Enhanced
