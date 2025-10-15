@@ -10,65 +10,69 @@ struct AgentPlaygroundView: View {
   @State private var transcript: OpenAISession.DecodedTranscript = .init()
   @State private var streamingTranscript: OpenAISession.DecodedTranscript = .init()
   @State private var session: OpenAISession?
-  
+
   @State private var viewState: ViewState = .idle
   @State private var messageTask: Task<Void, Never>?
   @State private var error: (any Error)?
- 
+
   // MARK: - Body
 
   var body: some View {
-    ScrollView {
-      VStack(alignment: .leading) {
-        if let session {
-          content(session: session)
-        }
-      }
-      .padding(.horizontal)
-      .frame(maxWidth: .infinity, alignment: .leading)
-    }
-    .defaultScrollAnchor(.bottom)
-    .onAppear(perform: setupAgent)
-    .safeAreaBar(edge: .bottom) {
-      if let error {
-        Text(error.localizedDescription)
-          .font(.callout)
-          .foregroundStyle(.red)
-          .transition(.opacity.combined(with: .scale))
-      }
-    }
-    .safeAreaBar(edge: .bottom) {
-      GlassEffectContainer {
-        HStack(alignment: .bottom) {
-          TextField("Message", text: $userInput, axis: .vertical)
-            .padding(.horizontal)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(minHeight: 45)
-            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 45 / 2))
-          Button {
-            messageTask?.cancel()
-            messageTask = Task {
-              await sendMessage()
-            }
-          } label: {
-            if viewState == .loading {
-              ProgressView()
-              .frame(width: 45, height: 45)
-              .transition(.opacity.combined(with: .scale))
-            } else {
-              Image(systemName: "arrow.up")
-                .frame(width: 45, height: 45)
-                .transition(.opacity.combined(with: .scale))
-            }
+    NavigationStack {
+      ScrollView {
+        VStack(alignment: .leading) {
+          if let session {
+            content(session: session)
           }
-          .glassEffect(.regular.interactive())
+        }
+        .padding(.horizontal)
+        .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .defaultScrollAnchor(.bottom)
+      .onAppear(perform: setupAgent)
+      .safeAreaBar(edge: .bottom) {
+        if let error {
+          Text(error.localizedDescription)
+            .font(.callout)
+            .foregroundStyle(.red)
+            .transition(.opacity.combined(with: .scale))
         }
       }
-      .padding()
+      .safeAreaBar(edge: .bottom) {
+        GlassEffectContainer {
+          HStack(alignment: .bottom) {
+            TextField("Message", text: $userInput, axis: .vertical)
+              .padding(.horizontal)
+              .padding(.vertical, 10)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .frame(minHeight: 45)
+              .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 45 / 2))
+            Button {
+              messageTask?.cancel()
+              messageTask = Task {
+                await sendMessage()
+              }
+            } label: {
+              if viewState == .loading {
+                ProgressView()
+                  .frame(width: 45, height: 45)
+                  .transition(.opacity.combined(with: .scale))
+              } else {
+                Image(systemName: "arrow.up")
+                  .frame(width: 45, height: 45)
+                  .transition(.opacity.combined(with: .scale))
+              }
+            }
+            .glassEffect(.regular.interactive())
+          }
+        }
+        .padding()
+      }
+      .animation(.default, value: streamingTranscript)
+      .animation(.default, value: viewState)
+      .navigationTitle("Agent Playground")
+      .navigationBarTitleDisplayMode(.inline)
     }
-    .animation(.default, value: streamingTranscript)
-    .animation(.default, value: viewState)
   }
 
   @ViewBuilder
@@ -178,7 +182,10 @@ private struct ToolRunEntryView: View {
     case let .weather(weatherRun):
       WeatherToolRunView(weatherRun: weatherRun)
     case let .unknown(toolCall):
-      Text("Unknown Run: \(toolCall.toolName)")
+      GroupBox("Unknown Tool") {
+        Text(toolCall.toolName)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
     }
   }
 }
@@ -201,7 +208,9 @@ private struct ResponseEntryView: View {
 // MARK: - Helpers
 
 private enum ViewState: Hashable {
-  case idle, loading, error
+  case idle
+  case loading
+  case error
 }
 
 #Preview {
