@@ -39,7 +39,7 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
 
 ## Available MCPs
 
-- `XcodeBuildMCP` to build and test the project
+- `hatch-mcp run-allowed-command` for running `xcodebuild` outside the sandbox (do not use it for anything else)
 - `sosumi` mcp - Access to Apple's documentation for all Swift and SwiftUI APIs, guidelines and best practices. Use this to complement or fix/enhance your potentially outdated knowledge of these APIs.
 - `context7` - Access to documentation for a large amount of libraries and SDKs, including:
   - MacPaw: "OpenAI Swift" - Swift implementation of the OpenAI API (Responses API)
@@ -48,49 +48,32 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
 
 ## Development Commands
 
-### Building and Testing (use XcodeBuildMCP only)
+### Building and Testing (use `hatch-mcp` for `xcodebuild`)
 
-- NEVER use `swift build` or the cli version of `xcodebuild` to build or test the project! You MUST use XcodeBuildMCP
-- Replace {working_directory} with the current working directory
+- Only run `xcodebuild` through `hatch-mcp run-allowed-command`; it is approved solely for `xcodebuild` so do not execute any other tool with it. Pass the command below directly to `--command`.
+- Always include the `-quiet` flag to keep logs readable. Remove it only when debugging a failing build.
+- Replace {working_directory} with the current project directory
 
 #### Build SDK
 
 ```
-XcodeBuildMCP.build_sim({
-  workspacePath: "{working_directory}/SwiftAgent.xcworkspace",
-  scheme: "ExampleApp",
-  simulatorName: "iPhone 17 Pro",
-  useLatestOS: true
-})
+xcodebuild -quiet -workspace {working_directory}/SwiftAgent.xcworkspace -scheme ExampleApp -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=latest" build
 ```
 
 #### Build Utility App
 
 ```
-XcodeBuildMCP.build_sim({
-  workspacePath: "{working_directory}/SwiftAgent.xcworkspace",
-  scheme: "UtilityApp",
-  simulatorName: "iPhone 17 Pro"
-})
+xcodebuild -quiet -workspace {working_directory}/SwiftAgent.xcworkspace -scheme UtilityApp -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=latest" build
 ```
 
 #### Build Tests
 
 ```
-XcodeBuildMCP.build_macos({
-  workspacePath: "{working_directory}/SwiftAgent.xcworkspace",
-  scheme: "SwiftAgentTests"
-})
+xcodebuild -quiet -workspace {working_directory}/SwiftAgent.xcworkspace -scheme SwiftAgentTests build
 ```
 
 #### Run Tests
 
-- Replace {working_directory} with the current working directory
-
 ```
-XcodeBuildMCP.test_macos({
-  workspacePath: "{working_directory}/SwiftAgent.xcworkspace",
-  scheme: "SwiftAgentTests",
-  extraArgs: ["-testPlan", "SwiftAgentTests"]
-})
+xcodebuild -quiet -workspace {working_directory}/SwiftAgent.xcworkspace -scheme SwiftAgentTests -testPlan SwiftAgentTests test
 ```
