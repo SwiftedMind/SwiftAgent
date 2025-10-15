@@ -5,12 +5,16 @@ import SimulatedSession
 import SwiftUI
 import UIKit
 
-struct ConversationalAgentExampleView: View {
+struct AgentPlaygroundView: View {
   @State private var userInput = "Choose a random city and request a weather report. Then use the calculator to multiply the temperature by 5 and finally answer with a short story (1-2 paragraphs) involving the tool call outputs in some funny way."
   @State private var transcript: OpenAISession.DecodedTranscript = .init()
   @State private var streamingTranscript: OpenAISession.DecodedTranscript = .init()
   @State private var session: OpenAISession?
-
+  
+  @State private var viewState: ViewState = .idle
+  @State private var messageTask: Task<Void, Never>?
+  @State private var error: (any Error)?
+ 
   // MARK: - Body
 
   var body: some View {
@@ -24,8 +28,15 @@ struct ConversationalAgentExampleView: View {
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .defaultScrollAnchor(.bottom)
-    .animation(.default, value: streamingTranscript)
     .onAppear(perform: setupAgent)
+    .safeAreaBar(edge: .bottom) {
+      if let error {
+        Text(error.localizedDescription)
+          .font(.callout)
+          .foregroundStyle(.red)
+          .transition(.opacity.combined(with: .scale))
+      }
+    }
     .safeAreaBar(edge: .bottom) {
       GlassEffectContainer {
         HStack(alignment: .bottom) {
@@ -36,18 +47,28 @@ struct ConversationalAgentExampleView: View {
             .frame(minHeight: 45)
             .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 45 / 2))
           Button {
-            Task {
+            messageTask?.cancel()
+            messageTask = Task {
               await sendMessage()
             }
           } label: {
-            Image(systemName: "arrow.up")
+            if viewState == .loading {
+              ProgressView()
               .frame(width: 45, height: 45)
+              .transition(.opacity.combined(with: .scale))
+            } else {
+              Image(systemName: "arrow.up")
+                .frame(width: 45, height: 45)
+                .transition(.opacity.combined(with: .scale))
+            }
           }
           .glassEffect(.regular.interactive())
         }
       }
       .padding()
     }
+    .animation(.default, value: streamingTranscript)
+    .animation(.default, value: viewState)
   }
 
   @ViewBuilder
@@ -84,6 +105,7 @@ struct ConversationalAgentExampleView: View {
 
     let userInput = userInput
     self.userInput = ""
+    viewState = .loading
 
     do {
       let options = OpenAIGenerationOptions(
@@ -118,8 +140,11 @@ struct ConversationalAgentExampleView: View {
 
       transcript += streamingTranscript
       streamingTranscript = .init()
+      viewState = .idle
     } catch {
       print("Error", error.localizedDescription)
+      viewState = .error
+      self.error = error
     }
   }
 }
@@ -173,11 +198,13 @@ private struct ResponseEntryView: View {
   }
 }
 
+// MARK: - Helpers
+
+private enum ViewState: Hashable {
+  case idle, loading, error
+}
+
 #Preview {
-  NavigationStack {
-    ConversationalAgentExampleView()
-      .navigationTitle("Agent Playground")
-      .navigationBarTitleDisplayMode(.inline)
-  }
-  .preferredColorScheme(.dark)
+  AgentPlaygroundView()
+    .preferredColorScheme(.dark)
 }

@@ -3,6 +3,8 @@
 import SwiftUI
 import UIKit
 
+// From: https://gist.github.com/mrackwitz/91395527a37c4cea1757d76e8e99f826
+
 struct UILabelView: UIViewRepresentable {
   var string: String
   var preferredMaxLayoutWidth: CGFloat = .greatestFiniteMagnitude

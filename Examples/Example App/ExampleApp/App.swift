@@ -8,13 +8,13 @@ import SwiftUI
 struct ExampleApp: App {
   init() {
     // Enable logging for development
-    //		SwiftAgentConfiguration.setLoggingEnabled(true)
-    //		SwiftAgentConfiguration.setNetworkLoggingEnabled(true)
+    SwiftAgentConfiguration.setLoggingEnabled(true)
+    SwiftAgentConfiguration.setNetworkLoggingEnabled(false)
   }
 
   var body: some Scene {
     WindowGroup {
-      ExampleListView()
+      AgentPlaygroundView()
     }
   }
 }
