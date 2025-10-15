@@ -79,6 +79,7 @@ public extension URLSessionHTTPClient {
           NetworkLog.response(response, data: nil)
 
           for try await event in asyncBytes.events {
+            try Task.checkCancellation()
             continuation.yield(event)
           }
 
@@ -101,6 +102,7 @@ public extension URLSessionHTTPClient {
     collectedBytes.reserveCapacity(maxLength)
     var iterator = bytes.makeAsyncIterator()
     while collectedBytes.count < maxLength, let byte = try await iterator.next() {
+      try Task.checkCancellation()
       collectedBytes.append(byte)
     }
     return collectedBytes

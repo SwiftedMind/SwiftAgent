@@ -114,6 +114,8 @@ package extension LanguageModelProvider {
           // For structured content, return immediately when we find a structured segment
           if case let .response(response) = entry {
             for segment in response.segments {
+              try Task.checkCancellation()
+
               switch segment {
               case .text:
                 // Not applicable for structured content
@@ -242,6 +244,8 @@ package extension LanguageModelProvider {
         var nextEmitDeadline = clock.now
 
         for try await update in stream {
+          try Task.checkCancellation()
+
           switch update {
           case let .transcript(entry):
             generatedTranscript.upsert(entry)
