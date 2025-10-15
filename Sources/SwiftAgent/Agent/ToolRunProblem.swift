@@ -8,7 +8,7 @@ import FoundationModels
 /// Throw this error from a tool's ``Tool/call(arguments:)`` implementation when the
 /// invocation cannot be completed successfully but the agent should be able to recover by
 /// inspecting the returned payload and taking another action. Instead of aborting the agent run,
-/// SwiftAgent will forward the provided ``GeneratedContent`` back to the model as the tool output.
+/// the SDK will forward the provided ``GeneratedContent`` back to the model as the tool output.
 public struct ToolRunProblem: Error, LocalizedError, Sendable {
   /// A machine-readable payload describing the failure. This content is forwarded to the model
   /// exactly like a successful tool output, allowing the model to reason about the failure.

@@ -4,7 +4,10 @@ import Foundation
 import FoundationModels
 import Internal
 
-public struct SwiftAgentToolWrapper<Tool: FoundationModels.Tool>: SwiftAgentTool
+/// A wrapper around a `FoundationModels.Tool` that conforms to the `SwiftAgentTool` protocol.
+///
+/// - Note: This type is managed internally by the SDK. You generally do not interact with it directly.
+public struct _SwiftAgentToolWrapper<Tool: FoundationModels.Tool>: SwiftAgentTool
   where Tool.Arguments: Generable, Tool.Output: Generable {
   private let tool: Tool
 

@@ -2,7 +2,7 @@
 
 import Foundation
 
-public extension GenerationError {
+package extension GenerationError {
   /// Maps any error thrown while preparing or performing a request into `GenerationError`.
   static func fromRequest(
     _ error: any Error,

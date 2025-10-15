@@ -60,6 +60,36 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     // Property wrappers copied onto the session type so user code can declare tools/groundings/structured outputs.
     members.append(
       """
+      /// Declare a `Tool` on your session so the model can call it.
+      ///
+      /// ## Example
+      ///
+      /// ```swift
+      /// struct Add: Tool {
+      ///   let name = "add"
+      ///   let description = "Adds two numbers"
+      ///   
+      ///   @Generable
+      ///   struct Arguments {
+      ///     let a: Int
+      ///     let b: Int
+      ///   }
+      ///   
+      ///   @Generable
+      ///   struct Output {
+      ///     let result: Int
+      ///   }
+      ///
+      ///   func call(arguments: Arguments) async throws -> Output {
+      ///     .init(result: arguments.a + arguments.b)
+      ///   }
+      /// }
+      ///
+      /// @LanguageModelProvider(.openAI)
+      /// final class Session {
+      ///   @Tool var add = Add()
+      /// }
+      /// ```
       @propertyWrapper
       struct Tool<ToolType: FoundationModels.Tool>
       where ToolType.Arguments: Generable & Sendable, ToolType.Output: Generable & Sendable {
@@ -71,6 +101,28 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
     members.append(
       """
+      /// Exposes generation APIs for a specific `StructuredOutput`.
+      ///
+      /// Use on a `@LanguageModelProvider` session to generate typed values.
+      ///
+      /// ## Example
+      ///
+      /// ```swift
+      /// struct Greeting: SwiftAgent.StructuredOutput {
+      ///   static let name = "greeting"
+      ///   @Generable
+      ///   struct Schema {
+      ///     let message: String
+      ///   }
+      /// }
+      ///
+      /// @LanguageModelProvider(.openAI)
+      /// final class Session {
+      ///   @StructuredOutput(Greeting.self) var greeting
+      /// }
+      /// 
+      /// // try await session.greeting.generate(from: "Say hi")
+      /// ```
       @propertyWrapper
       struct StructuredOutput<Output: SwiftAgent.StructuredOutput> {
         typealias Generating<EnclosingSelf: LanguageModelProvider> = GeneratingLanguageModelProvider<EnclosingSelf, Output>
@@ -105,6 +157,16 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
     members.append(
       """
+      /// Declares a source type that can be provided as grounding to the model.
+      ///
+      /// ## Example
+      ///
+      /// ```swift
+      /// @LanguageModelProvider(.openAI)
+      /// final class Session { 
+      ///   @Grounding(Date.self) var currentDate
+      /// }
+      /// ```
       @propertyWrapper
       struct Grounding<Source: Codable & Sendable & Equatable> {
         var wrappedValue: Source.Type
@@ -116,18 +178,21 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     // Stored properties
     members.append(
       """
+      /// Adapter used by this provider to communicate with the underlying model API.
       \(raw: accessKeyword("let")) adapter: \(raw: provider.adapterTypeName)
       """,
     )
 
     members.append(
       """
+      /// Registered tools available to the model during a session.
       \(raw: accessKeyword("let")) tools: [any SwiftAgentTool]
       """,
     )
 
     members.append(
       """
+      /// Internal decodable wrappers for tool results used by the macro.
       \(raw: accessKeyword("let")) decodableTools: [any DecodableTool<ProviderType>]
       """,
     )
@@ -139,6 +204,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
     // Observable state
     members.append(
       """
+      /// Transcript of the session, including prompts, tool calls, and model outputs.
       @MainActor @_LanguageModelProviderObserved(initialValue: Transcript())
       \(raw: accessKeyword("var")) transcript: SwiftAgent.Transcript
       """,
@@ -146,6 +212,7 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
     members.append(
       """
+      /// Token usage information accumulated for this session.
       @MainActor @_LanguageModelProviderObserved(initialValue: TokenUsage())
       \(raw: accessKeyword("var")) tokenUsage: TokenUsage
       """,

@@ -8,10 +8,11 @@ import Internal
 ///
 /// ## Properties
 ///
-/// - **transcript**: The current conversation transcript with partially decoded tool runs attached
-/// - **undecodedTranscript**: The raw transcript backing the decoded projection, useful for debugging or
-///   custom resolution flows
-/// - **tokenUsage**: Current token usage statistics (optional, may be nil if not available)
+/// - **content**: The partially generated response from the AI model, may be `nil` if the content is not available yet.
+/// - **transcript**: The current conversation transcript, including the initial prompt, reasoning steps, tool calls,
+/// and partially generated responses.
+/// - **tokenUsage**: Current token usage statistics, may be `nil` if the adapter doesn't provide token usage
+/// information.
 ///
 /// ## Example Usage
 ///
@@ -24,18 +25,17 @@ import Internal
 /// }
 /// ```
 public struct AgentSnapshot<Content: Generable, Provider: LanguageModelProvider> {
-  /// The generated content from the AI model.
+  /// The generated response from the AI model.
   ///
   /// This will be `nil` if the content is not available yet.
   ///
   /// For text responses, this will be a `String`. For structured responses,
-  /// this will be an instance of the requested `@Generable` type.
+  /// this will be the `PartiallyGenerated` variant of the requested `@Generable` type.
   public var content: Content.PartiallyGenerated?
   /// The current conversation transcript.
   ///
-  /// This includes all entries that have been added during the current generation,
-  /// including reasoning steps, tool calls, and partial responses. Tool calls are partially decoded
-  /// for the observing session so that UI code can render tool output without additional resolution work.
+  /// This includes all transcript entries that have been added during the current generation,
+  /// including the initial prompt, reasoning steps, tool calls, and partially generated responses.
   public let transcript: Transcript
 
   /// Current token usage statistics.

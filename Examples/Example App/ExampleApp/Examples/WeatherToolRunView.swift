@@ -22,11 +22,11 @@ struct WeatherToolRunView: View {
             }
             .opacity(weatherRun.hasOutput ? 0.5 : 1)
             if let requestedDate = arguments.requestedDate {
-              argumentPill(title: "Date", value: arguments.requestedDate, placeholder: "Date")
+              argumentPill(title: "Date", value: requestedDate, placeholder: "Date")
                 .opacity(weatherRun.hasOutput ? 0.5 : 1)
             }
             if let timeOfDay = arguments.timeOfDay {
-              argumentPill(title: "Time", value: arguments.timeOfDay, placeholder: "Time")
+              argumentPill(title: "Time", value: timeOfDay, placeholder: "Time")
                 .opacity(weatherRun.hasOutput ? 0.5 : 1)
             }
           }
@@ -131,17 +131,17 @@ private enum WeatherToolRunPreviewScenario: String, CaseIterable, Identifiable {
     case .emptyArguments:
       try! ToolRun<WeatherTool>.partial(
         id: "weather-000",
-        json: #"{}"#
+        json: #"{}"#,
       )
     case .locationOnly:
       try! ToolRun<WeatherTool>.partial(
         id: "weather-001",
-        json: #"{ "location": "San Fran" }"#
+        json: #"{ "location": "San Fran" }"#,
       )
     case .awaitingTime:
       try! ToolRun<WeatherTool>.partial(
         id: "weather-002",
-        json: #"{ "location": "San Francisco", "requestedDate": "2024-04-01" }"#
+        json: #"{ "location": "San Francisco", "requestedDate": "2024-04-01" }"#,
       )
     case .completed:
       try! ToolRun<WeatherTool>.completed(
@@ -151,13 +151,13 @@ private enum WeatherToolRunPreviewScenario: String, CaseIterable, Identifiable {
           location: "San Francisco",
           temperature: 20,
           condition: "Sunny - Afternoon forecast for 2024-04-01",
-          humidity: 55
-        )
+          humidity: 55,
+        ),
       )
     case .error:
       try! ToolRun<WeatherTool>.error(
         id: "weather-004",
-        error: .resolutionFailed(description: "Unable to locate weather station")
+        error: .resolutionFailed(description: "Unable to locate weather station"),
       )
     }
   }

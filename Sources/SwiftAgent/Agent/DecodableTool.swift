@@ -4,6 +4,11 @@ import Foundation
 import FoundationModels
 import Internal
 
+/// A helper protocol that turns a `Tool` into a decodable form for transcripts.
+///
+/// - Note: You do not conform to this directly in typical apps. The
+///   `@LanguageModelProvider` macro synthesizes these wrappers from your
+///   `@Tool` properties so that tool calls in a transcript can be resolved.
 public protocol DecodableTool<Provider>: SwiftAgentTool where BaseTool.Arguments: Generable,
   BaseTool.Output: Generable {
   associatedtype BaseTool: FoundationModels.Tool
@@ -12,16 +17,7 @@ public protocol DecodableTool<Provider>: SwiftAgentTool where BaseTool.Arguments
 }
 
 package extension DecodableTool {
-  /// Decodes a tool with raw GeneratedContent arguments and output.
-  ///
-  /// This is the internal bridge method that converts between Apple's FoundationModels
-  /// content representation and SwiftAgent's strongly typed tool system.
-  ///
-  /// - Parameters:
-  ///   - arguments: The raw arguments from the AI model
-  ///   - output: The raw output content, if available
-  /// - Returns: The decoded tool result
-  /// - Throws: Conversion or resolution errors
+  /// Decodes a completed tool run from raw generated content.
   func decodeCompleted(
     id: String,
     rawArguments: GeneratedContent,
@@ -37,6 +33,7 @@ package extension DecodableTool {
     return decode(toolRun)
   }
 
+  /// Decodes an in‑progress tool run from raw generated content.
   func decodePartial(
     id: String,
     rawArguments: GeneratedContent,
@@ -52,6 +49,7 @@ package extension DecodableTool {
     return decode(toolRun)
   }
 
+  /// Decodes a failed tool run with an associated resolution error.
   func decodeFailed(
     id: String,
     error: TranscriptDecodingError.ToolRunResolution,
@@ -69,13 +67,7 @@ package extension DecodableTool {
 }
 
 package extension DecodableTool {
-  /// Creates a strongly typed tool run from raw content.
-  ///
-  /// - Parameters:
-  ///   - arguments: Raw argument content from the AI model
-  ///   - output: Optional raw output content
-  /// - Returns: A typed ToolRun instance
-  /// - Throws: Conversion errors if content cannot be parsed
+  /// Builds a typed `ToolRun` value from raw arguments and optional output/problem.
   func toolRun(
     id: String,
     arguments: ToolRun<BaseTool>.ArgumentsPhase,
@@ -114,6 +106,7 @@ package extension DecodableTool {
     }
   }
 
+  /// Extracts a structured problem description from generated content (if present).
   func problem(from generatedContent: GeneratedContent) -> ToolRun<BaseTool>.Problem? {
     guard
       let problemReport = try? ProblemReport(generatedContent),

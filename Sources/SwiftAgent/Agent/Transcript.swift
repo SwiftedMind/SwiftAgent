@@ -3,13 +3,23 @@
 import Foundation
 import FoundationModels
 
+/// A conversation transcript built by the agent.
+///
+/// The transcript is an ordered log of prompts, tool activity, and model
+/// responses produced during a session. Use it to inspect streaming progress,
+/// pretty‑print for debugging, or decode provider‑specific structured output.
 public struct Transcript: Sendable, Equatable {
+  /// The ordered entries that make up the transcript. New entries are appended
+  /// at the end as the session progresses.
   public var entries: [Entry]
 
+  /// Creates a transcript, optionally seeded with existing entries.
   public init(entries: [Entry] = []) {
     self.entries = entries
   }
 
+  /// Inserts the entry if it does not exist, or replaces the existing entry
+  /// with the same `id`. Order is preserved when appending.
   package mutating func upsert(_ entry: Entry) {
     if let existingIndex = entries.firstIndex(where: { $0.id == entry.id }) {
       entries[existingIndex] = entry
@@ -18,6 +28,12 @@ public struct Transcript: Sendable, Equatable {
     }
   }
 
+  /// Decodes this transcript using the session's decoder into the provider's
+  /// `DecodedTranscript` representation.
+  ///
+  /// - Parameters:
+  ///   - session: The session to use to decode the transcript.
+  /// - Returns: The decoded transcript.
   public func decoded<Provider: LanguageModelProvider>(
     in session: Provider,
   ) throws -> Provider.DecodedTranscript {
@@ -25,6 +41,13 @@ public struct Transcript: Sendable, Equatable {
     return try decoder.decode(self)
   }
 
+  /// Returns the structured output and status from the most recent response
+  /// when the session is configured for structured‑only output.
+  ///
+  /// - Returns: `nil` while streaming is in progress or when no response is
+  ///   available.
+  /// - Throws: A `GenerationError` if unexpected text or multiple structured
+  ///   segments are present.
   package func structuredOutputFromLastResponse() throws -> LastResponseStructuredOutput? {
     guard let response = entries
       .reversed()
@@ -65,8 +88,12 @@ public struct Transcript: Sendable, Equatable {
 }
 
 package extension Transcript {
+  /// Convenience bundle containing the last response status and its single
+  /// structured segment.
   struct LastResponseStructuredOutput: Sendable, Equatable {
+    /// The completion status of the last response.
     var status: Transcript.Status
+    /// The single structured segment produced by the last response.
     let segment: Transcript.StructuredSegment
   }
 }
@@ -99,13 +126,21 @@ extension Transcript: RandomAccessCollection, RangeReplaceableCollection {
 }
 
 public extension SwiftAgent.Transcript {
+  /// A single unit in a transcript. Entries are identified by a stable `id`
+  /// to support updates during streaming.
   enum Entry: Sendable, Identifiable, Equatable {
+    /// The final rendered prompt that was sent to the model.
     case prompt(Prompt)
+    /// A summarized reasoning trace, if provided by the model.
     case reasoning(Reasoning)
+    /// One or more tool invocations emitted by the model.
     case toolCalls(ToolCalls)
+    /// Output emitted by a tool in response to a prior tool call.
     case toolOutput(ToolOutput)
+    /// The model's response for the turn.
     case response(Response)
 
+    /// Stable identifier for this entry.
     public var id: String {
       switch self {
       case let .prompt(prompt):
@@ -122,10 +157,16 @@ public extension SwiftAgent.Transcript {
     }
   }
 
+  /// The final rendered prompt that was sent to the model, alongside the
+  /// original input and prompt sources used to construct it.
   struct Prompt: Sendable, Identifiable, Equatable {
+    /// Identifier for this prompt instance.
     public var id: String
+    /// The user's raw input used to build the prompt.
     public var input: String
+    /// Opaque data describing prompt sources used to reproduce the prompt.
     public var sources: Data
+    /// The full rendered prompt string sent to the model.
     package var prompt: String
 
     package init(
@@ -141,10 +182,15 @@ public extension SwiftAgent.Transcript {
     }
   }
 
+  /// A lightweight summary of the model's private reasoning, when available.
   struct Reasoning: Sendable, Identifiable, Equatable {
+    /// Identifier for this reasoning instance.
     public var id: String
+    /// High‑level reasoning summary lines.
     public var summary: [String]
+    /// Provider‑specific encrypted reasoning payload, if present.
     public var encryptedReasoning: String?
+    /// The status of the reasoning step, if reported.
     public var status: Status?
 
     package init(
@@ -160,16 +206,24 @@ public extension SwiftAgent.Transcript {
     }
   }
 
+  /// The lifecycle state of a response or step.
   enum Status: Sendable, Identifiable, Equatable {
+    /// The operation finished successfully.
     case completed
+    /// The operation ended before completion.
     case incomplete
+    /// The operation is still in progress.
     case inProgress
 
+    /// Identifiable conformance uses the case value itself.
     public var id: Self { self }
   }
 
+  /// A collection of tool calls emitted in a single turn.
   struct ToolCalls: Sendable, Identifiable, Equatable {
+    /// Identifier for this group of tool calls.
     public var id: String
+    /// The ordered tool calls.
     public var calls: [ToolCall]
 
     public init(id: String = UUID().uuidString, calls: [ToolCall]) {
@@ -211,11 +265,17 @@ extension Transcript.ToolCalls: RandomAccessCollection, RangeReplaceableCollecti
 }
 
 public extension Transcript {
+  /// A single tool invocation requested by the model.
   struct ToolCall: Sendable, Identifiable, Equatable {
+    /// Identifier for this tool call record.
     public var id: String
+    /// Correlation identifier supplied by the model.
     public var callId: String
+    /// The tool's canonical name.
     public var toolName: String
+    /// JSON arguments for the tool call.
     public var arguments: GeneratedContent
+    /// Optional status of the tool call as it progresses.
     public var status: Status?
 
     public init(
@@ -233,11 +293,17 @@ public extension Transcript {
     }
   }
 
+  /// Output produced by a tool in response to a call.
   struct ToolOutput: Sendable, Identifiable, Equatable {
+    /// Identifier for this tool output record.
     public var id: String
+    /// Correlation identifier matching the originating tool call.
     public var callId: String
+    /// The tool's canonical name.
     public var toolName: String
+    /// The tool output as a segment (text or structured).
     public var segment: Segment
+    /// Optional status reflecting the processing state.
     public var status: Status?
 
     public init(
@@ -255,9 +321,13 @@ public extension Transcript {
     }
   }
 
+  /// The model's response for a single turn.
   struct Response: Sendable, Identifiable, Equatable {
+    /// Identifier for this response.
     public var id: String
+    /// Ordered response segments (text and/or structured).
     public var segments: [Segment]
+    /// Whether the response completed or is still in progress.
     public var status: Status
 
     public init(
@@ -270,6 +340,7 @@ public extension Transcript {
       self.status = status
     }
 
+    /// All text segments in order.
     public var textSegments: [TextSegment] {
       segments.compactMap { segment in
         switch segment {
@@ -281,6 +352,7 @@ public extension Transcript {
       }
     }
 
+    /// All structured segments in order.
     public var structuredSegments: [StructuredSegment] {
       segments.compactMap { segment in
         switch segment {
@@ -292,6 +364,7 @@ public extension Transcript {
       }
     }
 
+    /// Convenience joined text from all text segments, or `nil` when none.
     public var text: String? {
       let contents = textSegments.map(\.content)
       if contents.isEmpty { return nil }
@@ -299,10 +372,14 @@ public extension Transcript {
     }
   }
 
+  /// A response or tool output segment.
   enum Segment: Sendable, Identifiable, Equatable {
+    /// A unit of plain text.
     case text(TextSegment)
+    /// A unit of structured content.
     case structure(StructuredSegment)
 
+    /// Stable identifier for the underlying segment.
     public var id: String {
       switch self {
       case let .text(textSegment):
@@ -313,8 +390,11 @@ public extension Transcript {
     }
   }
 
+  /// A unit of plain text produced by the model or a tool.
   struct TextSegment: Sendable, Identifiable, Equatable {
+    /// Identifier for this segment.
     public var id: String
+    /// The textual content.
     public var content: String
 
     public init(id: String = UUID().uuidString, content: String) {
@@ -323,9 +403,13 @@ public extension Transcript {
     }
   }
 
+  /// A unit of structured content produced by the model or a tool.
   struct StructuredSegment: Sendable, Identifiable, Equatable {
+    /// Identifier for this segment.
     public var id: String
+    /// Optional type hint for the structured payload.
     public var typeName: String
+    /// The structured payload as generated content.
     public var content: GeneratedContent
 
     public init(id: String = UUID().uuidString, typeName: String = "", content: GeneratedContent) {

@@ -122,7 +122,7 @@ extension LanguageModelProviderMacro {
         \(raw: initializerPrologueBlock)  self.decodableTools = []
           var wrappedTools: [any SwiftAgentTool] = []
           for tool in repeat each tools {
-            wrappedTools.append(SwiftAgentToolWrapper(tool: tool))
+            wrappedTools.append(_SwiftAgentToolWrapper(tool: tool))
           }
           self.tools = wrappedTools
 
@@ -145,7 +145,7 @@ extension LanguageModelProviderMacro {
         \(raw: initializerPrologueBlock)  self.decodableTools = []
           var wrappedTools: [any SwiftAgentTool] = []
           for tool in repeat each tools {
-            wrappedTools.append(SwiftAgentToolWrapper(tool: tool))
+            wrappedTools.append(_SwiftAgentToolWrapper(tool: tool))
           }
           self.tools = wrappedTools
 

@@ -4,35 +4,37 @@ import Foundation
 import FoundationModels
 import Internal
 
-/// A thin wrapper around Apple's `FoundationModels.Tool` protocol that provides essential functionality
-/// for SwiftAgent's tool calling system.
+/// A thin wrapper around Apple's `FoundationModels.Tool` protocol that constrains its arguments and output to
+/// `Generable` types.
 ///
-/// `SwiftAgentTool` extends Apple's native tool protocol with type-safe argument and output handling,
-/// custom resolution logic, and seamless integration with SwiftAgent's agent execution loop.
+/// - Note: You do not conform to this protocol directly. When you define a language model session and pass a `@Tool`
+/// property, the macro will synthesize a conformance to this protocol.
 ///
-/// ## Overview
-///
-/// The SwiftAgent framework builds on Apple's FoundationModels design philosophy by providing a
-/// clean, declarative API for AI tool development. `AgentTool` serves as the bridge between
-/// Apple's tool protocol and SwiftAgent's enhanced capabilities.
-///
-/// ## Usage
+/// ## Example
 ///
 /// ```swift
-/// struct WeatherTool: SwiftAgentTool {
+/// @LanguageModelProvider(.openAI)
+/// final class Session {
+///   @Tool var calculator = CalculatorTool()
+/// }
 ///
-///   let name = "get_weather"
-///   let description = "Get current weather for a location"
+/// struct CalculatorTool: Tool {
+///   let name = "calculator"
+///   let description = "Performs basic mathematical addition"
 ///
 ///   @Generable
 ///   struct Arguments {
-///     let location: String
+///     let a: Int
+///     let b: Int
 ///   }
 ///
 ///   @Generable
 ///   struct Output {
-///     let temperature: Double
-///     let conditions: String
+///     let result: Int
+///   }
+///
+///   func call(arguments: Arguments) async throws -> Output {
+///     .init(result: arguments.a + arguments.b)
 ///   }
 /// }
 /// ```

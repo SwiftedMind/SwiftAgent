@@ -4,20 +4,120 @@ import Foundation
 import FoundationModels
 import Internal
 
+/// A unified representation of a tool call and its output, providing type-safe access to arguments and results.
+///
+/// `ToolRun` combines tool calls and tool outputs into a single entry, making it easier to work with
+/// tool interactions in your app. Unlike raw transcripts where tool calls and outputs are separate entries,
+/// `ToolRun` provides a cohesive view with fully typed arguments and outputs.
+///
+/// The type is generic over your tool implementation, ensuring compile-time type safety when accessing
+/// arguments and outputs. This eliminates the need to manually match tool calls with their corresponding
+/// outputs and provides a stable interface for SwiftUI views.
+///
+/// ## Example
+///
+/// ```swift
+/// @LanguageModelProvider(.openAI)
+/// final class MySession {
+///   @Tool var calculator = CalculatorTool()
+/// }
+///
+/// let session = MySession(instructions: "You are a helpful assistant.", apiKey: "sk-...")
+///
+/// // generate responses ...
+///
+/// let decodedTranscript = try session.transcript.decoded(in: session)
+///
+/// for case let .toolRun(toolRun) in decodedTranscript {
+///   switch toolRun {
+///   case let .calculator(toolRun):
+///     // Access typed arguments
+///     if let arguments = toolRun.normalizedArguments {
+///       print("First number: \(arguments.firstNumber)")
+///       print("Operation: \(arguments.operation)")
+///       print("Second number: \(arguments.secondNumber)")
+///     }
+///
+///     // Access typed output
+///     if let output = toolRun.output {
+///       print("Result: \(output.result)")
+///     }
+///   }
+/// }
+/// ```
 public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Arguments: Generable,
   Tool.Output: Generable {
+  /// The arguments type for this tool.
   public typealias Arguments = Tool.Arguments
+  /// The output type for this tool.
   public typealias Output = Tool.Output
 
-  /// The arguments phase of the tool run.
+  /// Represents the current state of tool arguments during streaming.
+  ///
+  /// Tool arguments can be in two phases: `partial` during streaming when the language model
+  /// is still generating the arguments, and `final` when the arguments are complete and validated.
+  ///
+  /// ## Example
+  ///
+  /// ```swift
+  /// switch toolRun.arguments {
+  /// case let .partial(partialArguments):
+  ///   // Arguments are still being generated
+  ///   print("First number: \(partialArguments.firstNumber ?? 0)")
+  ///   print("Operation: \(partialArguments.operation ?? "?")")
+  ///
+  /// case let .final(finalArguments):
+  ///   // Arguments are complete and validated
+  ///   print("Complete: \(finalArguments.firstNumber) \(finalArguments.operation) \(finalArguments.secondNumber)")
+  ///
+  /// case .none:
+  ///   // No arguments available (error state)
+  ///   print("Failed to decode arguments")
+  /// }
+  /// ```
   public enum ArgumentsPhase {
+    /// Arguments are being streamed and may be incomplete.
     case partial(Arguments.PartiallyGenerated)
+    /// Arguments are complete and fully validated.
     case final(Arguments)
   }
 
+  /// A UI-stable view of tool arguments that maintains consistent SwiftUI view identity.
+  ///
+  /// `NormalizedArguments` provides a stable interface for SwiftUI views by always exposing
+  /// arguments in their `PartiallyGenerated` form, even when the underlying arguments are final.
+  /// This prevents view identity changes that occur when switching between partial and final
+  /// argument states during streaming.
+  ///
+  /// Use `isFinal` to determine whether the arguments represent a completed set, while
+  /// accessing individual argument values through dynamic member lookup for a consistent API.
+  ///
+  /// ## Example
+  ///
+  /// ```swift
+  /// struct CalculatorView: View {
+  ///   let toolRun: ToolRun<CalculatorTool>
+  ///
+  ///   var body: some View {
+  ///     if let normalizedArguments = toolRun.normalizedArguments {
+  ///       HStack {
+  ///         Text("\(normalizedArguments.firstNumber ?? 0)")
+  ///         Text(normalizedArguments.operation ?? "?")
+  ///         Text("\(normalizedArguments.secondNumber ?? 0)")
+  ///
+  ///         if normalizedArguments.isFinal {
+  ///           Text("✓")
+  ///         }
+  ///       }
+  ///     }
+  ///   }
+  /// }
+  /// ```
   @dynamicMemberLookup
   public struct NormalizedArguments {
+    /// Whether the arguments are in their final, complete state.
     public var isFinal: Bool
+    /// The arguments in their partially generated form for UI stability.
     public var arguments: Arguments.PartiallyGenerated
 
     init(isFinal: Bool, arguments: Arguments.PartiallyGenerated) {
@@ -25,62 +125,90 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
       self.arguments = arguments
     }
 
+    /// Provides direct access to argument properties through dynamic member lookup.
+    ///
+    /// This allows you to access argument values directly on the `NormalizedArguments`
+    /// instance, maintaining a clean API while ensuring UI stability.
     public subscript<Value>(dynamicMember keyPath: KeyPath<Arguments.PartiallyGenerated, Value>) -> Value {
       arguments[keyPath: keyPath]
     }
   }
 
-  /// The ID of the tool run.
+  /// The unique identifier for this tool run.
   public var id: String
 
-  /// The raw content of the tool run.
+  /// The raw generated content containing the tool arguments.
+  ///
+  /// This provides access to the original JSON or text content that was generated
+  /// by the language model for the tool arguments.
   public var rawArguments: GeneratedContent
 
-  /// The raw output of the tool run.
+  /// The raw generated content containing the tool output, if available.
+  ///
+  /// This provides access to the original JSON or text content returned by the tool.
+  /// May be `nil` if the tool hasn't completed execution or if no output was found.
   public var rawOutput: GeneratedContent?
 
-  /// The arguments phase of the tool run.
+  /// The current phase of the tool arguments (partial or final).
+  ///
+  /// - `nil`: Arguments failed to decode or are not available
+  /// - `.partial`: Arguments are being streamed and may be incomplete
+  /// - `.final`: Arguments are complete and validated
   public var arguments: ArgumentsPhase?
 
-  /// Provides a UI-stable, partial-shaped view of the tool arguments.
-  /// Even when the underlying arguments are final, this exposes them
-  /// as `Arguments.PartiallyGenerated` so SwiftUI view identities do not change.
-  /// Use `isFinal` to know whether the values represent a completed set.
+  /// A UI-stable view of the tool arguments for SwiftUI.
+  ///
+  /// This property always provides arguments in their `PartiallyGenerated` form,
+  /// even when the underlying arguments are final. This prevents SwiftUI view
+  /// identity changes during the transition from partial to final state.
+  ///
+  /// Use `isFinal` to determine completion status while accessing argument values
+  /// through dynamic member lookup for consistent UI behavior.
   public var normalizedArguments: NormalizedArguments?
 
-  /// The tool's output, if available.
+  /// The strongly-typed output from the tool execution.
   ///
-  /// This will be `nil` when the tool run has not yet produced a result, or when
-  /// no corresponding output is found in the conversation transcript.
+  /// This will be `nil` when:
+  /// - The tool run is still pending execution
+  /// - The tool execution failed
+  /// - No corresponding output was found in the transcript
   public var output: Output?
 
-  /// Contains the recoverable problem information when decoding `Output` fails.
+  /// Information about recoverable problems during tool execution.
   ///
-  /// This happens when a tool execution throws ``ToolRunProblem`` and the adapter forwards
-  /// arbitrary ``GeneratedContent`` back to the agent. That content cannot be strongly typed
-  /// and is different from the planned output of the tool. You can read the problem's payload
-  /// via this property.
+  /// This contains structured error information when a tool execution fails
+  /// but returns recoverable data. This typically occurs when a tool throws
+  /// a `ToolRunProblem` and the adapter forwards the error details back to
+  /// the agent as structured content.
   public var problem: Problem?
 
-  /// The error of the tool run.
+  /// An error that occurred while decoding or resolving the tool run.
+  ///
+  /// This indicates a failure in the tool resolution process, such as:
+  /// - Unknown tool name
+  /// - Invalid argument format
+  /// - Decoding failures
   public var error: TranscriptDecodingError.ToolRunResolution?
 
-  /// Indicates whether the tool run has produced a typed output.
+  /// Whether the tool run has successfully produced a typed output.
   public var hasOutput: Bool {
     output != nil
   }
 
-  /// Indicates whether a problem payload is available.
+  /// Whether the tool run contains recoverable problem information.
   public var hasProblem: Bool {
     problem != nil
   }
 
-  /// Indicates whether a problem payload is available.
+  /// Whether the tool run encountered a decoding or resolution error.
   public var hasError: Bool {
     error != nil
   }
 
-  /// Indicates that the tool run is still awaiting an output.
+  /// Whether the tool run is still awaiting completion.
+  ///
+  /// Returns `true` when the tool has been called but hasn't yet produced
+  /// an output, problem, or error.
   public var isPending: Bool {
     output == nil && problem == nil && error == nil
   }
@@ -118,6 +246,25 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     self.rawOutput = rawOutput
   }
 
+  /// Creates a tool run with partial arguments during streaming.
+  ///
+  /// Use this factory method when the language model is still generating tool arguments
+  /// and you want to create a `ToolRun` that represents the in-progress state.
+  ///
+  /// ## Example
+  ///
+  /// ```swift
+  /// let partialRun = try ToolRun<CalculatorTool>.partial(
+  ///   id: "calc-123",
+  ///   json: #"{ "firstNumber": 10, "operation": "+" }"#
+  /// )
+  /// ```
+  ///
+  /// - Parameters:
+  ///   - id: The unique identifier for this tool run
+  ///   - json: The JSON string containing the partial arguments
+  /// - Returns: A tool run in partial state
+  /// - Throws: If the JSON cannot be parsed or arguments cannot be decoded
   public static func partial(
     id: String,
     json: String,
@@ -131,6 +278,27 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     )
   }
 
+  /// Creates a completed tool run with successful output.
+  ///
+  /// Use this factory method when the tool has completed execution successfully
+  /// and produced a typed output.
+  ///
+  /// ## Example
+  ///
+  /// ```swift
+  /// let completedRun = try ToolRun<CalculatorTool>.completed(
+  ///   id: "calc-123",
+  ///   json: #"{ "firstNumber": 10, "operation": "+", "secondNumber": 5 }"#,
+  ///   output: CalculatorTool.Output(result: 15)
+  /// )
+  /// ```
+  ///
+  /// - Parameters:
+  ///   - id: The unique identifier for this tool run
+  ///   - json: The JSON string containing the complete arguments
+  ///   - output: The successfully produced tool output
+  /// - Returns: A completed tool run with output
+  /// - Throws: If the JSON cannot be parsed or arguments cannot be decoded
   public static func completed(
     id: String,
     json: String,
@@ -146,6 +314,31 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     )
   }
 
+  /// Creates a completed tool run with a recoverable problem.
+  ///
+  /// Use this factory method when the tool execution failed but returned
+  /// structured error information that can be recovered.
+  ///
+  /// ## Example
+  ///
+  /// ```swift
+  /// let problemRun = try ToolRun<CalculatorTool>.completed(
+  ///   id: "calc-123",
+  ///   json: #"{ "firstNumber": 10, "operation": "/", "secondNumber": 0 }"#,
+  ///   problem: ToolRun<CalculatorTool>.Problem(
+  ///     reason: "Division by zero",
+  ///     json: #"{ "error": "Cannot divide by zero" }"#,
+  ///     details: ["error": "Cannot divide by zero"]
+  ///   )
+  /// )
+  /// ```
+  ///
+  /// - Parameters:
+  ///   - id: The unique identifier for this tool run
+  ///   - json: The JSON string containing the complete arguments
+  ///   - problem: The structured problem information
+  /// - Returns: A completed tool run with problem information
+  /// - Throws: If the JSON cannot be parsed or arguments cannot be decoded
   public static func completed(
     id: String,
     json: String,
@@ -161,6 +354,24 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     )
   }
 
+  /// Creates a tool run that failed during resolution or decoding.
+  ///
+  /// Use this factory method when the tool run cannot be properly decoded
+  /// due to resolution errors, unknown tools, or other decoding failures.
+  ///
+  /// ## Example
+  ///
+  /// ```swift
+  /// let errorRun = try ToolRun<CalculatorTool>.error(
+  ///   id: "calc-123",
+  ///   error: .unknownTool(name: "unknown_calculator")
+  /// )
+  /// ```
+  ///
+  /// - Parameters:
+  ///   - id: The unique identifier for this tool run
+  ///   - error: The resolution or decoding error that occurred
+  /// - Returns: A tool run in error state
   public static func error(
     id: String,
     error: TranscriptDecodingError.ToolRunResolution,
@@ -170,15 +381,32 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
 }
 
 public extension ToolRun {
-  /// Recoverable problem information returned when the tool output cannot be decoded into `Output`.
+  /// Structured information about recoverable problems during tool execution.
+  ///
+  /// `Problem` represents situations where a tool execution failed but returned
+  /// structured error information that can be returned to the agent for another attempt.
+  /// This typically occurs when a tool throws a `ToolRunProblem` and the adapter
+  /// forwards the error details back to the agent as structured content.
+  /// ```
   struct Problem: Sendable, Equatable, Hashable {
-    /// The human-readable reason describing the problem.
+    /// A human-readable description of what went wrong.
+    ///
+    /// This provides a clear, agent-friendly explanation of the problem
+    /// that occurred during tool execution.
     public let reason: String
 
-    /// The raw JSON string returned by the tool.
+    /// The raw JSON string containing the problem details.
+    ///
+    /// This contains the original structured data returned by the tool
+    /// when the problem occurred. You can use this to access the full
+    /// problem payload or reconstruct the original `GeneratedContent`.
     public let json: String
 
-    /// A flattened representation of the payload for quick inspection.
+    /// A flattened key-value representation of the problem details.
+    ///
+    /// This provides easy access to specific problem attributes without
+    /// needing to parse the JSON manually. Useful for displaying
+    /// structured error information in UI components.
     public let details: [String: String]
 
     package init(reason: String, json: String, details: [String: String]) {
@@ -187,7 +415,11 @@ public extension ToolRun {
       self.details = details
     }
 
-    /// Generates the original `GeneratedContent` value, when needed.
+    /// Reconstructs the original `GeneratedContent` from the problem JSON.
+    ///
+    /// This allows you to access the full structured content that was
+    /// returned when the problem occurred, useful for advanced error
+    /// handling or debugging scenarios.
     public var generatedContent: GeneratedContent? {
       try? GeneratedContent(json: json)
     }

@@ -75,6 +75,34 @@ public extension LanguageModelProvider {
     try streamResponse(to: prompt.formatted(), using: model, options: options)
   }
 
+  /// Generates a streaming text response using a prompt builder closure.
+  ///
+  /// This method provides real-time streaming of text generation from a prompt built inline
+  /// using the `@PromptBuilder` DSL. This approach allows you to construct complex prompts
+  /// dynamically while maintaining type safety and readability.
+  ///
+  /// ## Example
+  ///
+  /// ```swift
+  /// for try await snapshot in session.streamResponse {
+  ///   "You are a helpful assistant."
+  ///   PromptTag("user-input") { userMessage }
+  ///   "Please provide a detailed response."
+  /// } {
+  ///   print("Current content: \(snapshot.content)")
+  /// }
+  /// ```
+  ///
+  /// - Parameters:
+  ///   - model: The model to use for generation. Defaults to the adapter's default model.
+  ///   - options: Optional generation parameters (temperature, max tokens, etc.).
+  ///     Uses automatic options for the model if not specified.
+  ///   - prompt: A closure that builds the prompt using `@PromptBuilder` syntax. Must be `@Sendable`.
+  ///
+  /// - Returns: An `AsyncThrowingStream` of ``AgentSnapshot`` objects containing
+  ///   the current state of the response as it's being generated.
+  ///
+  /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
   func streamResponse(
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,

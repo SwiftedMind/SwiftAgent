@@ -5,6 +5,15 @@ import FoundationModels
 import Internal
 import OSLog
 
+/// Decodes raw transcript entries into your app's domain types.
+///
+/// This utility reads a ``Transcript`` and produces the `Provider.DecodedTranscript`
+/// by resolving tool runs, structured outputs, and groundings using the
+/// automatically generated `decodableTools` and `structuredOutputs` from your
+/// `@LanguageModelProvider` session.
+///
+/// - Note: You typically create this via `session.decoder()`; the macro wires
+///   up everything needed. You rarely construct it manually.
 public struct TranscriptDecoder<Provider: LanguageModelProvider> {
   /// The tool call type from the associated transcript.
   public typealias ToolCall = Transcript.ToolCall
@@ -15,16 +24,19 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
   /// The provider that is used to decode the transcript.
   private let provider: Provider
 
-  /// Creates a new tool decoder for the given tools and transcript.
+  /// Creates a new decoder for the given provider instance.
   ///
-  /// - Parameters:
-  ///   - tools: The tools that can be decoded, all sharing the same `Resolution` type
-  ///   - transcript: The conversation transcript containing tool calls and outputs
+  /// - Parameter provider: The session whose tools and structured outputs are used
+  ///   to resolve transcript entries.
   public init(for provider: Provider) {
     self.provider = provider
     toolsByName = Dictionary(uniqueKeysWithValues: provider.decodableTools.map { ($0.name, $0) })
   }
 
+  /// Decodes a full transcript into the provider's decoded representation.
+  ///
+  /// This walks the transcript in order and resolves prompts, responses,
+  /// tool calls and outputs, and structured segments.
   public func decode(_ transcript: Transcript) throws -> Provider.DecodedTranscript {
     var decodedTranscript = Provider.DecodedTranscript()
 
@@ -92,6 +104,12 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
     return decodedTranscript
   }
 
+  /// Decodes a single tool call (optionally with its raw output) into your app's type.
+  ///
+  /// - Parameters:
+  ///   - call: The tool call entry to resolve
+  ///   - rawOutput: The raw generated content produced by the tool, if found
+  /// - Returns: A decoded tool run. Unknown tools are mapped to `Provider.DecodedToolRun.makeUnknown`.
   public func decode(_ call: ToolCall, rawOutput: GeneratedContent?) -> Provider.DecodedToolRun {
     guard let tool = toolsByName[call.toolName] else {
       let error = TranscriptDecodingError.ToolRunResolution.unknownTool(name: call.toolName)
@@ -119,14 +137,10 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
     }
   }
 
-  /// Finds the tool output for a given tool call by searching forward from the current index.
-  /// Tool outputs typically appear shortly after their corresponding tool calls in the transcript.
+  /// Finds the matching tool output for a given call by scanning forward.
   ///
-  /// - Parameters:
-  ///   - call: The tool call to find output for
-  ///   - startIndex: The index to start searching from (typically the index after the tool call entry)
-  ///   - entries: The transcript entries to search through
-  /// - Returns: The generated content from the tool output, or nil if not found
+  /// Tool outputs usually appear immediately after their calls.
+  /// - Returns: The generated content from the tool output, or `nil` if not found.
   private func findOutput(
     for call: ToolCall,
     startingAt startIndex: Int,
@@ -151,6 +165,7 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
 
   // MARK: - Structured Outputs
 
+  /// Decodes a structured segment into the provider's `DecodedStructuredOutput` type.
   public func decode(
     _ structuredSegment: Transcript.StructuredSegment,
     status: Transcript.Status,
@@ -164,6 +179,7 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
     return decode(structuredSegment, status: status, with: structuredOutput)
   }
 
+  /// Decodes a structured segment using a specific decodable structured output type.
   private func decode<DecodableType: DecodableStructuredOutput>(
     _ structuredSegment: Transcript.StructuredSegment,
     status: Transcript.Status,
@@ -204,6 +220,7 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
 
   // MARK: Groundings
 
+  /// Decodes grounding data previously encoded via `LanguageModelProvider.encodeGrounding`.
   public func decodeGrounding(from data: Data) throws -> [Provider.DecodedGrounding] {
     try JSONDecoder().decode([Provider.DecodedGrounding].self, from: data)
   }

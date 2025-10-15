@@ -4,18 +4,18 @@ import Foundation
 import FoundationModels
 import Internal
 
-/// The response returned by LanguageModelProvider methods, containing generated content and metadata.
+/// The response returned by ``LanguageModelProvider`` methods, containing generated content and metadata.
 ///
 /// ``AgentResponse`` encapsulates the result of an AI generation request, providing access to
-/// the generated content, decoded transcript projection, and token usage statistics.
+/// the generated content, the transcript and token usage statistics.
 ///
 /// ## Properties
 ///
 /// - **content**: The generated content, which can be a `String` for text responses or any
 ///   `@Generable` type for structured responses.
-/// - **transcript**: The raw transcript entries that were created during this generation.
-/// - **decodedTranscript**: A projection of the transcript with tool runs fully decoded for the session.
-/// - **tokenUsage**: Aggregated token consumption across all internal steps (optional).
+/// - **transcript**: The transcript entries that were created during this generation, including the initial prompt.
+/// - **tokenUsage**: Aggregated token consumption across all internal steps, may be `nil` if the adapter doesn't
+/// provide token usage information.
 ///
 /// ## Example Usage
 ///
@@ -35,7 +35,7 @@ public struct AgentResponse<Content: Generable, Provider: LanguageModelProvider>
   /// The transcript of the generation.
   ///
   /// This includes all the entries that were added during the generation,
-  /// including reasoning steps, tool calls, and the final response.
+  /// including the initial prompt, reasoning steps, tool calls, and the final response.
   public var transcript: Transcript
 
   /// Token usage statistics aggregated across all internal generation steps.
