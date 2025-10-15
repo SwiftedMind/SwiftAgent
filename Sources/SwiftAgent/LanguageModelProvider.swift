@@ -237,9 +237,6 @@ package extension LanguageModelProvider {
         var generatedTranscript = Transcript(entries: [promptEntry])
         var generatedUsage: TokenUsage = .zero
 
-        // Track last emitted state
-        var lastEmittedKey: (Transcript, TokenUsage)? = nil
-
         let clock = ContinuousClock()
         let minimumStreamingSnapshotInterval: Duration = options?.minimumStreamingSnapshotInterval ?? .seconds(0.1)
         var nextEmitDeadline = clock.now

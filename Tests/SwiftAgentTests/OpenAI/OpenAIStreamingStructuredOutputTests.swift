@@ -96,10 +96,6 @@ struct OpenAIStreamingStructuredOutputTests {
   }
 
   private func validateGeneratedOutput(generatedOutputs: [WeatherForecast.Schema.PartiallyGenerated]) {
-    print(
-      "Generated outputs: \(generatedOutputs.map { "(\($0.temperatureCelsius, default: "nil"), \($0.condition, default: "nil"))" }.joined(separator: "\n"))",
-    )
-
     // Test the streaming progression
     #expect(generatedOutputs.count == 19)
 
