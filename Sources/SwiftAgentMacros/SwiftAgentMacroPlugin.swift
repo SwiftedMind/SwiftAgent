@@ -6,7 +6,6 @@ import SwiftSyntaxMacros
 @main
 struct SwiftAgentMacroPlugin: CompilerPlugin {
   let providingMacros: [Macro.Type] = [
-    LanguageModelProviderMacro.self,
-    LanguageModelProviderObservedMacro.self,
+    SessionSchemaMacro.self,
   ]
 }

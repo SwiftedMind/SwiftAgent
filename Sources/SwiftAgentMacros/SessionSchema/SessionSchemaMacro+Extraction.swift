@@ -5,34 +5,10 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-extension LanguageModelProviderMacro {
-  /// Reads the provider argument from the macro attribute, if one was supplied.
-  static func extractProvider(from attribute: AttributeSyntax) throws -> Provider {
-    guard let arguments = attribute.arguments?.as(LabeledExprListSyntax.self),
-          let providerArgument = arguments.first
-    else {
-      throw MacroError.missingProvider(node: Syntax(attribute)).asDiagnosticsError()
-    }
-
-    if let label = providerArgument.label, label.text != "for" {
-      throw MacroError.invalidProvider(node: Syntax(providerArgument)).asDiagnosticsError()
-    }
-    guard let memberAccess = providerArgument.expression.as(MemberAccessExprSyntax.self) else {
-      throw MacroError.invalidProvider(node: Syntax(providerArgument.expression)).asDiagnosticsError()
-    }
-
-    let providerName = memberAccess.declName.baseName.text
-
-    guard let provider = Provider(rawValue: providerName) else {
-      throw MacroError.invalidProvider(node: Syntax(memberAccess)).asDiagnosticsError()
-    }
-
-    return provider
-  }
-
+extension SessionSchemaMacro {
   /// Finds every `@Tool` property on the session declaration and records essential metadata.
-  static func extractToolProperties(from classDeclaration: ClassDeclSyntax) throws -> [ToolProperty] {
-    try classDeclaration.memberBlock.members.compactMap { member in
+  static func extractToolProperties(from structDeclaration: StructDeclSyntax) throws -> [ToolProperty] {
+    try structDeclaration.memberBlock.members.compactMap { member in
       guard let variableDecl = member.decl.as(VariableDeclSyntax.self) else {
         return nil
       }
@@ -56,6 +32,7 @@ extension LanguageModelProviderMacro {
       }
 
       let typeName: String
+
       if let typeAnnotation = binding.typeAnnotation {
         typeName = typeAnnotation.type.trimmedDescription
       } else if let initializer = binding.initializer {
@@ -77,8 +54,8 @@ extension LanguageModelProviderMacro {
   }
 
   /// Collects `@Grounding` declarations to drive `DecodedGrounding` synthesis.
-  static func extractGroundingProperties(from classDeclaration: ClassDeclSyntax) throws -> [GroundingProperty] {
-    try classDeclaration.memberBlock.members.compactMap { member in
+  static func extractGroundingProperties(from structDeclaration: StructDeclSyntax) throws -> [GroundingProperty] {
+    try structDeclaration.memberBlock.members.compactMap { member in
       guard let variableDecl = member.decl.as(VariableDeclSyntax.self) else {
         return nil
       }
@@ -105,13 +82,16 @@ extension LanguageModelProviderMacro {
   }
 
   /// Collects `@StructuredOutput` declarations to drive typed response synthesis.
-  static func extractStructuredOutputProperties(from classDeclaration: ClassDeclSyntax) throws
+  static func extractStructuredOutputProperties(from structDeclaration: StructDeclSyntax) throws
     -> [StructuredOutputProperty] {
-    try classDeclaration.memberBlock.members.compactMap { member in
+    try structDeclaration.memberBlock.members.compactMap { member in
       guard let variableDecl = member.decl.as(VariableDeclSyntax.self) else {
         return nil
       }
-      guard let structuredOutputAttribute = attribute(named: "StructuredOutput", in: variableDecl.attributes) else {
+      guard let structuredOutputAttribute = attribute(
+        named: "StructuredOutput",
+        in: variableDecl.attributes,
+      ) else {
         return nil
       }
       guard variableDecl.bindingSpecifier.tokenKind == .keyword(.var) else {

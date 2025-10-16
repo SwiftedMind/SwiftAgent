@@ -13,13 +13,9 @@ enum MacroError: CustomStringConvertible {
   case invalidPattern(node: Syntax)
   case missingTypeAnnotation(node: Syntax)
   case cannotInferType(node: Syntax)
-  case onlyApplicableToClass(node: Syntax)
-  case missingProvider(node: Syntax)
-  case invalidProvider(node: Syntax)
+  case onlyApplicableToStruct(node: Syntax)
   case missingGroundingType(node: Syntax)
   case invalidGroundingAttribute(node: Syntax)
-  case manualObservable(node: Syntax, typeName: String)
-  case observationIgnored(node: Syntax)
   case observedPropertyProvidesInitializer(node: Syntax)
   case missingObservedInitialValue(node: Syntax)
 
@@ -72,25 +68,9 @@ enum MacroError: CustomStringConvertible {
         message: MacroDiagnosticMessage(message: message, diagnosticID: messageID, severity: .error),
       )
 
-    case let .onlyApplicableToClass(node):
-      messageID = MessageID(domain: Self.domain, id: "only-applicable-to-class")
-      message = "@LanguageModelProvider can only be applied to a class"
-      return Diagnostic(
-        node: node,
-        message: MacroDiagnosticMessage(message: message, diagnosticID: messageID, severity: .error),
-      )
-
-    case let .missingProvider(node):
-      messageID = MessageID(domain: Self.domain, id: "missing-provider")
-      message = "@LanguageModelProvider requires a provider argument (e.g. .openAI)"
-      return Diagnostic(
-        node: node,
-        message: MacroDiagnosticMessage(message: message, diagnosticID: messageID, severity: .error),
-      )
-
-    case let .invalidProvider(node):
-      messageID = MessageID(domain: Self.domain, id: "invalid-provider")
-      message = "Invalid provider. Valid providers: .openAI"
+    case let .onlyApplicableToStruct(node):
+      messageID = MessageID(domain: Self.domain, id: "only-applicable-to-struct")
+      message = "@SessionSchema can only be applied to a struct"
       return Diagnostic(
         node: node,
         message: MacroDiagnosticMessage(message: message, diagnosticID: messageID, severity: .error),
@@ -107,22 +87,6 @@ enum MacroError: CustomStringConvertible {
     case let .invalidGroundingAttribute(node):
       messageID = MessageID(domain: Self.domain, id: "invalid-grounding-attribute")
       message = "Invalid @Grounding attribute configuration"
-      return Diagnostic(
-        node: node,
-        message: MacroDiagnosticMessage(message: message, diagnosticID: messageID, severity: .error),
-      )
-
-    case let .manualObservable(node, typeName):
-      messageID = MessageID(domain: Self.domain, id: "manual-observable")
-      message = "LanguageModelProvider already adds @Observable; remove it from \(typeName)"
-      return Diagnostic(
-        node: node,
-        message: MacroDiagnosticMessage(message: message, diagnosticID: messageID, severity: .error),
-      )
-
-    case let .observationIgnored(node):
-      messageID = MessageID(domain: Self.domain, id: "observation-ignored")
-      message = "@ObservationIgnored isn't supported here; LanguageModelProvider manages observation automatically"
       return Diagnostic(
         node: node,
         message: MacroDiagnosticMessage(message: message, diagnosticID: messageID, severity: .error),
@@ -154,7 +118,7 @@ enum MacroError: CustomStringConvertible {
     DiagnosticsError(diagnostics: [diagnostic])
   }
 
-  private static let domain = "LanguageModelProviderMacro"
+  private static let domain = "SessionSchemaMacro"
 }
 
 private struct MacroDiagnosticMessage: DiagnosticMessage {

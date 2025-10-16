@@ -2,38 +2,29 @@
 
 import Observation
 
-/// Synthesizes a complete `LanguageModelProvider` implementation, including tool wrappers and
-/// support infrastructure for interacting with Foundation Models.
+/// Synthesizes the helper types required by `LanguageModelSessionSchema`, including tool wrappers,
+/// decoding enums, and structured output registrations.
 ///
-/// Applying this macro to a class performs the following:
-/// - Generates the nested `@Tool` property wrapper used to mark stored tool properties.
-/// - Adds type aliases, storage, and initializers required by `LanguageModelProvider`.
-/// - Synthesizes `DecodedToolRun` and `StreamingToolRun` enums.
-/// - Emits decoder wrapper types (`Decodable<Name>Tool`) for each `@Tool` property.
+/// Applying this macro to a struct performs the following:
+/// - Exposes the nested `@Tool`, `@StructuredOutput`, and `@Grounding` property wrappers.
+/// - Generates the stored `decodableTools` collection used by the transcript decoder.
+/// - Synthesizes `DecodedGrounding`, `DecodedToolRun`, and `DecodedStructuredOutput` enums.
+/// - Emits `Decodable<Name>` helper types for tools and structured outputs.
 ///
 /// Example:
 /// ```swift
-/// @LanguageModelProvider(.openAI)
-/// final class MySession {
-///   @Tool var calculator: CalculatorTool
+/// @SessionSchema
+/// struct SessionSchema: LanguageModelSessionSchema {
+///   @Tool var calculator = CalculatorTool()
 ///   @Tool var weather = WeatherTool()
+///   @Grounding(Date.self) var currentDate
+///   @StructuredOutput(WeatherReport.self) var weatherReport
 /// }
 /// ```
-///
-/// Two convenience initializers are generated:
-/// 1. `init(calculator:weather:instructions:apiKey:)`
-/// 2. `init(calculator:weather:instructions:configuration:)`
-///
-/// Tool parameters are omitted automatically when the corresponding properties have default values.
 @attached(member, names: arbitrary)
-@attached(
-  extension,
-  conformances: LanguageModelProvider, Sendable, Observation.Observable, RawStructuredOutputSupport,
-  names: arbitrary
-)
-public macro LanguageModelProvider(_ provider: Provider) = #externalMacro(
+public macro SessionSchema() = #externalMacro(
   module: "SwiftAgentMacros",
-  type: "LanguageModelProviderMacro",
+  type: "SessionSchemaMacro",
 )
 
 /// Marks a property synthesized by `@LanguageModelProvider` as observable and inserts the associated storage.
@@ -43,8 +34,3 @@ public macro _LanguageModelProviderObserved(initialValue: Any) = #externalMacro(
   module: "SwiftAgentMacros",
   type: "LanguageModelProviderObservedMacro",
 )
-
-/// Provider types supported by `@LanguageModelProvider`.
-public enum Provider {
-  case openAI
-}

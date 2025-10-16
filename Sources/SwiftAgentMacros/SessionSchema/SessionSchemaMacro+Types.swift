@@ -5,38 +5,21 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-extension LanguageModelProviderMacro {
-  /// Provider type enumeration for different AI providers
-  enum Provider: String {
-    case openAI
-
-    var adapterTypeName: String {
-      switch self {
-      case .openAI: "OpenAIAdapter"
-      }
-    }
-
-    var configurationTypeName: String {
-      switch self {
-      case .openAI: "OpenAIConfiguration"
-      }
-    }
-  }
-
-  /// Captures information about a `@Tool` property declared on the session type.
+extension SessionSchemaMacro {
+  /// Captures information about a `@Tool` property declared on the session schema.
   struct ToolProperty {
     let identifier: TokenSyntax
     let typeName: String
     let hasInitializer: Bool
   }
 
-  /// Captures information about a `@Grounding` property declared on the session type.
+  /// Captures information about a `@Grounding` property declared on the session schema.
   struct GroundingProperty {
     let identifier: TokenSyntax
     let typeName: String
   }
 
-  /// Captures information about a `@StructuredOutput` property declared on the session type.
+  /// Captures information about a `@StructuredOutput` property declared on the session schema.
   struct StructuredOutputProperty {
     let identifier: TokenSyntax
     let typeName: String
