@@ -14,7 +14,8 @@ struct ExampleApp: App {
 
   var body: some Scene {
     WindowGroup {
-      AgentPlaygroundView()
+      Text("Hello, World!")
+      // AgentPlaygroundView()
     }
   }
 }

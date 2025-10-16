@@ -101,55 +101,11 @@ public struct LanguageModelProviderMacro: MemberMacro, ExtensionMacro {
 
     members.append(
       """
-      /// Exposes generation APIs for a specific `StructuredOutput`.
-      ///
-      /// Use on a `@LanguageModelProvider` session to generate typed values.
-      ///
-      /// ## Example
-      ///
-      /// ```swift
-      /// struct Greeting: SwiftAgent.StructuredOutput {
-      ///   static let name = "greeting"
-      ///   @Generable
-      ///   struct Schema {
-      ///     let message: String
-      ///   }
-      /// }
-      ///
-      /// @LanguageModelProvider(.openAI)
-      /// final class Session {
-      ///   @StructuredOutput(Greeting.self) var greeting
-      /// }
-      /// 
-      /// // try await session.greeting.generate(from: "Say hi")
-      /// ```
       @propertyWrapper
       struct StructuredOutput<Output: SwiftAgent.StructuredOutput> {
-        typealias Generating<EnclosingSelf: LanguageModelProvider> = GeneratingLanguageModelProvider<EnclosingSelf, Output>
-        private var output: Output.Type
-
+        var wrappedValue: Output.Type
         init(_ wrappedValue: Output.Type) {
-          output = wrappedValue
-        }
-
-        static subscript<EnclosingSelf>(
-          _enclosingInstance observed: EnclosingSelf,
-          wrapped wrappedKeyPath: ReferenceWritableKeyPath<EnclosingSelf, Generating<EnclosingSelf>>,
-          storage storageKeyPath: ReferenceWritableKeyPath<EnclosingSelf, StructuredOutput<Output>>
-        ) -> Generating<EnclosingSelf> where EnclosingSelf: LanguageModelProvider {
-          get {
-            let wrapper = observed[keyPath: storageKeyPath]
-            return Generating(provider: observed, output: wrapper.output)
-          }
-          set {
-            // Intentionally ignore external assignments to the wrapped value
-          }
-        }
-
-        @available(*, unavailable, message: "This property wrapper can only be applied to classes")
-        var wrappedValue: Generating<ProviderType> {
-          get { fatalError() }
-          set { fatalError() }
+          self.wrappedValue = wrappedValue
         }
       }
       """,

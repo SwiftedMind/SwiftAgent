@@ -35,39 +35,22 @@ import Internal
 public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
   /// The transcript type for this session, containing the conversation history.
   typealias Transcript = SwiftAgent.Transcript
-  typealias DecodedTranscript = Transcript.Decoded<Self>
   typealias Response<Content: Generable> = AgentResponse<Content, Self>
   typealias Snapshot<Content: Generable> = AgentSnapshot<Content, Self>
 
   /// The concrete adapter used to talk to a model provider (e.g. OpenAI).
   associatedtype Adapter: SwiftAgent.Adapter & SendableMetatype
-
-  /// Your app's type that represents a resolved grounding item emitted by decoding.
-  associatedtype DecodedGrounding: SwiftAgent.DecodedGrounding
-
-  /// Your app's type that represents a decoded tool run.
-  associatedtype DecodedToolRun: SwiftAgent.DecodedToolRun
-
-  /// Your app's type that represents a decoded structured output.
-  associatedtype DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput
-
-  /// The set of structured outputs supported by this provider.
-  ///
-  /// - Note: Populated automatically by the macro from your `@StructuredOutput` properties.
-  nonisolated static var structuredOutputs: [any (SwiftAgent.DecodableStructuredOutput<Self>).Type] { get }
+  associatedtype SessionSchema: LanguageModelSessionSchema = SwiftAgent.NoSchema
 
   /// The tools available to the agent.
   ///
   /// - Note: Populated automatically by the macro from your `@Tool` properties.
   nonisolated var tools: [any SwiftAgentTool] { get }
 
-  /// Internal decodable wrappers used by the transcript decoder.
-  ///
-  /// - Note: Populated automatically by the macro; you do not create these yourself.
-  nonisolated var decodableTools: [any DecodableTool<Self>] { get }
-
   /// The configured adapter instance for this session.
   var adapter: Adapter { get }
+
+  var schema: SessionSchema { get }
 
   /// The observable conversation transcript.
   @MainActor var transcript: Transcript { get set }
@@ -77,9 +60,6 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
 
   /// Resets the cumulative token usage counter to zero.
   @MainActor func resetTokenUsage()
-
-  /// Returns a decoder that can translate raw transcript entries into your app's decoded types.
-  nonisolated func decoder() -> TranscriptDecoder<Self>
 
   @discardableResult
   nonisolated func withAuthorization<T>(
@@ -114,12 +94,6 @@ public protocol DecodedToolRun: Identifiable, Equatable, Sendable where ID == St
 }
 
 // MARK: - Default Implementations
-
-package extension LanguageModelProvider {
-  nonisolated func encodeGrounding(_ grounding: [DecodedGrounding]) throws -> Data {
-    try JSONEncoder().encode(grounding)
-  }
-}
 
 package extension LanguageModelProvider {
   // MARK: - Private Response Helpers
@@ -452,12 +426,4 @@ public extension LanguageModelProvider {
   @MainActor func resetTokenUsage() {
     tokenUsage = TokenUsage()
   }
-
-  nonisolated func decoder() -> TranscriptDecoder<Self> {
-    TranscriptDecoder(for: self)
-  }
-}
-
-public struct NoTools {
-  public init() {}
 }

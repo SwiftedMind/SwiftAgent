@@ -9,11 +9,11 @@ import Internal
 /// - Note: You do not conform to this directly in typical apps. The
 ///   `@LanguageModelProvider` macro synthesizes these wrappers from your
 ///   `@Tool` properties so that tool calls in a transcript can be resolved.
-public protocol DecodableTool<Provider>: SwiftAgentTool where BaseTool.Arguments: Generable,
+public protocol DecodableTool<DecodedToolRun>: SwiftAgentTool where BaseTool.Arguments: Generable,
   BaseTool.Output: Generable {
   associatedtype BaseTool: FoundationModels.Tool
-  associatedtype Provider: LanguageModelProvider
-  func decode(_ run: ToolRun<BaseTool>) -> Provider.DecodedToolRun
+  associatedtype DecodedToolRun: SwiftAgent.DecodedToolRun
+  func decode(_ run: ToolRun<BaseTool>) -> DecodedToolRun
 }
 
 package extension DecodableTool {
@@ -22,7 +22,7 @@ package extension DecodableTool {
     id: String,
     rawArguments: GeneratedContent,
     rawOutput: GeneratedContent?,
-  ) throws -> Provider.DecodedToolRun {
+  ) throws -> DecodedToolRun {
     let arguments = try BaseTool.Arguments(rawArguments)
     let toolRun = try toolRun(
       id: id,
@@ -38,7 +38,7 @@ package extension DecodableTool {
     id: String,
     rawArguments: GeneratedContent,
     rawOutput: GeneratedContent?,
-  ) throws -> Provider.DecodedToolRun {
+  ) throws -> DecodedToolRun {
     let arguments = try BaseTool.Arguments.PartiallyGenerated(rawArguments)
     let toolRun = try toolRun(
       id: id,
@@ -55,7 +55,7 @@ package extension DecodableTool {
     error: TranscriptDecodingError.ToolRunResolution,
     rawArguments: GeneratedContent,
     rawOutput: GeneratedContent?,
-  ) throws -> Provider.DecodedToolRun {
+  ) throws -> DecodedToolRun {
     let toolRun = ToolRun<BaseTool>(
       id: id,
       error: error,

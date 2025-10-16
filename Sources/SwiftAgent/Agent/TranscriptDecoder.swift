@@ -14,21 +14,21 @@ import OSLog
 ///
 /// - Note: You typically create this via `session.decoder()`; the macro wires
 ///   up everything needed. You rarely construct it manually.
-public struct TranscriptDecoder<Provider: LanguageModelProvider> {
+public struct TranscriptDecoder<SessionSchema: LanguageModelSessionSchema> {
   /// The tool call type from the associated transcript.
   public typealias ToolCall = Transcript.ToolCall
 
   /// Dictionary mapping tool names to their implementations for fast lookup.
-  private let toolsByName: [String: any DecodableTool<Provider>]
+  private let toolsByName: [String: any DecodableTool<SessionSchema.DecodedToolRun>]
 
   /// The provider that is used to decode the transcript.
-  private let provider: Provider
+  private let provider: SessionSchema
 
   /// Creates a new decoder for the given provider instance.
   ///
   /// - Parameter provider: The session whose tools and structured outputs are used
   ///   to resolve transcript entries.
-  public init(for provider: Provider) {
+  public init(for provider: SessionSchema) {
     self.provider = provider
     toolsByName = Dictionary(uniqueKeysWithValues: provider.decodableTools.map { ($0.name, $0) })
   }
@@ -37,13 +37,13 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
   ///
   /// This walks the transcript in order and resolves prompts, responses,
   /// tool calls and outputs, and structured segments.
-  public func decode(_ transcript: Transcript) throws -> Provider.DecodedTranscript {
-    var decodedTranscript = Provider.DecodedTranscript()
+  public func decode(_ transcript: Transcript) throws -> SessionSchema.DecodedTranscript {
+    var decodedTranscript = SessionSchema.DecodedTranscript()
 
     for (index, entry) in transcript.entries.enumerated() {
       switch entry {
       case let .prompt(prompt):
-        var decodedSources: [Provider.DecodedGrounding] = []
+        var decodedSources: [SessionSchema.DecodedGrounding] = []
         var errorContext: TranscriptDecodingError.PromptResolution?
 
         do {
@@ -52,7 +52,7 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
           errorContext = .groundingDecodingFailed(description: error.localizedDescription)
         }
 
-        decodedTranscript.append(.prompt(Provider.DecodedTranscript.Prompt(
+        decodedTranscript.append(.prompt(SessionSchema.DecodedTranscript.Prompt(
           id: prompt.id,
           input: prompt.input,
           sources: decodedSources,
@@ -60,23 +60,23 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
           error: errorContext,
         )))
       case let .reasoning(reasoning):
-        decodedTranscript.append(.reasoning(Provider.DecodedTranscript.Reasoning(
+        decodedTranscript.append(.reasoning(SessionSchema.DecodedTranscript.Reasoning(
           id: reasoning.id,
           summary: reasoning.summary,
         )))
       case let .response(response):
-        var segments: [Provider.DecodedTranscript.Segment] = []
+        var segments: [SessionSchema.DecodedTranscript.Segment] = []
 
         for segment in response.segments {
           switch segment {
           case let .text(text):
-            segments.append(.text(Provider.DecodedTranscript.TextSegment(
+            segments.append(.text(SessionSchema.DecodedTranscript.TextSegment(
               id: text.id,
               content: text.content,
             )))
           case let .structure(structure):
             let content = decode(structure, status: response.status)
-            segments.append(.structure(Provider.DecodedTranscript.StructuredSegment(
+            segments.append(.structure(SessionSchema.DecodedTranscript.StructuredSegment(
               id: structure.id,
               typeName: structure.typeName,
               content: content,
@@ -84,7 +84,7 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
           }
         }
 
-        decodedTranscript.append(.response(Provider.DecodedTranscript.Response(
+        decodedTranscript.append(.response(SessionSchema.DecodedTranscript.Response(
           id: response.id,
           segments: segments,
           status: response.status,
@@ -110,11 +110,11 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
   ///   - call: The tool call entry to resolve
   ///   - rawOutput: The raw generated content produced by the tool, if found
   /// - Returns: A decoded tool run. Unknown tools are mapped to `Provider.DecodedToolRun.makeUnknown`.
-  public func decode(_ call: ToolCall, rawOutput: GeneratedContent?) -> Provider.DecodedToolRun {
+  public func decode(_ call: ToolCall, rawOutput: GeneratedContent?) -> SessionSchema.DecodedToolRun {
     guard let tool = toolsByName[call.toolName] else {
       let error = TranscriptDecodingError.ToolRunResolution.unknownTool(name: call.toolName)
       AgentLog.error(error, context: "Tool resolution failed")
-      return Provider.DecodedToolRun.makeUnknown(toolCall: call)
+      return SessionSchema.DecodedToolRun.makeUnknown(toolCall: call)
     }
 
     do {
@@ -133,7 +133,7 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
       }
     } catch {
       AgentLog.error(error, context: "Tool resolution for '\(call.toolName)'")
-      return Provider.DecodedToolRun.makeUnknown(toolCall: call)
+      return SessionSchema.DecodedToolRun.makeUnknown(toolCall: call)
     }
   }
 
@@ -169,11 +169,11 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
   public func decode(
     _ structuredSegment: Transcript.StructuredSegment,
     status: Transcript.Status,
-  ) -> Provider.DecodedStructuredOutput {
-    let structuredOutputs = Provider.structuredOutputs
+  ) -> SessionSchema.DecodedStructuredOutput {
+    let structuredOutputs = SessionSchema.structuredOutputs()
 
     guard let structuredOutput = structuredOutputs.first(where: { $0.name == structuredSegment.typeName }) else {
-      return Provider.DecodedStructuredOutput.makeUnknown(segment: structuredSegment)
+      return SessionSchema.DecodedStructuredOutput.makeUnknown(segment: structuredSegment)
     }
 
     return decode(structuredSegment, status: status, with: structuredOutput)
@@ -184,7 +184,8 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
     _ structuredSegment: Transcript.StructuredSegment,
     status: Transcript.Status,
     with resolvableType: DecodableType.Type,
-  ) -> Provider.DecodedStructuredOutput where DecodableType.Provider == Provider {
+  ) -> SessionSchema.DecodedStructuredOutput
+    where DecodableType.DecodedStructuredOutput == SessionSchema.DecodedStructuredOutput {
     var content: StructuredOutputUpdate<DecodableType.Base>.Content?
     var structuredOutput: StructuredOutputUpdate<DecodableType.Base>
 
@@ -221,7 +222,7 @@ public struct TranscriptDecoder<Provider: LanguageModelProvider> {
   // MARK: Groundings
 
   /// Decodes grounding data previously encoded via `LanguageModelProvider.encodeGrounding`.
-  public func decodeGrounding(from data: Data) throws -> [Provider.DecodedGrounding] {
-    try JSONDecoder().decode([Provider.DecodedGrounding].self, from: data)
+  public func decodeGrounding(from data: Data) throws -> [SessionSchema.DecodedGrounding] {
+    try JSONDecoder().decode([SessionSchema.DecodedGrounding].self, from: data)
   }
 }

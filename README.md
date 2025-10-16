@@ -71,9 +71,12 @@ import OpenAISession
 ```swift
 import OpenAISession
 
-// Create an OpenAI session
-let session = LanguageModelProvider.openAI(
-  tools: [WeatherTool(), CalculatorTool()],
+// Define your session
+@LanguageModelProvider(.openAI)
+final class OpenAISession {}
+
+// Create a new instance of that session
+let session = OpenAISession(
   instructions: "You are a helpful assistant.",
   apiKey: "sk-...",
 )
@@ -92,7 +95,7 @@ print(response.content)
 ```swift
 // Using custom configuration
 let configuration = OpenAIConfiguration.direct(apiKey: "your-api-key")
-let session = LanguageModelProvider.openAI(tools: tools, instructions: "...", configuration: configuration)
+let session = OpenAISession(instructions: "...", configuration: configuration)
 ```
 
 ## 🛠️ Building Tools
@@ -100,7 +103,7 @@ let session = LanguageModelProvider.openAI(tools: tools, instructions: "...", co
 Create tools using Apple's `@Generable` macro for type-safe, schema-free tool definitions:
 
 ```swift
-struct WeatherTool: SwiftAgentTool {
+struct WeatherTool: Tool {
   let name = "get_weather"
   let description = "Get current weather for a location"
   
@@ -140,7 +143,7 @@ SwiftAgent always wraps your payload in a standardized envelope that includes `e
 For quick cases, attach string-keyed details with the convenience initializer:
 
 ```swift
-struct CustomerLookupTool: SwiftAgentTool {
+struct CustomerLookupTool: Tool {
   func call(arguments: Arguments) async throws -> Output {
     guard let customer = try await directory.loadCustomer(id: arguments.customerId) else {
       throw ToolRunProblem(

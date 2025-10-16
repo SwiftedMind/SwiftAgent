@@ -34,7 +34,7 @@ public extension LanguageModelProvider {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) async throws -> Response<String> {
-    let sourcesData = try encodeGrounding([DecodedGrounding]())
+    let sourcesData = try schema.encodeGrounding([SessionSchema.DecodedGrounding]())
 
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     return try await processResponse(
@@ -153,7 +153,7 @@ public extension LanguageModelProvider {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
   ) async throws -> Response<Content> where Content: Generable, Self: RawStructuredOutputSupport {
-    let sourcesData = try encodeGrounding([DecodedGrounding]())
+    let sourcesData = try schema.encodeGrounding([SessionSchema.DecodedGrounding]())
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     return try await processResponse(from: prompt, generating: type, using: model, options: options)
   }
@@ -286,11 +286,12 @@ public extension LanguageModelProvider {
   func respond(
     to input: String,
     using model: Adapter.Model = .default,
-    groundingWith sources: [DecodedGrounding],
+    groundingWith sources: [SessionSchema.DecodedGrounding],
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [DecodedGrounding]) -> Prompt,
+    @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [SessionSchema.DecodedGrounding])
+      -> Prompt,
   ) async throws -> Response<String> {
-    let sourcesData = try encodeGrounding(sources)
+    let sourcesData = try schema.encodeGrounding(sources)
 
     let prompt = Transcript.Prompt(
       input: input,
@@ -346,11 +347,12 @@ public extension LanguageModelProvider {
     to input: String,
     generating type: (some StructuredOutput<Content>).Type,
     using model: Adapter.Model = .default,
-    groundingWith sources: [DecodedGrounding],
+    groundingWith sources: [SessionSchema.DecodedGrounding],
     options: Adapter.GenerationOptions? = nil,
-    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [DecodedGrounding]) -> Prompt,
+    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [SessionSchema.DecodedGrounding])
+      -> Prompt,
   ) async throws -> Response<Content> where Content: Generable, Self: RawStructuredOutputSupport {
-    let sourcesData = try encodeGrounding(sources)
+    let sourcesData = try schema.encodeGrounding(sources)
 
     let prompt = Transcript.Prompt(
       input: input,

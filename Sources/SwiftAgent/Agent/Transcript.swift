@@ -34,10 +34,10 @@ public struct Transcript: Sendable, Equatable {
   /// - Parameters:
   ///   - session: The session to use to decode the transcript.
   /// - Returns: The decoded transcript.
-  public func decoded<Provider: LanguageModelProvider>(
-    in session: Provider,
-  ) throws -> Provider.DecodedTranscript {
-    let decoder = session.decoder()
+  public func decoded<SessionSchema: LanguageModelSessionSchema>(
+    using schema: SessionSchema,
+  ) throws -> SessionSchema.DecodedTranscript {
+    let decoder = TranscriptDecoder(for: schema)
     return try decoder.decode(self)
   }
 

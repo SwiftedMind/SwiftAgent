@@ -31,15 +31,15 @@ import Internal
 /// `@StructuredOutput` properties on a `@LanguageModelProvider` session, the macro
 /// generates a concrete type conforming to `DecodableStructuredOutput` that knows how to
 /// decode your output from transcript updates.
-public protocol DecodableStructuredOutput<Provider>: Sendable, Equatable {
+public protocol DecodableStructuredOutput<DecodedStructuredOutput>: Sendable, Equatable {
   /// The user‑declared output type that defines the `Schema` to generate.
   associatedtype Base: StructuredOutput
   /// The provider for which decoding is performed.
-  associatedtype Provider: LanguageModelProvider
+  associatedtype DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput
   /// Stable name under which segments for this output are recorded in transcripts.
   static var name: String { get }
   /// Decode a structured update into the provider's concrete decoded output type.
-  static func decode(_ structuredOutput: StructuredOutputUpdate<Base>) -> Provider.DecodedStructuredOutput
+  static func decode(_ structuredOutput: StructuredOutputUpdate<Base>) -> DecodedStructuredOutput
 }
 
 public extension DecodableStructuredOutput {

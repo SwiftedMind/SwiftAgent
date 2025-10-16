@@ -4,7 +4,7 @@ import Foundation
 import FoundationModels
 
 public extension Transcript {
-  struct Decoded<Provider: LanguageModelProvider>: Equatable, Sendable {
+  struct Decoded<SessionSchema: LanguageModelSessionSchema>: Equatable, Sendable {
     /// All transcript entries with decoded tool runs attached where available.
     public package(set) var entries: [Entry]
 
@@ -16,7 +16,7 @@ public extension Transcript {
     public enum Entry: Identifiable, Equatable, Sendable {
       case prompt(Prompt)
       case reasoning(Reasoning)
-      case toolRun(Provider.DecodedToolRun)
+      case toolRun(SessionSchema.DecodedToolRun)
       case response(Response)
 
       public var id: String {
@@ -36,14 +36,14 @@ public extension Transcript {
     public struct Prompt: Identifiable, Sendable, Equatable {
       public var id: String
       public var input: String
-      public var sources: [Provider.DecodedGrounding]
+      public var sources: [SessionSchema.DecodedGrounding]
       public let error: TranscriptDecodingError.PromptResolution?
       public var prompt: String
 
       public init(
         id: String,
         input: String,
-        sources: [Provider.DecodedGrounding],
+        sources: [SessionSchema.DecodedGrounding],
         prompt: String,
         error: TranscriptDecodingError.PromptResolution? = nil,
       ) {
@@ -148,9 +148,9 @@ public extension Transcript {
     public struct StructuredSegment: Sendable, Identifiable, Equatable {
       public var id: String
       public var typeName: String
-      public var content: Provider.DecodedStructuredOutput
+      public var content: SessionSchema.DecodedStructuredOutput
 
-      public init(id: String, typeName: String = "", content: Provider.DecodedStructuredOutput) {
+      public init(id: String, typeName: String = "", content: SessionSchema.DecodedStructuredOutput) {
         self.id = id
         self.typeName = typeName
         self.content = content

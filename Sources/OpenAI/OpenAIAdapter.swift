@@ -12,7 +12,7 @@ public actor OpenAIAdapter: Adapter {
   public typealias Transcript = SwiftAgent.Transcript
   public typealias ConfigurationError = OpenAIGenerationOptionsError
 
-  package let tools: [any SwiftAgentTool]
+  public nonisolated let tools: [any SwiftAgentTool]
   package let instructions: String
   package let httpClient: HTTPClient
   package let responsesPath: String = "/v1/responses"
