@@ -5,8 +5,6 @@ import FoundationModels
 import Observation
 import OpenAISession
 
-// TODO: Fix unit tests
-
 func something() async throws {
   let schema = OtherSessionSchema()
   let session = OpenAISession(schema: schema, instructions: "", apiKey: "")

@@ -27,37 +27,37 @@ struct SessionSchemaMacroTests {
         @Grounding(Date.self) var currentDate
         @StructuredOutput(WeatherReport.self) var weatherReport
 
-        nonisolated let decodableTools: [any DecodableTool<DecodedToolRun>]
+        internal nonisolated let decodableTools: [any DecodableTool<DecodedToolRun>]
 
-        struct StructuredOutputs {
+        internal struct StructuredOutputs: @unchecked Sendable {
           let weatherReport = WeatherReport.self
         }
 
-        static func structuredOutputs() -> [any (SwiftAgent.DecodableStructuredOutput<DecodedStructuredOutput>).Type] {
+        internal static func structuredOutputs() -> [any (SwiftAgent.DecodableStructuredOutput<DecodedStructuredOutput>).Type] {
           [
               DecodableWeatherReport.self
           ]
         }
 
-        init() {
+        internal init() {
           decodableTools = [
             DecodableCalculatorTool(baseTool: _calculator.wrappedValue),
             DecodableWeatherTool(baseTool: _weather.wrappedValue)
           ]
         }
 
-        enum DecodedGrounding: SwiftAgent.DecodedGrounding {
+        internal enum DecodedGrounding: SwiftAgent.DecodedGrounding, @unchecked Sendable {
           case currentDate(Date)
         }
 
-        enum DecodedToolRun: SwiftAgent.DecodedToolRun {
+        internal enum DecodedToolRun: SwiftAgent.DecodedToolRun, @unchecked Sendable {
           case calculator(ToolRun<CalculatorTool>)
           case weather(ToolRun<WeatherTool>)
           case unknown(toolCall: SwiftAgent.Transcript.ToolCall)
-          static func makeUnknown(toolCall: SwiftAgent.Transcript.ToolCall) -> Self {
+          internal static func makeUnknown(toolCall: SwiftAgent.Transcript.ToolCall) -> Self {
             .unknown(toolCall: toolCall)
           }
-          var id: String {
+          internal var id: String {
             switch self {
             case let .calculator(run):
               run.id
@@ -69,11 +69,11 @@ struct SessionSchemaMacroTests {
           }
         }
 
-        enum DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput {
+        internal enum DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput, @unchecked Sendable {
           case weatherReport(SwiftAgent.StructuredOutputUpdate<WeatherReport>)
           case unknown(SwiftAgent.Transcript.StructuredSegment)
 
-          static func makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {
+          internal static func makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {
             .unknown(segment)
           }
         }
@@ -146,7 +146,7 @@ struct SessionSchemaMacroTests {
           }
         }
 
-        private struct DecodableWeatherReport: SwiftAgent.DecodableStructuredOutput {
+        private struct DecodableWeatherReport: SwiftAgent.DecodableStructuredOutput, @unchecked Sendable {
           typealias Base = WeatherReport
 
           static func decode(
@@ -158,7 +158,7 @@ struct SessionSchemaMacroTests {
 
         @propertyWrapper
         struct Tool<ToolType: FoundationModels.Tool>
-        where ToolType.Arguments: Generable & Sendable, ToolType.Output: Generable & Sendable {
+        where ToolType.Arguments: Generable, ToolType.Output: Generable {
           var wrappedValue: ToolType
           init(wrappedValue: ToolType) {
             self.wrappedValue = wrappedValue
@@ -205,16 +205,16 @@ struct SessionSchemaMacroTests {
       struct SessionSchema {
         @Tool var calculator: CalculatorTool
 
-        nonisolated let decodableTools: [any DecodableTool<DecodedToolRun>]
+        internal nonisolated let decodableTools: [any DecodableTool<DecodedToolRun>]
 
-        struct StructuredOutputs {
+        internal struct StructuredOutputs: @unchecked Sendable {
         }
 
-        static func structuredOutputs() -> [any (SwiftAgent.DecodableStructuredOutput<DecodedStructuredOutput>).Type] {
+        internal static func structuredOutputs() -> [any (SwiftAgent.DecodableStructuredOutput<DecodedStructuredOutput>).Type] {
           []
         }
 
-        init(
+        internal init(
           calculator: CalculatorTool
         ) {
           _calculator = Tool(wrappedValue: calculator)
@@ -224,16 +224,16 @@ struct SessionSchemaMacroTests {
           ]
         }
 
-        struct DecodedGrounding: SwiftAgent.DecodedGrounding {
+        internal struct DecodedGrounding: SwiftAgent.DecodedGrounding, @unchecked Sendable {
         }
 
-        enum DecodedToolRun: SwiftAgent.DecodedToolRun {
+        internal enum DecodedToolRun: SwiftAgent.DecodedToolRun, @unchecked Sendable {
           case calculator(ToolRun<CalculatorTool>)
           case unknown(toolCall: SwiftAgent.Transcript.ToolCall)
-          static func makeUnknown(toolCall: SwiftAgent.Transcript.ToolCall) -> Self {
+          internal static func makeUnknown(toolCall: SwiftAgent.Transcript.ToolCall) -> Self {
             .unknown(toolCall: toolCall)
           }
-          var id: String {
+          internal var id: String {
             switch self {
             case let .calculator(run):
               run.id
@@ -243,10 +243,10 @@ struct SessionSchemaMacroTests {
           }
         }
 
-        enum DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput {
+        internal enum DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput, @unchecked Sendable {
           case unknown(SwiftAgent.Transcript.StructuredSegment)
 
-          static func makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {
+          internal static func makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {
             .unknown(segment)
           }
         }
@@ -287,7 +287,7 @@ struct SessionSchemaMacroTests {
 
         @propertyWrapper
         struct Tool<ToolType: FoundationModels.Tool>
-        where ToolType.Arguments: Generable & Sendable, ToolType.Output: Generable & Sendable {
+        where ToolType.Arguments: Generable, ToolType.Output: Generable {
           var wrappedValue: ToolType
           init(wrappedValue: ToolType) {
             self.wrappedValue = wrappedValue
