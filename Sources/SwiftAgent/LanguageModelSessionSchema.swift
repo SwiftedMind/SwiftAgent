@@ -4,6 +4,8 @@ import Foundation
 import FoundationModels
 import Internal
 
+public protocol GroundingSupportingSchema {}
+
 public protocol LanguageModelSessionSchema {
   /// Your app's type that represents a resolved grounding item emitted by decoding.
   associatedtype DecodedGrounding: SwiftAgent.DecodedGrounding
@@ -13,6 +15,8 @@ public protocol LanguageModelSessionSchema {
 
   /// Your app's type that represents a decoded structured output.
   associatedtype DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput
+
+  associatedtype StructuredOutputs
 
   typealias DecodedTranscript = Transcript.Decoded<Self>
 
@@ -38,6 +42,8 @@ public struct NoSchema: LanguageModelSessionSchema {
   }
 
   public init() {}
+
+  public struct StructuredOutputs {}
 
   public struct DecodedGrounding: SwiftAgent.DecodedGrounding {}
   public struct DecodedToolRun: SwiftAgent.DecodedToolRun {

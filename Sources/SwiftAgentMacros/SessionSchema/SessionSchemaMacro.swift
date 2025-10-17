@@ -26,10 +26,11 @@ public struct SessionSchemaMacro: MemberMacro {
 
     members.append(
       """
-      let decodableTools: [any DecodableTool<DecodedToolRun>]
+      nonisolated let decodableTools: [any DecodableTool<DecodedToolRun>]
       """,
     )
 
+    members.append(generateStructuredOutputsType(for: structuredOutputProperties))
     members.append(generateStructuredOutputsFunction(for: structuredOutputProperties))
     members.append(contentsOf: generateInitializers(for: toolProperties))
 

@@ -170,6 +170,30 @@ extension SessionSchemaMacro {
 
   // MARK: - Structured Output
 
+  static func generateStructuredOutputsType(
+    for outputs: [StructuredOutputProperty],
+  ) -> DeclSyntax {
+    guard !outputs.isEmpty else {
+      return
+        """
+        struct StructuredOutputs {}
+        """
+    }
+
+    let properties = outputs
+      .map { output in
+        "  let \(output.identifier.text) = \(output.typeName).self"
+      }
+      .joined(separator: "\n")
+
+    return
+      """
+      struct StructuredOutputs {
+      \(raw: properties)
+      }
+      """
+  }
+
   static func generateStructuredOutputsFunction(for outputs: [StructuredOutputProperty]) -> DeclSyntax {
     guard !outputs.isEmpty else {
       return

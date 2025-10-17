@@ -147,15 +147,32 @@ public extension LanguageModelProvider {
   ///
   /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
   @discardableResult
-  func respond<Content>(
+  func respond<StructuredOutput: SwiftAgent.StructuredOutput>(
     to prompt: String,
-    generating type: (some StructuredOutput<Content>).Type,
+    generating type: StructuredOutput.Type,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) async throws -> Response<Content> where Content: Generable, Self: RawStructuredOutputSupport {
+  ) async throws -> Response<StructuredOutput.Schema> {
     let sourcesData = try schema.encodeGrounding([SessionSchema.DecodedGrounding]())
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     return try await processResponse(from: prompt, generating: type, using: model, options: options)
+  }
+
+  @discardableResult
+  func respond<StructuredOutput: SwiftAgent.StructuredOutput>(
+    to prompt: String,
+    generating type: KeyPath<SessionSchema.StructuredOutputs, StructuredOutput.Type>,
+    using model: Adapter.Model = .default,
+    options: Adapter.GenerationOptions? = nil,
+  ) async throws -> Response<StructuredOutput.Schema> {
+    let sourcesData = try schema.encodeGrounding([SessionSchema.DecodedGrounding]())
+    let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
+    return try await processResponse(
+      from: prompt,
+      generating: StructuredOutput.self,
+      using: model,
+      options: options,
+    )
   }
 
   /// Generates a structured response of the specified type from a structured prompt.
@@ -188,15 +205,30 @@ public extension LanguageModelProvider {
   ///
   /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
   @discardableResult
-  func respond<Content>(
+  func respond<StructuredOutput: SwiftAgent.StructuredOutput>(
     to prompt: Prompt,
-    generating type: (some StructuredOutput<Content>).Type,
+    generating type: StructuredOutput.Type,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) async throws -> Response<Content> where Content: Generable, Self: RawStructuredOutputSupport {
+  ) async throws -> Response<StructuredOutput.Schema> {
     try await respond(
       to: prompt.formatted(),
       generating: type,
+      using: model,
+      options: options,
+    )
+  }
+
+  @discardableResult
+  func respond<StructuredOutput: SwiftAgent.StructuredOutput>(
+    to prompt: Prompt,
+    generating type: KeyPath<SessionSchema.StructuredOutputs, StructuredOutput.Type>,
+    using model: Adapter.Model = .default,
+    options: Adapter.GenerationOptions? = nil,
+  ) async throws -> Response<StructuredOutput.Schema> {
+    try await respond(
+      to: prompt.formatted(),
+      generating: StructuredOutput.self,
       using: model,
       options: options,
     )
@@ -227,15 +259,30 @@ public extension LanguageModelProvider {
   ///
   /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
   @discardableResult
-  func respond<Content>(
-    generating type: (some StructuredOutput<Content>).Type,
+  func respond<StructuredOutput: SwiftAgent.StructuredOutput>(
+    generating type: StructuredOutput.Type,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder prompt: () throws -> Prompt,
-  ) async throws -> Response<Content> where Content: Generable, Self: RawStructuredOutputSupport {
+  ) async throws -> Response<StructuredOutput.Schema> {
     try await respond(
       to: prompt().formatted(),
       generating: type,
+      using: model,
+      options: options,
+    )
+  }
+
+  @discardableResult
+  func respond<StructuredOutput: SwiftAgent.StructuredOutput>(
+    generating type: KeyPath<SessionSchema.StructuredOutputs, StructuredOutput.Type>,
+    using model: Adapter.Model = .default,
+    options: Adapter.GenerationOptions? = nil,
+    @PromptBuilder prompt: () throws -> Prompt,
+  ) async throws -> Response<StructuredOutput.Schema> {
+    try await respond(
+      to: prompt().formatted(),
+      generating: StructuredOutput.self,
       using: model,
       options: options,
     )
@@ -290,7 +337,7 @@ public extension LanguageModelProvider {
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder embeddingInto prompt: @Sendable (_ input: String, _ sources: [SessionSchema.DecodedGrounding])
       -> Prompt,
-  ) async throws -> Response<String> {
+  ) async throws -> Response<String> where SessionSchema: GroundingSupportingSchema {
     let sourcesData = try schema.encodeGrounding(sources)
 
     let prompt = Transcript.Prompt(
@@ -343,15 +390,15 @@ public extension LanguageModelProvider {
   ///
   /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
   @discardableResult
-  func respond<Content>(
+  func respond<StructuredOutput: SwiftAgent.StructuredOutput>(
     to input: String,
-    generating type: (some StructuredOutput<Content>).Type,
+    generating type: StructuredOutput.Type,
     using model: Adapter.Model = .default,
     groundingWith sources: [SessionSchema.DecodedGrounding],
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [SessionSchema.DecodedGrounding])
       -> Prompt,
-  ) async throws -> Response<Content> where Content: Generable, Self: RawStructuredOutputSupport {
+  ) async throws -> Response<StructuredOutput.Schema> where SessionSchema: GroundingSupportingSchema {
     let sourcesData = try schema.encodeGrounding(sources)
 
     let prompt = Transcript.Prompt(
@@ -360,5 +407,25 @@ public extension LanguageModelProvider {
       prompt: prompt(input, sources).formatted(),
     )
     return try await processResponse(from: prompt, generating: type, using: model, options: options)
+  }
+
+  @discardableResult
+  func respond<StructuredOutput: SwiftAgent.StructuredOutput>(
+    to input: String,
+    generating type: KeyPath<SessionSchema.StructuredOutputs, StructuredOutput.Type>,
+    using model: Adapter.Model = .default,
+    groundingWith sources: [SessionSchema.DecodedGrounding],
+    options: Adapter.GenerationOptions? = nil,
+    @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [SessionSchema.DecodedGrounding])
+      -> Prompt,
+  ) async throws -> Response<StructuredOutput.Schema> where SessionSchema: GroundingSupportingSchema {
+    let sourcesData = try schema.encodeGrounding(sources)
+
+    let prompt = Transcript.Prompt(
+      input: input,
+      sources: sourcesData,
+      prompt: prompt(input, sources).formatted(),
+    )
+    return try await processResponse(from: prompt, generating: StructuredOutput.self, using: model, options: options)
   }
 }

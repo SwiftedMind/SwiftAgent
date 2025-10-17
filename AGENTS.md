@@ -6,8 +6,10 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
 
 ## General Instructions
 
+- Whenever you make changes to the code, build the project to ensure everything still compiles
+- Whenever you make changes to unit tests, run the testsuite to verify the changes.
 - Always follow the best practices of naming things in Swift
-- ALWAYS use clear names for types and variables, don't just use single letters or abbreviations. Clarity is key!
+- Always use clear names for types and variables, don't just use single letters or abbreviations. Clarity is key!
 - In SwiftUI views, always place private properties on top of the non-private ones, and the non-private ones directly above the initializer
 - Do not collapse declarations into single-line statements. Expand types, properties, closures, and functions across multiple lines for readability. For example, prefer:
 

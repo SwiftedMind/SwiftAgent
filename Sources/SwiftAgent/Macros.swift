@@ -10,11 +10,13 @@ import Observation
 /// - Generates the stored `decodableTools` collection used by the transcript decoder.
 /// - Synthesizes `DecodedGrounding`, `DecodedToolRun`, and `DecodedStructuredOutput` enums.
 /// - Emits `Decodable<Name>` helper types for tools and structured outputs.
+/// - Adds `LanguageModelSessionSchema` conformance automatically.
+/// - Adds `GroundingSupportingSchema` conformance when grounding properties are present.
 ///
 /// Example:
 /// ```swift
 /// @SessionSchema
-/// struct SessionSchema: LanguageModelSessionSchema {
+/// struct SessionSchema {
 ///   @Tool var calculator = CalculatorTool()
 ///   @Tool var weather = WeatherTool()
 ///   @Grounding(Date.self) var currentDate
@@ -22,6 +24,11 @@ import Observation
 /// }
 /// ```
 @attached(member, names: arbitrary)
+@attached(
+  extension,
+  conformances: LanguageModelSessionSchema, GroundingSupportingSchema,
+  names: arbitrary
+)
 public macro SessionSchema() = #externalMacro(
   module: "SwiftAgentMacros",
   type: "SessionSchemaMacro",
