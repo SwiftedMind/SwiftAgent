@@ -21,22 +21,53 @@ public struct SessionSchemaMacro: MemberMacro {
     let toolProperties = try extractToolProperties(from: structDeclaration)
     let groundingProperties = try extractGroundingProperties(from: structDeclaration)
     let structuredOutputProperties = try extractStructuredOutputProperties(from: structDeclaration)
+    let declaredAccessLevel = resolveDeclaredAccessLevel(for: structDeclaration)
+    let memberAccessLevel = resolvedMemberAccessLevel(for: declaredAccessLevel)
+    let decodedTypesAccessLevel = resolvedDecodedTypesAccessLevel(for: declaredAccessLevel)
 
     var members: [DeclSyntax] = []
 
     members.append(
       """
-      nonisolated let decodableTools: [any DecodableTool<DecodedToolRun>]
+      \(raw: memberAccessLevel.rawValue) nonisolated let decodableTools: [any DecodableTool<DecodedToolRun>]
       """,
     )
 
-    members.append(generateStructuredOutputsType(for: structuredOutputProperties))
-    members.append(generateStructuredOutputsFunction(for: structuredOutputProperties))
-    members.append(contentsOf: generateInitializers(for: toolProperties))
+    members.append(
+      generateStructuredOutputsType(
+        for: structuredOutputProperties,
+        accessModifier: memberAccessLevel.rawValue,
+      ),
+    )
+    members.append(
+      generateStructuredOutputsFunction(
+        for: structuredOutputProperties,
+        accessModifier: memberAccessLevel.rawValue,
+      ),
+    )
+    members.append(contentsOf: generateInitializers(
+      for: toolProperties,
+      accessModifier: memberAccessLevel.rawValue,
+    ))
 
-    members.append(generateDecodedGroundingType(for: groundingProperties))
-    members.append(generateDecodedToolRunEnum(for: toolProperties))
-    members.append(generateDecodedStructuredOutputEnum(for: structuredOutputProperties))
+    members.append(
+      generateDecodedGroundingType(
+        for: groundingProperties,
+        accessModifier: decodedTypesAccessLevel.rawValue,
+      ),
+    )
+    members.append(
+      generateDecodedToolRunEnum(
+        for: toolProperties,
+        accessModifier: decodedTypesAccessLevel.rawValue,
+      ),
+    )
+    members.append(
+      generateDecodedStructuredOutputEnum(
+        for: structuredOutputProperties,
+        accessModifier: decodedTypesAccessLevel.rawValue,
+      ),
+    )
     members.append(contentsOf: toolProperties.map { generateDecodableWrapper(for: $0) })
     members.append(contentsOf: generateDecodableStructuredOutputTypes(for: structuredOutputProperties))
 
@@ -78,5 +109,68 @@ public struct SessionSchemaMacro: MemberMacro {
     )
 
     return members
+  }
+
+  private enum AccessLevel: String {
+    case `public`
+    case package
+    case `internal`
+    case `fileprivate`
+    case `private`
+  }
+
+  private static func resolveDeclaredAccessLevel(
+    for structDeclaration: StructDeclSyntax,
+  ) -> AccessLevel {
+    for modifier in structDeclaration.modifiers {
+      let modifierName = modifier.name.trimmedDescription
+
+      switch modifierName {
+      case "public":
+        return .public
+      case "package":
+        return .package
+      case "internal":
+        return .internal
+      case "fileprivate":
+        return .fileprivate
+      case "private":
+        return .private
+      default:
+        continue
+      }
+    }
+
+    return .internal
+  }
+
+  private static func resolvedMemberAccessLevel(
+    for declaredAccessLevel: AccessLevel,
+  ) -> AccessLevel {
+    switch declaredAccessLevel {
+    case .public:
+      .public
+    case .package:
+      .package
+    case .internal:
+      .internal
+    case .fileprivate, .private:
+      .fileprivate
+    }
+  }
+
+  private static func resolvedDecodedTypesAccessLevel(
+    for declaredAccessLevel: AccessLevel,
+  ) -> AccessLevel {
+    switch declaredAccessLevel {
+    case .public:
+      .public
+    case .package:
+      .package
+    case .internal:
+      .internal
+    case .fileprivate, .private:
+      .internal
+    }
   }
 }

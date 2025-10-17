@@ -8,7 +8,10 @@ import SwiftSyntaxMacros
 extension SessionSchemaMacro {
   // MARK: - Initializers
 
-  static func generateInitializers(for tools: [ToolProperty]) -> [DeclSyntax] {
+  static func generateInitializers(
+    for tools: [ToolProperty],
+    accessModifier: String,
+  ) -> [DeclSyntax] {
     let toolsWithoutDefaults = tools.filter { !$0.hasInitializer }
 
     let parameterLines = toolsWithoutDefaults
@@ -16,10 +19,10 @@ extension SessionSchemaMacro {
       .joined(separator: ",\n")
 
     let signature = if parameterLines.isEmpty {
-      "init()"
+      "\(accessModifier) init()"
     } else {
       """
-      init(
+      \(accessModifier) init(
       \(parameterLines)
       )
       """
@@ -61,7 +64,10 @@ extension SessionSchemaMacro {
 
   // MARK: - Tool decoding
 
-  static func generateDecodedToolRunEnum(for tools: [ToolProperty]) -> DeclSyntax {
+  static func generateDecodedToolRunEnum(
+    for tools: [ToolProperty],
+    accessModifier: String,
+  ) -> DeclSyntax {
     let cases = tools
       .map { tool in
         "  case \(tool.identifier.text)(ToolRun<\(tool.typeName)>)"
@@ -74,15 +80,19 @@ extension SessionSchemaMacro {
       }
       .joined(separator: "\n")
 
+    let makeUnknownDeclaration =
+      "  " + accessModifier + " static func makeUnknown(toolCall: SwiftAgent.Transcript.ToolCall) -> Self {"
+    let idPropertyDeclaration = "  " + accessModifier + " var id: String {"
+
     let enumBodyComponents: [String] = [
       cases,
       "  case unknown(toolCall: SwiftAgent.Transcript.ToolCall)",
       "",
-      "  static func makeUnknown(toolCall: SwiftAgent.Transcript.ToolCall) -> Self {",
+      makeUnknownDeclaration,
       "    .unknown(toolCall: toolCall)",
       "  }",
       "",
-      "  var id: String {",
+      idPropertyDeclaration,
       "    switch self {",
       idSwitchCases,
       "    case let .unknown(toolCall):",
@@ -95,9 +105,12 @@ extension SessionSchemaMacro {
       .filter { !$0.isEmpty }
       .joined(separator: "\n")
 
+    let declaration =
+      accessModifier + " enum DecodedToolRun: SwiftAgent.DecodedToolRun, @unchecked Sendable {"
+
     return
       """
-      enum DecodedToolRun: SwiftAgent.DecodedToolRun, @unchecked Sendable {
+      \(raw: declaration)
       \(raw: body)
       }
       """
@@ -146,11 +159,17 @@ extension SessionSchemaMacro {
 
   // MARK: - Grounding
 
-  static func generateDecodedGroundingType(for groundings: [GroundingProperty]) -> DeclSyntax {
+  static func generateDecodedGroundingType(
+    for groundings: [GroundingProperty],
+    accessModifier: String,
+  ) -> DeclSyntax {
     guard !groundings.isEmpty else {
+      let declaration =
+        accessModifier + " struct DecodedGrounding: SwiftAgent.DecodedGrounding, @unchecked Sendable {}"
+
       return
         """
-        struct DecodedGrounding: SwiftAgent.DecodedGrounding, @unchecked Sendable {}
+        \(raw: declaration)
         """
     }
 
@@ -160,9 +179,12 @@ extension SessionSchemaMacro {
       }
       .joined(separator: "\n")
 
+    let declaration =
+      accessModifier + " enum DecodedGrounding: SwiftAgent.DecodedGrounding, @unchecked Sendable {"
+
     return
       """
-      enum DecodedGrounding: SwiftAgent.DecodedGrounding, @unchecked Sendable {
+      \(raw: declaration)
       \(raw: cases)
       }
       """
@@ -172,11 +194,15 @@ extension SessionSchemaMacro {
 
   static func generateStructuredOutputsType(
     for outputs: [StructuredOutputProperty],
+    accessModifier: String,
   ) -> DeclSyntax {
     guard !outputs.isEmpty else {
+      let declaration =
+        accessModifier + " struct StructuredOutputs: @unchecked Sendable {}"
+
       return
         """
-        struct StructuredOutputs: @unchecked Sendable {}
+        \(raw: declaration)
         """
     }
 
@@ -186,19 +212,29 @@ extension SessionSchemaMacro {
       }
       .joined(separator: "\n")
 
+    let declaration =
+      accessModifier + " struct StructuredOutputs: @unchecked Sendable {"
+
     return
       """
-      struct StructuredOutputs: @unchecked Sendable {
+      \(raw: declaration)
       \(raw: properties)
       }
       """
   }
 
-  static func generateStructuredOutputsFunction(for outputs: [StructuredOutputProperty]) -> DeclSyntax {
+  static func generateStructuredOutputsFunction(
+    for outputs: [StructuredOutputProperty],
+    accessModifier: String,
+  ) -> DeclSyntax {
+    let signature =
+      accessModifier
+        + " static func structuredOutputs() -> [any (SwiftAgent.DecodableStructuredOutput<DecodedStructuredOutput>).Type]"
+
     guard !outputs.isEmpty else {
       return
         """
-        static func structuredOutputs() -> [any (SwiftAgent.DecodableStructuredOutput<DecodedStructuredOutput>).Type] {
+        \(raw: signature) {
           []
         }
         """
@@ -212,7 +248,7 @@ extension SessionSchemaMacro {
 
     return
       """
-      static func structuredOutputs() -> [any (SwiftAgent.DecodableStructuredOutput<DecodedStructuredOutput>).Type] {
+      \(raw: signature) {
         [
       \(raw: entries)
         ]
@@ -222,6 +258,7 @@ extension SessionSchemaMacro {
 
   static func generateDecodedStructuredOutputEnum(
     for outputs: [StructuredOutputProperty],
+    accessModifier: String,
   ) -> DeclSyntax {
     var sections: [String] = []
 
@@ -237,15 +274,20 @@ extension SessionSchemaMacro {
 
     sections.append("  case unknown(SwiftAgent.Transcript.StructuredSegment)")
     sections.append("")
-    sections.append("  static func makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {")
+    let makeUnknownDeclaration =
+      "  " + accessModifier + " static func makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {"
+    sections.append(makeUnknownDeclaration)
     sections.append("    .unknown(segment)")
     sections.append("  }")
 
     let body = sections.joined(separator: "\n")
 
+    let declaration =
+      accessModifier + " enum DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput, @unchecked Sendable {"
+
     return
       """
-      enum DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput, @unchecked Sendable {
+      \(raw: declaration)
       \(raw: body)
       }
       """

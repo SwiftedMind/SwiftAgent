@@ -12,11 +12,6 @@ private struct SessionSchema {
   @StructuredOutput(WeatherForecast.self) var weatherForecast
 }
 
-// @SessionSchema
-// public struct SessionSchemaTwo {
-//   @StructuredOutput(WeatherForecastTwo.self) var weatherForecast
-// }
-
 @Suite("OpenAI - Streaming - Structured Output")
 struct OpenAIStructuredOutputTests {
   typealias Transcript = SwiftAgent.Transcript
@@ -142,16 +137,6 @@ private struct WeatherForecast: StructuredOutput {
 
   @Generable
   struct Schema {
-    var temperatureCelsius: Double
-    var condition: String
-  }
-}
-
-public struct WeatherForecastTwo: StructuredOutput {
-  public static let name: String = "weather_forecast"
-
-  @Generable
-  public struct Schema {
     var temperatureCelsius: Double
     var condition: String
   }
