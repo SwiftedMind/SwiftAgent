@@ -35,8 +35,8 @@ import Internal
 public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
   /// The transcript type for this session, containing the conversation history.
   typealias Transcript = SwiftAgent.Transcript
-  typealias Response<Content: Generable> = AgentResponse<Content, Self>
-  typealias Snapshot<Content: Generable> = AgentSnapshot<Content, Self>
+  typealias Response<StructuredOutput: SwiftAgent.StructuredOutput> = AgentResponse<StructuredOutput>
+  typealias Snapshot<StructuredOutput: SwiftAgent.StructuredOutput> = AgentSnapshot<StructuredOutput>
 
   /// The concrete adapter used to talk to a model provider (e.g. OpenAI).
   associatedtype Adapter: SwiftAgent.Adapter & SendableMetatype
@@ -118,12 +118,12 @@ package extension LanguageModelProvider {
     tokenUsage.merge(usage)
   }
 
-  func processResponse<Content>(
+  func processResponse<StructuredOutput: SwiftAgent.StructuredOutput>(
     from prompt: Transcript.Prompt,
-    generating type: (some StructuredOutput<Content>).Type?,
+    generating type: StructuredOutput.Type?,
     using model: Adapter.Model,
     options: Adapter.GenerationOptions?,
-  ) async throws -> Response<Content> where Content: Generable {
+  ) async throws -> Response<StructuredOutput> {
     let promptEntry = Transcript.Entry.prompt(prompt)
     await appendTranscript(promptEntry)
 
@@ -164,8 +164,8 @@ package extension LanguageModelProvider {
                 // We can return here since a structured response can only happen once
                 // TODO: Handle errors here in some way
 
-                return try Response<Content>(
-                  content: Content(structuredSegment.content),
+                return try Response<StructuredOutput>(
+                  content: StructuredOutput.Schema(structuredSegment.content),
                   transcript: generatedTranscript,
                   tokenUsage: generatedUsage,
                 )
@@ -204,8 +204,8 @@ package extension LanguageModelProvider {
         }
         .flatMap(\.self)
 
-      return Response<Content>(
-        content: finalResponseSegments.joined(separator: "\n") as! Content,
+      return Response<StructuredOutput>(
+        content: finalResponseSegments.joined(separator: "\n") as! StructuredOutput.Schema,
         transcript: generatedTranscript,
         tokenUsage: generatedUsage,
       )
@@ -229,27 +229,27 @@ package extension LanguageModelProvider {
     )
   }
 
-  func processResponseStream<Content: Generable>(
+  func processResponseStream<StructuredOutput: SwiftAgent.StructuredOutput>(
     from prompt: Transcript.Prompt,
-    generating type: (some StructuredOutput<Content>).Type?,
+    generating type: StructuredOutput.Type?,
     using model: Adapter.Model,
     options: Adapter.GenerationOptions?,
-  ) -> AsyncThrowingStream<Snapshot<Content>, any Error> {
-    let setup = AsyncThrowingStream<AgentSnapshot<Content, Self>, any Error>.makeStream()
+  ) -> AsyncThrowingStream<Snapshot<StructuredOutput>, any Error> {
+    let setup = AsyncThrowingStream<AgentSnapshot<StructuredOutput>, any Error>.makeStream()
 
     func yieldSnapshot(
       with generatedTranscript: Transcript,
       generatedUsage: TokenUsage,
-      continuation: AsyncThrowingStream<AgentSnapshot<Content, Self>, any Error>.Continuation,
+      continuation: AsyncThrowingStream<AgentSnapshot<StructuredOutput>, any Error>.Continuation,
     ) {
-      var content: Content.PartiallyGenerated?
+      var content: StructuredOutput.Schema.PartiallyGenerated?
       if type != nil {
         do {
           if let structuredSegment = try generatedTranscript.structuredOutputFromLastResponse() {
             switch structuredSegment.status {
             case .inProgress, .completed:
               // In a streaming response, we only ever return the partially generated content
-              content = try Content.PartiallyGenerated(structuredSegment.segment.content)
+              content = try StructuredOutput.Schema.PartiallyGenerated(structuredSegment.segment.content)
             case .incomplete:
               continuation.finish(throwing: GenerationError.providerError(.init(message: "Incomplete response")))
             }

@@ -101,12 +101,12 @@ public protocol MockableAgentTool<Tool>: Sendable where Tool.Arguments: Encodabl
 ///   }
 /// }
 /// ```
-public protocol MockableGenerable where Self: Generable {
+public protocol MockableStructuredOutput where Self: SwiftAgent.StructuredOutput {
   /// The associated content type that can be generated.
   ///
-  /// This type must conform to `Generable` to be compatible with the
+  /// This type must conform to `SwiftAgent.StructuredOutput.Schema` to be compatible with the
   /// SwiftAgent generation system.
-  associatedtype Content: Generable
+  associatedtype StructuredOutput: SwiftAgent.StructuredOutput
 
   /// Provides mock content for testing and simulation.
   ///
@@ -114,7 +114,7 @@ public protocol MockableGenerable where Self: Generable {
   /// that can be used in place of actual AI-generated content during testing.
   ///
   /// - Returns: A mock instance of `Content` for testing purposes.
-  static func mockContent() -> Content
+  static func mockContent() -> StructuredOutput.Schema
 }
 
 /// Provides a default `MockableGenerable` implementation for `String`.
@@ -122,7 +122,8 @@ public protocol MockableGenerable where Self: Generable {
 /// This extension allows `String` to be used in mock scenarios within the
 /// simulation system, though the actual implementation returns an empty string
 /// as it's not actively used by the current simulation adapter.
-extension String: MockableGenerable {
+extension String: MockableStructuredOutput {
+  public typealias StructuredOutput = String
   /// Returns mock content for `String` type.
   ///
   /// - Returns: An empty string as mock content.

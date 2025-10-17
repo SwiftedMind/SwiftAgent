@@ -30,12 +30,11 @@ public actor SimulationAdapter {
     self.configuration = configuration
   }
 
-  func respond<Content>(
+  func respond<StructuredOutput: SwiftAgent.StructuredOutput>(
     to prompt: Transcript.Prompt,
-    generating type: Content.Type,
-    generations: [SimulatedGeneration<Content>],
-  ) -> AsyncThrowingStream<AdapterUpdate, any Error>
-    where Content: MockableGenerable {
+    generating type: StructuredOutput.Type,
+    generations: [SimulatedGeneration<StructuredOutput>],
+  ) -> AsyncThrowingStream<AdapterUpdate, any Error> {
     let setup = AsyncThrowingStream<AdapterUpdate, any Error>.makeStream()
 
     // Log the start of a simulated run for visibility
@@ -200,7 +199,7 @@ public actor SimulationAdapter {
   }
 
   private func handleStructuredResponse(
-    _ content: some MockableGenerable,
+    _ content: some Generable,
     continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
   ) async throws {
     let generatedContent = GeneratedContent(content)

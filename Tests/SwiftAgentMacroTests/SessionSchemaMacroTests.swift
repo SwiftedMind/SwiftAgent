@@ -12,7 +12,7 @@ struct SessionSchemaMacroTests {
     assertMacro(["SessionSchema": SessionSchemaMacro.self], indentationWidth: .spaces(2)) {
       """
       @SessionSchema
-      struct SessionSchema: LanguageModelSessionSchema {
+      struct SessionSchema {
         @Tool var calculator = CalculatorTool()
         @Tool var weather = WeatherTool()
         @Grounding(Date.self) var currentDate
@@ -21,18 +21,21 @@ struct SessionSchemaMacroTests {
       """
     } expansion: {
       """
-      struct SessionSchema: LanguageModelSessionSchema {
+      struct SessionSchema {
         @Tool var calculator = CalculatorTool()
         @Tool var weather = WeatherTool()
         @Grounding(Date.self) var currentDate
         @StructuredOutput(WeatherReport.self) var weatherReport
 
-        /// Internal decodable wrappers for tool results used by the macro.
-        let decodableTools: [any DecodableTool<DecodedToolRun>]
+        nonisolated let decodableTools: [any DecodableTool<DecodedToolRun>]
+
+        struct StructuredOutputs {
+          let weatherReport = WeatherReport.self
+        }
 
         static func structuredOutputs() -> [any (SwiftAgent.DecodableStructuredOutput<DecodedStructuredOutput>).Type] {
           [
-            DecodableWeatherReport.self
+              DecodableWeatherReport.self
           ]
         }
 
@@ -51,11 +54,9 @@ struct SessionSchemaMacroTests {
           case calculator(ToolRun<CalculatorTool>)
           case weather(ToolRun<WeatherTool>)
           case unknown(toolCall: SwiftAgent.Transcript.ToolCall)
-
           static func makeUnknown(toolCall: SwiftAgent.Transcript.ToolCall) -> Self {
             .unknown(toolCall: toolCall)
           }
-
           var id: String {
             switch self {
             case let .calculator(run):
@@ -180,6 +181,12 @@ struct SessionSchemaMacroTests {
           }
         }
       }
+
+      extension SessionSchema: LanguageModelSessionSchema {
+      }
+
+      extension SessionSchema: GroundingSupportingSchema {
+      }
       """
     }
   }
@@ -189,17 +196,19 @@ struct SessionSchemaMacroTests {
     assertMacro(["SessionSchema": SessionSchemaMacro.self], indentationWidth: .spaces(2)) {
       """
       @SessionSchema
-      struct InjectedSchema: LanguageModelSessionSchema {
+      struct SessionSchema {
         @Tool var calculator: CalculatorTool
       }
       """
     } expansion: {
       """
-      struct InjectedSchema: LanguageModelSessionSchema {
+      struct SessionSchema {
         @Tool var calculator: CalculatorTool
 
-        /// Internal decodable wrappers for tool results used by the macro.
-        let decodableTools: [any DecodableTool<DecodedToolRun>]
+        nonisolated let decodableTools: [any DecodableTool<DecodedToolRun>]
+
+        struct StructuredOutputs {
+        }
 
         static func structuredOutputs() -> [any (SwiftAgent.DecodableStructuredOutput<DecodedStructuredOutput>).Type] {
           []
@@ -215,16 +224,15 @@ struct SessionSchemaMacroTests {
           ]
         }
 
-        struct DecodedGrounding: SwiftAgent.DecodedGrounding {}
+        struct DecodedGrounding: SwiftAgent.DecodedGrounding {
+        }
 
         enum DecodedToolRun: SwiftAgent.DecodedToolRun {
           case calculator(ToolRun<CalculatorTool>)
           case unknown(toolCall: SwiftAgent.Transcript.ToolCall)
-
           static func makeUnknown(toolCall: SwiftAgent.Transcript.ToolCall) -> Self {
             .unknown(toolCall: toolCall)
           }
-
           var id: String {
             switch self {
             case let .calculator(run):
@@ -301,6 +309,9 @@ struct SessionSchemaMacroTests {
             self.wrappedValue = wrappedValue
           }
         }
+      }
+
+      extension SessionSchema: LanguageModelSessionSchema {
       }
       """
     }

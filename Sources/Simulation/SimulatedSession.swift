@@ -18,7 +18,7 @@ public extension LanguageModelProvider {
     to prompt: String,
     generations: [SimulatedGeneration<String>],
     configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-  ) async throws -> AgentResponse<String, Self> {
+  ) async throws -> AgentResponse<String> {
     let sourcesData = try schema.encodeGrounding([SessionSchema.DecodedGrounding]())
     let transcriptPrompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     let promptEntry = Transcript.Entry.prompt(transcriptPrompt)
@@ -60,7 +60,7 @@ public extension LanguageModelProvider {
     }
 
     let transcript = Transcript(entries: addedEntities)
-    return AgentResponse<String, Self>(
+    return AgentResponse<String>(
       content: responseContent.joined(separator: "\n"),
       transcript: transcript,
       tokenUsage: aggregatedUsage,
@@ -68,11 +68,11 @@ public extension LanguageModelProvider {
   }
 
   @discardableResult
-  func simulateResponse<Content>(
+  func simulateResponse<StructuredOutput: SwiftAgent.StructuredOutput>(
     to prompt: String,
-    generations: [SimulatedGeneration<Content>],
+    generations: [SimulatedGeneration<StructuredOutput>],
     configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-  ) async throws -> AgentResponse<Content, Self> where Content: MockableGenerable {
+  ) async throws -> AgentResponse<StructuredOutput> {
     let sourcesData = try schema.encodeGrounding([SessionSchema.DecodedGrounding]())
     let transcriptPrompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     let promptEntry = Transcript.Entry.prompt(transcriptPrompt)
@@ -80,7 +80,7 @@ public extension LanguageModelProvider {
 
     let stream = await simulationAdapter(with: configuration).respond(
       to: transcriptPrompt,
-      generating: Content.self,
+      generating: StructuredOutput.self,
       generations: generations,
     )
     var addedEntities: [Transcript.Entry] = []
@@ -99,8 +99,8 @@ public extension LanguageModelProvider {
               break
             case let .structure(structuredSegment):
               let transcript = Transcript(entries: addedEntities)
-              return try AgentResponse<Content, Self>(
-                content: Content(structuredSegment.content),
+              return try AgentResponse<StructuredOutput>(
+                content: StructuredOutput.Schema(structuredSegment.content),
                 transcript: transcript,
                 tokenUsage: aggregatedUsage,
               )
@@ -126,16 +126,16 @@ public extension LanguageModelProvider {
     to prompt: SwiftAgent.Prompt,
     generations: [SimulatedGeneration<String>],
     configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-  ) async throws -> AgentResponse<String, Self> {
+  ) async throws -> AgentResponse<String> {
     try await simulateResponse(to: prompt.formatted(), generations: generations, configuration: configuration)
   }
 
   @discardableResult
-  func simulateResponse<Content>(
+  func simulateResponse<StructuredOutput: SwiftAgent.StructuredOutput>(
     to prompt: SwiftAgent.Prompt,
-    generations: [SimulatedGeneration<Content>],
+    generations: [SimulatedGeneration<StructuredOutput>],
     configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-  ) async throws -> AgentResponse<Content, Self> where Content: MockableGenerable {
+  ) async throws -> AgentResponse<StructuredOutput> {
     try await simulateResponse(to: prompt.formatted(), generations: generations, configuration: configuration)
   }
 
@@ -144,16 +144,16 @@ public extension LanguageModelProvider {
     generations: [SimulatedGeneration<String>],
     configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
     @SwiftAgent.PromptBuilder prompt: () throws -> SwiftAgent.Prompt,
-  ) async throws -> AgentResponse<String, Self> {
+  ) async throws -> AgentResponse<String> {
     try await simulateResponse(to: prompt().formatted(), generations: generations, configuration: configuration)
   }
 
   @discardableResult
-  func simulateResponse<Content>(
-    generations: [SimulatedGeneration<Content>],
+  func simulateResponse<StructuredOutput: SwiftAgent.StructuredOutput>(
+    generations: [SimulatedGeneration<StructuredOutput>],
     configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
     @SwiftAgent.PromptBuilder prompt: () throws -> SwiftAgent.Prompt,
-  ) async throws -> AgentResponse<Content, Self> where Content: MockableGenerable {
+  ) async throws -> AgentResponse<StructuredOutput> {
     try await simulateResponse(to: prompt().formatted(), generations: generations, configuration: configuration)
   }
 }

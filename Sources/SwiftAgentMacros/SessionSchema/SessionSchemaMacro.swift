@@ -44,7 +44,7 @@ public struct SessionSchemaMacro: MemberMacro {
       """
       @propertyWrapper
       struct Tool<ToolType: FoundationModels.Tool>
-      where ToolType.Arguments: Generable & Sendable, ToolType.Output: Generable & Sendable {
+      where ToolType.Arguments: Generable, ToolType.Output: Generable {
         var wrappedValue: ToolType
         init(wrappedValue: ToolType) {
           self.wrappedValue = wrappedValue

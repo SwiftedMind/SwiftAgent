@@ -41,7 +41,7 @@ public extension LanguageModelProvider {
     generating type: StructuredOutput.Type,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) throws -> AsyncThrowingStream<Snapshot<StructuredOutput.Schema>, any Error> {
+  ) throws -> AsyncThrowingStream<Snapshot<StructuredOutput>, any Error> {
     let sourcesData = try schema.encodeGrounding([SessionSchema.DecodedGrounding]())
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     return processResponseStream(from: prompt, generating: type, using: model, options: options)
@@ -52,7 +52,7 @@ public extension LanguageModelProvider {
     generating type: KeyPath<SessionSchema.StructuredOutputs, StructuredOutput.Type>,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) throws -> AsyncThrowingStream<Snapshot<StructuredOutput.Schema>, any Error> {
+  ) throws -> AsyncThrowingStream<Snapshot<StructuredOutput>, any Error> {
     let sourcesData = try schema.encodeGrounding([SessionSchema.DecodedGrounding]())
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     return processResponseStream(from: prompt, generating: StructuredOutput.self, using: model, options: options)
@@ -63,7 +63,7 @@ public extension LanguageModelProvider {
     generating type: StructuredOutput.Type,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) throws -> AsyncThrowingStream<Snapshot<StructuredOutput.Schema>, any Error> {
+  ) throws -> AsyncThrowingStream<Snapshot<StructuredOutput>, any Error> {
     try streamResponse(to: prompt.formatted(), generating: type, using: model, options: options)
   }
 
@@ -72,7 +72,7 @@ public extension LanguageModelProvider {
     generating type: KeyPath<SessionSchema.StructuredOutputs, StructuredOutput.Type>,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) throws -> AsyncThrowingStream<Snapshot<StructuredOutput.Schema>, any Error> {
+  ) throws -> AsyncThrowingStream<Snapshot<StructuredOutput>, any Error> {
     try streamResponse(to: prompt.formatted(), generating: StructuredOutput.self, using: model, options: options)
   }
 
@@ -81,7 +81,7 @@ public extension LanguageModelProvider {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder prompt: @Sendable () throws -> Prompt,
-  ) throws -> AsyncThrowingStream<Snapshot<StructuredOutput.Schema>, any Error> {
+  ) throws -> AsyncThrowingStream<Snapshot<StructuredOutput>, any Error> {
     try streamResponse(to: prompt().formatted(), generating: type, using: model, options: options)
   }
 
@@ -90,7 +90,7 @@ public extension LanguageModelProvider {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder prompt: @Sendable () throws -> Prompt,
-  ) throws -> AsyncThrowingStream<Snapshot<StructuredOutput.Schema>, any Error> {
+  ) throws -> AsyncThrowingStream<Snapshot<StructuredOutput>, any Error> {
     try streamResponse(to: prompt().formatted(), generating: StructuredOutput.self, using: model, options: options)
   }
 }
@@ -124,7 +124,7 @@ public extension LanguageModelProvider {
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [SessionSchema.DecodedGrounding])
       -> Prompt,
-  ) throws -> AsyncThrowingStream<Snapshot<StructuredOutput.Schema>, any Error> {
+  ) throws -> AsyncThrowingStream<Snapshot<StructuredOutput>, any Error> {
     let sourcesData = try schema.encodeGrounding(sources)
     let prompt = Transcript.Prompt(
       input: input,
@@ -142,7 +142,7 @@ public extension LanguageModelProvider {
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [SessionSchema.DecodedGrounding])
       -> Prompt,
-  ) throws -> AsyncThrowingStream<Snapshot<StructuredOutput.Schema>, any Error> {
+  ) throws -> AsyncThrowingStream<Snapshot<StructuredOutput>, any Error> {
     let sourcesData = try schema.encodeGrounding(sources)
     let prompt = Transcript.Prompt(
       input: input,

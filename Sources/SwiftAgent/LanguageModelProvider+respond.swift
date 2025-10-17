@@ -152,7 +152,7 @@ public extension LanguageModelProvider {
     generating type: StructuredOutput.Type,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) async throws -> Response<StructuredOutput.Schema> {
+  ) async throws -> Response<StructuredOutput> {
     let sourcesData = try schema.encodeGrounding([SessionSchema.DecodedGrounding]())
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     return try await processResponse(from: prompt, generating: type, using: model, options: options)
@@ -164,7 +164,7 @@ public extension LanguageModelProvider {
     generating type: KeyPath<SessionSchema.StructuredOutputs, StructuredOutput.Type>,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) async throws -> Response<StructuredOutput.Schema> {
+  ) async throws -> Response<StructuredOutput> {
     let sourcesData = try schema.encodeGrounding([SessionSchema.DecodedGrounding]())
     let prompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
     return try await processResponse(
@@ -210,7 +210,7 @@ public extension LanguageModelProvider {
     generating type: StructuredOutput.Type,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) async throws -> Response<StructuredOutput.Schema> {
+  ) async throws -> Response<StructuredOutput> {
     try await respond(
       to: prompt.formatted(),
       generating: type,
@@ -225,7 +225,7 @@ public extension LanguageModelProvider {
     generating type: KeyPath<SessionSchema.StructuredOutputs, StructuredOutput.Type>,
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
-  ) async throws -> Response<StructuredOutput.Schema> {
+  ) async throws -> Response<StructuredOutput> {
     try await respond(
       to: prompt.formatted(),
       generating: StructuredOutput.self,
@@ -264,7 +264,7 @@ public extension LanguageModelProvider {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder prompt: () throws -> Prompt,
-  ) async throws -> Response<StructuredOutput.Schema> {
+  ) async throws -> Response<StructuredOutput> {
     try await respond(
       to: prompt().formatted(),
       generating: type,
@@ -279,7 +279,7 @@ public extension LanguageModelProvider {
     using model: Adapter.Model = .default,
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder prompt: () throws -> Prompt,
-  ) async throws -> Response<StructuredOutput.Schema> {
+  ) async throws -> Response<StructuredOutput> {
     try await respond(
       to: prompt().formatted(),
       generating: StructuredOutput.self,
@@ -398,7 +398,7 @@ public extension LanguageModelProvider {
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [SessionSchema.DecodedGrounding])
       -> Prompt,
-  ) async throws -> Response<StructuredOutput.Schema> where SessionSchema: GroundingSupportingSchema {
+  ) async throws -> Response<StructuredOutput> where SessionSchema: GroundingSupportingSchema {
     let sourcesData = try schema.encodeGrounding(sources)
 
     let prompt = Transcript.Prompt(
@@ -418,7 +418,7 @@ public extension LanguageModelProvider {
     options: Adapter.GenerationOptions? = nil,
     @PromptBuilder embeddingInto prompt: @Sendable (_ prompt: String, _ sources: [SessionSchema.DecodedGrounding])
       -> Prompt,
-  ) async throws -> Response<StructuredOutput.Schema> where SessionSchema: GroundingSupportingSchema {
+  ) async throws -> Response<StructuredOutput> where SessionSchema: GroundingSupportingSchema {
     let sourcesData = try schema.encodeGrounding(sources)
 
     let prompt = Transcript.Prompt(

@@ -97,7 +97,7 @@ extension SessionSchemaMacro {
 
     return
       """
-      enum DecodedToolRun: SwiftAgent.DecodedToolRun {
+      enum DecodedToolRun: SwiftAgent.DecodedToolRun, @unchecked Sendable {
       \(raw: body)
       }
       """
@@ -150,7 +150,7 @@ extension SessionSchemaMacro {
     guard !groundings.isEmpty else {
       return
         """
-        struct DecodedGrounding: SwiftAgent.DecodedGrounding {}
+        struct DecodedGrounding: SwiftAgent.DecodedGrounding, @unchecked Sendable {}
         """
     }
 
@@ -162,7 +162,7 @@ extension SessionSchemaMacro {
 
     return
       """
-      enum DecodedGrounding: SwiftAgent.DecodedGrounding {
+      enum DecodedGrounding: SwiftAgent.DecodedGrounding, @unchecked Sendable {
       \(raw: cases)
       }
       """
@@ -176,7 +176,7 @@ extension SessionSchemaMacro {
     guard !outputs.isEmpty else {
       return
         """
-        struct StructuredOutputs {}
+        struct StructuredOutputs: @unchecked Sendable {}
         """
     }
 
@@ -188,7 +188,7 @@ extension SessionSchemaMacro {
 
     return
       """
-      struct StructuredOutputs {
+      struct StructuredOutputs: @unchecked Sendable {
       \(raw: properties)
       }
       """
@@ -245,7 +245,7 @@ extension SessionSchemaMacro {
 
     return
       """
-      enum DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput {
+      enum DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput, @unchecked Sendable {
       \(raw: body)
       }
       """
@@ -261,7 +261,7 @@ extension SessionSchemaMacro {
 
       return
         """
-        private struct \(raw: resolvableName): SwiftAgent.DecodableStructuredOutput {
+        private struct \(raw: resolvableName): SwiftAgent.DecodableStructuredOutput, @unchecked Sendable {
           typealias Base = \(raw: schemaType)
 
           static func decode(

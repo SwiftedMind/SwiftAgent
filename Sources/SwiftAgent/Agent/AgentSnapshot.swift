@@ -24,14 +24,14 @@ import Internal
 ///   }
 /// }
 /// ```
-public struct AgentSnapshot<Content: Generable, Provider: LanguageModelProvider> {
+public struct AgentSnapshot<StructuredOutput: SwiftAgent.StructuredOutput> {
   /// The generated response from the AI model.
   ///
   /// This will be `nil` if the content is not available yet.
   ///
   /// For text responses, this will be a `String`. For structured responses,
   /// this will be the `PartiallyGenerated` variant of the requested `@Generable` type.
-  public var content: Content.PartiallyGenerated?
+  public var content: StructuredOutput.Schema.PartiallyGenerated?
   /// The current conversation transcript.
   ///
   /// This includes all transcript entries that have been added during the current generation,
@@ -51,7 +51,7 @@ public struct AgentSnapshot<Content: Generable, Provider: LanguageModelProvider>
   ///   - transcript: The current conversation transcript
   ///   - tokenUsage: Current token usage statistics, if available
   public init(
-    content: Content.PartiallyGenerated? = nil,
+    content: StructuredOutput.Schema.PartiallyGenerated? = nil,
     transcript: Transcript,
     tokenUsage: TokenUsage? = nil,
   ) {
@@ -61,4 +61,4 @@ public struct AgentSnapshot<Content: Generable, Provider: LanguageModelProvider>
   }
 }
 
-extension AgentSnapshot: Sendable where Content: Sendable, Content.PartiallyGenerated: Sendable {}
+extension AgentSnapshot: Sendable where StructuredOutput.Schema.PartiallyGenerated: Sendable {}

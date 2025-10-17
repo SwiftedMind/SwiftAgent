@@ -25,12 +25,12 @@ import Internal
 /// print("Used \(response.tokenUsage?.totalTokens ?? 0) tokens")
 /// print("Added \(response.transcript.count) transcript entries")
 /// ```
-public struct AgentResponse<Content: Generable, Provider: LanguageModelProvider> {
+public struct AgentResponse<StructuredOutput: SwiftAgent.StructuredOutput> {
   /// The generated content from the AI model.
   ///
   /// For text responses, this will be a `String`. For structured responses,
   /// this will be an instance of the requested `@Generable` type.
-  public var content: Content
+  public var content: StructuredOutput.Schema
 
   /// The transcript of the generation.
   ///
@@ -45,7 +45,7 @@ public struct AgentResponse<Content: Generable, Provider: LanguageModelProvider>
   public var tokenUsage: TokenUsage?
 
   package init(
-    content: Content,
+    content: StructuredOutput.Schema,
     transcript: Transcript,
     tokenUsage: TokenUsage?,
   ) {
@@ -55,4 +55,4 @@ public struct AgentResponse<Content: Generable, Provider: LanguageModelProvider>
   }
 }
 
-extension AgentResponse: Sendable where Content: Sendable {}
+extension AgentResponse: Sendable where StructuredOutput.Schema: Sendable {}
