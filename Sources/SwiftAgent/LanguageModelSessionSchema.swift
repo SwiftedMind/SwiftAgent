@@ -18,7 +18,7 @@ public protocol LanguageModelSessionSchema {
 
   associatedtype StructuredOutputs
 
-  typealias DecodedTranscript = Transcript.Decoded<Self>
+  typealias Transcript = SwiftAgent.Transcript.Decoded<Self>
 
   /// Internal decodable wrappers used by the transcript decoder.
   ///
@@ -26,6 +26,17 @@ public protocol LanguageModelSessionSchema {
   nonisolated var decodableTools: [any DecodableTool<DecodedToolRun>] { get }
 
   static func structuredOutputs() -> [any (SwiftAgent.DecodableStructuredOutput<DecodedStructuredOutput>).Type]
+}
+
+public extension LanguageModelSessionSchema {
+  func transcriptDecoder() -> TranscriptDecoder<Self> {
+    TranscriptDecoder(for: self)
+  }
+
+  func decode(_ transcript: SwiftAgent.Transcript) throws -> Transcript {
+    let decoder = TranscriptDecoder(for: self)
+    return try decoder.decode(transcript)
+  }
 }
 
 package extension LanguageModelSessionSchema {

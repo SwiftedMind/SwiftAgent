@@ -5,13 +5,13 @@ import FoundationModels
 import Observation
 import OpenAISession
 
-// @LanguageModelProvider(.openAI)
-// final class OpenAISession {
-//   @Tool var calculator = CalculatorTool()
-//   @Tool var weather = WeatherTool()
-//   @Grounding(Date.self) var currentDate
-//   @StructuredOutput(WeatherReport.self) var weatherReport
-// }
+@SessionSchema
+struct SessionSchema {
+  @Tool var calculator = CalculatorTool()
+  @Tool var weather = WeatherTool()
+  @Grounding(Date.self) var currentDate
+  @StructuredOutput(WeatherReport.self) var weatherReport
+}
 
 struct WeatherReport: StructuredOutput {
   static let name: String = "weatherReport"

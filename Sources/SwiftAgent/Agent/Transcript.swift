@@ -36,7 +36,7 @@ public struct Transcript: Sendable, Equatable {
   /// - Returns: The decoded transcript.
   public func decoded<SessionSchema: LanguageModelSessionSchema>(
     using schema: SessionSchema,
-  ) throws -> SessionSchema.DecodedTranscript {
+  ) throws -> SessionSchema.Transcript {
     let decoder = TranscriptDecoder(for: schema)
     return try decoder.decode(self)
   }

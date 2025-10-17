@@ -37,8 +37,8 @@ public struct TranscriptDecoder<SessionSchema: LanguageModelSessionSchema> {
   ///
   /// This walks the transcript in order and resolves prompts, responses,
   /// tool calls and outputs, and structured segments.
-  public func decode(_ transcript: Transcript) throws -> SessionSchema.DecodedTranscript {
-    var decodedTranscript = SessionSchema.DecodedTranscript()
+  public func decode(_ transcript: Transcript) throws -> SessionSchema.Transcript {
+    var decodedTranscript = SessionSchema.Transcript()
 
     for (index, entry) in transcript.entries.enumerated() {
       switch entry {
@@ -52,7 +52,7 @@ public struct TranscriptDecoder<SessionSchema: LanguageModelSessionSchema> {
           errorContext = .groundingDecodingFailed(description: error.localizedDescription)
         }
 
-        decodedTranscript.append(.prompt(SessionSchema.DecodedTranscript.Prompt(
+        decodedTranscript.append(.prompt(SessionSchema.Transcript.Prompt(
           id: prompt.id,
           input: prompt.input,
           sources: decodedSources,
@@ -60,23 +60,23 @@ public struct TranscriptDecoder<SessionSchema: LanguageModelSessionSchema> {
           error: errorContext,
         )))
       case let .reasoning(reasoning):
-        decodedTranscript.append(.reasoning(SessionSchema.DecodedTranscript.Reasoning(
+        decodedTranscript.append(.reasoning(SessionSchema.Transcript.Reasoning(
           id: reasoning.id,
           summary: reasoning.summary,
         )))
       case let .response(response):
-        var segments: [SessionSchema.DecodedTranscript.Segment] = []
+        var segments: [SessionSchema.Transcript.Segment] = []
 
         for segment in response.segments {
           switch segment {
           case let .text(text):
-            segments.append(.text(SessionSchema.DecodedTranscript.TextSegment(
+            segments.append(.text(SessionSchema.Transcript.TextSegment(
               id: text.id,
               content: text.content,
             )))
           case let .structure(structure):
             let content = decode(structure, status: response.status)
-            segments.append(.structure(SessionSchema.DecodedTranscript.StructuredSegment(
+            segments.append(.structure(SessionSchema.Transcript.StructuredSegment(
               id: structure.id,
               typeName: structure.typeName,
               content: content,
@@ -84,7 +84,7 @@ public struct TranscriptDecoder<SessionSchema: LanguageModelSessionSchema> {
           }
         }
 
-        decodedTranscript.append(.response(SessionSchema.DecodedTranscript.Response(
+        decodedTranscript.append(.response(SessionSchema.Transcript.Response(
           id: response.id,
           segments: segments,
           status: response.status,

@@ -8,7 +8,7 @@ import OpenAISession
 // TODO: Fix unit tests
 
 func something() async throws {
-  let schema = SessionSchema()
+  let schema = OtherSessionSchema()
   let session = OpenAISession(schema: schema, instructions: "", apiKey: "")
   let response = try await session.respond(to: "String", generating: \.weatherReport)
   let response2 = try await session.respond(to: "String", generating: schema.weatherReport)
@@ -35,7 +35,7 @@ func something() async throws {
 }
 
 @SessionSchema
-struct SessionSchema {
+struct OtherSessionSchema {
   @Tool var calculator = CalculatorTool()
   @Tool var weather = WeatherTool()
   @Grounding(Date.self) var currentDate
