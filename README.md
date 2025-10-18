@@ -1,3 +1,4 @@
+
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FSwiftedMind%2FSwiftAgent%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/SwiftedMind/SwiftAgent)
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FSwiftedMind%2FSwiftAgent%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/SwiftedMind/SwiftAgent)
 
@@ -9,23 +10,29 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
 
 **⚠️ Work in Progress**: SwiftAgent is currently an early prototype. The basic agent loop with tool calling is already working, but there's lots of things left to implement. APIs may change, and breaking updates are expected. Use in production with caution.
 
-## Table of Contents
+## 🧭 Table of Contents
 
 - [✨ Features](#-features)
 - [🚀 Quick Start](#-quick-start)
   - [Installation](#installation)
   - [Basic Usage](#basic-usage)
-- [🛠️ Building Tools](#️-building-tools)
-- [📖 Advanced Usage](#-advanced-usage)
-  - [Prompt Context](#prompt-context)
-  - [Tool Decoder](#tool-decoder)
-  - [Structured Output Generation](#structured-output-generation)
+  - [Building Tools](#building-tools)
+  - [Structured Responses](#structured-responses)
+  - [Access Transcripts](#access-transcripts)
+  - [Access Token Usage](#access-token-usage)
+  - [Prompt Builder](#prompt-builder)
   - [Custom Generation Options](#custom-generation-options)
-  - [Conversation History](#conversation-history)
-- [Simulated Session](#simulated-session)
-- [🔧 Configuration](#-configuration)
-  - [OpenAI Configuration](#openai-configuration)
-  - [Logging](#logging)
+- [📖 Session Schema](#-session-schema)
+  - [Tools](#tools)
+  - [Structured Output Entries](#structured-output-entries)
+  - [Groundings](#groundings)
+- [📡 Streaming Responses](#-streaming-responses)
+  - [Streaming Structured Outputs](#streaming-structured-outputs)
+- [🧵 Unified Streaming State Access](#-unified-streaming-state-access)
+- [🌐 Proxy Servers](#-proxy-servers)
+  - [Authorization](#authorization)
+- [🧠 Simulated Session](#-simulated-session)
+- [📝 Logging](#-logging)
 - [🧪 Development Status](#-development-status)
 - [📄 License](#-license)
 - [🙏 Acknowledgments](#-acknowledgments)
@@ -65,7 +72,9 @@ import OpenAISession
 // Other providers coming soon
 ```
 
-## Basic Usage
+### Basic Usage
+
+Create an `OpenAISession` with your default instructions and call `respond` whenever you need a single-turn answer. The session tracks conversation state for you, so you can start simple and layer on additional features later.
 
 ```swift
 import OpenAISession
@@ -84,9 +93,9 @@ print(response.content)
 
 > Note: Using an API key directly is great for prototyping, but do not ship it in production apps. For shipping apps, use a secure proxy with per‑turn tokens. See Proxy Setup in [OpenAI Configuration](#openai-configuration).
 
-### 🛠️ Building Tools
+### Building Tools
 
-Create tools using Apple's `@Generable` macro for type-safe, schema-free tool definitions:
+Create tools using Apple's `@Generable` macro for type-safe, schema-free tool definitions. Tools expose argument and output types that SwiftAgent validates for you, so the model can call into Swift code and receive strongly typed results without manual JSON parsing.
 
 ```swift
 import FoundationModels
@@ -180,7 +189,7 @@ throw ToolRunProblem(
 )
 ```
 
-### Structured Outputs
+### Structured Responses
 
 You can force the response to be structured by defining a type conforming to `StructuredOutput` and passing it to the `session.respond` method:
 
@@ -216,9 +225,11 @@ print(response.content.condition)
 print(response.content.humidity)
 ```
 
-### Access Tanscripts
+The response body is now a fully typed `WeatherReport`. SwiftAgent validates the payload against your schema, so you can use the data immediately in UI or unit tests without defensive decoding.
 
-Access the session's transcript to retrieve and process the conversation history:
+### Access Transcripts
+
+Every `OpenAISession` maintains a running transcript that records prompts, reasoning steps, tool calls, and responses. Iterate over it to drive custom analytics, persistence, or UI updates:
 
 ```swift
 import OpenAISession
@@ -248,7 +259,7 @@ for entry in session.transcript {
 
 ### Access Token Usage
 
-Access the session's accumulated token usage:
+Track each session's cumulative token consumption to budget response costs or surface usage in settings screens:
 
 ```swift
 import OpenAISession
@@ -268,7 +279,25 @@ print(session.tokenUsage.totalTokens)
 
 ### Prompt Builder
 
-TODO Explanations and examples for the prompt builder result builder
+Build rich prompts inline with the `@PromptBuilder` DSL. Tags group related context, keep instructions readable, and mirror the structure FoundationModels expects when you want to mix prose with metadata.
+
+```swift
+let response = try await session.respond(using: .gpt5) {
+  "You are a friendly assistant who double-checks calculations."
+
+  PromptTag("user-question") {
+    "Explain how Swift's structured concurrency works."
+  }
+
+  PromptTag("formatting") {
+    "Answer in three concise bullet points."
+  }
+}
+
+print(response.content)
+```
+
+Under the hood SwiftAgent converts the builder result into the exact wire format required by the adapter, so you can focus on intent instead of string concatenation.
 
 ### Custom Generation Options
 
@@ -296,9 +325,13 @@ let response = try await session.respond(
 print(response.content)
 ```
 
+These overrides apply only to the current turn, so you can increase creativity or token limits for specific prompts without mutating the session-wide configuration.
+
 ## 📖 Session Schema
 
-The transcript object for the `OpenAISession` contains a lot of generated content packed inside of `GeneratedContent` objects, which are essentially wrappers around JSON objects, making them fairly inconvenient to work with. To solve this, SwiftAgent comes with a mechanism that can decode the transcript into a new object that contains _fully typped_ entries for all your tool calls, structured outputs and more.
+Raw transcripts expose every event as `GeneratedContent`, which is flexible but awkward when you want to build UI or assertions.
+
+Create a schema for your session using  `@SessionSchema` to describe the tools, groundings, and structured outputs you expect. SwiftAgent then decodes each transcript entry into strongly typed cases that mirror your declarations.
 
 ```swift
 @SessionSchema
@@ -312,11 +345,25 @@ struct SessionSchema {
   @StructuredOutput(WeatherReport.self) var weatherReport
   @StructuredOutput(CalculatorOutput .self) var calculatorOutput
 }
+
+// Pass the scema to your session object
+let sessionSchema = SessionSchema()
+let session = OpenAISession(
+  schema: sessionSchema,
+  instructions: "You are a helpful assistant.",
+  apiKey: "sk-...",
+)
 ```
 
-// TODO: Explain @Tool @Grounding and @StructuredOutput and what a tool run is etc.
+Each macro refines a portion of the transcript:
+
+- `@Tool` links a tool implementation to its decoded entries, giving you typed arguments, outputs, and errors for every invocation.
+- `@Grounding` registers values you inject into prompts (like dates or search results) so they can be replayed alongside the prompt text.
+- `@StructuredOutput` binds a guided generation schema to its decoded result, including partial streaming updates and final values.
 
 ### Tools
+
+Decoded tool runs combine the model's argument payload and your tool's output in one place. That makes it easy to render progress UIs and surface recoverable errors without manually joining separate transcript entries.
 
 ```swift
 import FoundationModels
@@ -357,7 +404,9 @@ for entry in try sessionSchema.decode(session.transcript) {
 }
 ```
 
-### Structured Outputs
+### Structured Output Entries
+
+When you request structured data, decoded responses slot those values directly into the schema you registered on the session. You can pull the result out of the live response or from the transcript later, depending on your workflow.
 
 ```swift
 import FoundationModels
@@ -402,6 +451,8 @@ for entry in try sessionSchema.decode(session.transcript) {
 ```
 
 ### Groundings
+
+Groundings capture extra context you feed the model—like the current time or search snippets—and keep it synchronized with the prompt text. That makes it straightforward to inspect what the model saw and to recreate prompts later for debugging.
 
 ```swift
 import FoundationModels
@@ -461,7 +512,9 @@ for entry in try sessionSchema.decode(session.transcript) {
 }
 ```
 
-## Streaming Responses
+## 📡 Streaming Responses
+
+`streamResponse` emits snapshots while the agent thinks, calls tools, and crafts the final answer. FoundationModels generates `PartiallyGenerated` companions for every `@Generable` type, turning each property into an optional so tokens can land as soon as they are decoded. SwiftAgent surfaces those partial values directly, then swaps in the fully realized type once the model finalizes the turn.
 
 ```swift
 import FoundationModels
@@ -492,7 +545,11 @@ for try await snapshot in stream {
 }
 ```
 
-### Structured Outputs
+Each snapshot contains the latest response fragment—if the model has started speaking—and the full transcript up to that point, giving you enough context to animate UI or log intermediate steps.
+
+### Streaming Structured Outputs
+
+Structured streaming works the same way: SwiftAgent first yields partially generated objects whose properties fill in as tokens arrive, then delivers the final schema once generation completes.
 
 ```swift
 import FoundationModels
@@ -556,19 +613,33 @@ for entry in try sessionSchema.decode(session.transcript) {
 }
 ```
 
+## 🧵 Unified Streaming State Access
 
-TODO: Streaming
-TODO: Explain this "partial" and "final" thing for the objects, using the "FoundationModels" Generable.PartiallyGenerated object.
+SwiftAgent keeps SwiftUI views stable by exposing normalized projections of in-flight data. For tool runs, `normalizedArguments` always returns the partially generated variant of your argument type alongside an `isFinal` flag, so the view does not need to branch on enum states:
 
-TODO: "Best Practices"
--> "normalized" concept for UI
+```swift
+struct WeatherToolRunView: View {
+  let run: ToolRun<WeatherTool>
 
-TODO: Example App walkthrough
+  var body: some View {
+    if let normalizedArguments = run.normalizedArguments {
+      VStack(alignment: .leading, spacing: 4) {
+        Text("City: \(normalizedArguments.city ?? "-")")
+        Text("Unit: \(normalizedArguments.unit ?? "-")")
 
+        if normalizedArguments.isFinal {
+          Text("Arguments locked in").font(.caption).foregroundStyle(.secondary)
+        }
+      }
+      .monospacedDigit()
+    }
+  }
+}
+```
 
+Structured outputs follow the same pattern with `snapshot.normalizedContent`: you always receive a partially generated projection that updates in place, even after the final payload is available. The Example App’s Agent Playground view leans on these helpers to render incremental suggestions without triggering SwiftUI identity churn.
 
-
-## Proxy Servers
+## 🌐 Proxy Servers
 
 Using an API key directly is great for prototyping, but it should never be shipped to production unless you're deploying it some place you fully control. SwiftAgent comes with the option to route all agent requests through a proxy server (for example, your own backend):
 
@@ -616,7 +687,7 @@ let refreshed = try await session.withAuthorization(
 }
 ```
 
-## Simulated Session
+## 🧠 Simulated Session
 
 You can test and develop your agents without making API calls using the built-in simulation system. This is perfect for prototyping, testing, and developing UIs before integrating with live APIs.
 
@@ -664,7 +735,7 @@ let response = try await session.respond(to: "What's the weather like in San Fra
 print(response.content) // "It's a beautiful sunny day in San Francisco with 22.5°C!"
 ```
 
-## Logging
+## 📝 Logging
 
 ```swift
 // Enable comprehensive logging
