@@ -23,4 +23,3 @@
 
 ## General Notes
 - Do this with minimal exploration. Stop as soon as actionable context is sufficient. The commits do not have to contain every single detail.
-- Whenever possible use `--no-pager` to avoid pager issues
