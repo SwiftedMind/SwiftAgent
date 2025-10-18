@@ -31,14 +31,15 @@ struct OpenAIStreamingTextTests {
 
   @Test("Single response")
   func singleResponse() async throws {
-    let generatedTranscript = try await processStreamResponse()
+    let (generatedTranscript, latestContent) = try await processStreamResponse()
     await validateHTTPRequests()
     try validateTranscript(generatedTranscript: generatedTranscript)
+    #expect(latestContent == "Hello, World!")
   }
 
   // MARK: - Private Test Helper Methods
 
-  private func processStreamResponse() async throws -> Transcript {
+  private func processStreamResponse() async throws -> (Transcript, String?) {
     let stream = try session.streamResponse(
       to: "prompt",
       using: .gpt5,
@@ -46,12 +47,16 @@ struct OpenAIStreamingTextTests {
     )
 
     var generatedTranscript = Transcript()
+    var latestContent: String?
 
     for try await snapshot in stream {
       generatedTranscript = snapshot.transcript
+      if let content = snapshot.content {
+        latestContent = content
+      }
     }
 
-    return generatedTranscript
+    return (generatedTranscript, latestContent)
   }
 
   private func validateHTTPRequests() async {

@@ -7,3 +7,4 @@ platform=sim
 device=iPhone 17 Pro
 
 testtarget=SwiftAgentTests
+testscheme=SwiftAgentTests

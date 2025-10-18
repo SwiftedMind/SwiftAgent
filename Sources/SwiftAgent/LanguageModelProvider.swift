@@ -243,20 +243,40 @@ package extension LanguageModelProvider {
       continuation: AsyncThrowingStream<AgentSnapshot<StructuredOutput>, any Error>.Continuation,
     ) {
       var content: StructuredOutput.Schema.PartiallyGenerated?
-      if type != nil {
-        do {
-          if let structuredSegment = try generatedTranscript.structuredOutputFromLastResponse() {
-            switch structuredSegment.status {
+
+      if let lastResponse = generatedTranscript.lastResponseEntry() {
+        if type == nil {
+          do {
+            if let text = lastResponse.text, !text.isEmpty {
+              content = try StructuredOutput.Schema.PartiallyGenerated(GeneratedContent(kind: .string(text)))
+            }
+          } catch {
+            continuation.finish(throwing: error)
+            return
+          }
+        } else {
+          do {
+            if !lastResponse.textSegments.isEmpty {
+              throw GenerationError.unexpectedTextResponse(.init())
+            }
+
+            let structuredSegments = lastResponse.structuredSegments
+            if structuredSegments.count != 1 {
+              throw GenerationError.unexpectedStructuredResponse(.init())
+            }
+
+            let structuredSegment = structuredSegments[0]
+            switch lastResponse.status {
             case .inProgress, .completed:
-              // In a streaming response, we only ever return the partially generated content
-              content = try StructuredOutput.Schema.PartiallyGenerated(structuredSegment.segment.content)
+              content = try StructuredOutput.Schema.PartiallyGenerated(structuredSegment.content)
             case .incomplete:
               continuation.finish(throwing: GenerationError.providerError(.init(message: "Incomplete response")))
+              return
             }
+          } catch {
+            continuation.finish(throwing: error)
+            return
           }
-        } catch {
-          continuation.finish(throwing: error)
-          return
         }
       }
 

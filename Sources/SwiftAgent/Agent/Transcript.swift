@@ -48,19 +48,23 @@ public struct Transcript: Sendable, Equatable {
   ///   available.
   /// - Throws: A `GenerationError` if unexpected text or multiple structured
   ///   segments are present.
+  package func lastResponseEntry() -> Response? {
+    guard let lastEntry = entries.last else {
+      return nil
+    }
+    guard case let .response(response) = lastEntry else {
+      return nil
+    }
+
+    if response.segments.isEmpty {
+      return nil
+    }
+
+    return response
+  }
+
   package func structuredOutputFromLastResponse() throws -> LastResponseStructuredOutput? {
-    guard let response = entries
-      .reversed()
-      .first(where: {
-        if case .response = $0 { return true }
-        return false
-      })
-      .flatMap({ entry -> Response? in
-        if case let .response(response) = entry {
-          return response
-        }
-        return nil
-      }) else {
+    guard let response = lastResponseEntry() else {
       return nil
     }
 
