@@ -186,26 +186,26 @@ public struct TranscriptDecoder<SessionSchema: LanguageModelSessionSchema> {
     with resolvableType: DecodableType.Type,
   ) -> SessionSchema.DecodedStructuredOutput
     where DecodableType.DecodedStructuredOutput == SessionSchema.DecodedStructuredOutput {
-    var content: StructuredOutputUpdate<DecodableType.Base>.Content?
+    var contentPhase: StructuredOutputUpdate<DecodableType.Base>.ContentPhase?
     var structuredOutput: StructuredOutputUpdate<DecodableType.Base>
 
     do {
       switch status {
       case .completed:
-        content = try .final(resolvableType.Base.Schema(structuredSegment.content))
+        contentPhase = try .final(resolvableType.Base.Schema(structuredSegment.content))
       case .inProgress:
-        content = try .partial(resolvableType.Base.Schema.PartiallyGenerated(structuredSegment.content))
+        contentPhase = try .partial(resolvableType.Base.Schema.PartiallyGenerated(structuredSegment.content))
       default:
-        content = nil
+        contentPhase = nil
       }
     } catch {
-      content = nil
+      contentPhase = nil
     }
 
-    if let content {
+    if let contentPhase {
       structuredOutput = StructuredOutputUpdate<DecodableType.Base>(
         id: structuredSegment.id,
-        content: content,
+        contentPhase: contentPhase,
         rawContent: structuredSegment.content,
       )
     } else {

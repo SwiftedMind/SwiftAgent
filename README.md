@@ -613,31 +613,52 @@ for entry in try sessionSchema.decode(session.transcript) {
 }
 ```
 
-## 🧵 Unified Streaming State Access
+## 🧵 Streaming State Helpers
 
-SwiftAgent keeps SwiftUI views stable by exposing normalized projections of in-flight data. For tool runs, `normalizedArguments` always returns the partially generated variant of your argument type alongside an `isFinal` flag, so the view does not need to branch on enum states:
+SwiftAgent keeps SwiftUI views stable by exposing current projections of in-flight data. For tool runs, `currentArguments` always returns the partially generated variant of your argument type alongside an `isFinal` flag, so the view does not need to branch on enum states. When you need the fully validated payload reach for `finalArguments`, and if you want to respond to streaming transitions you can switch over `argumentsPhase`.
 
 ```swift
 struct WeatherToolRunView: View {
   let run: ToolRun<WeatherTool>
 
   var body: some View {
-    if let normalizedArguments = run.normalizedArguments {
+    // 1. UI-friendly projection that stays stable while streaming
+    if let currentArguments = run.currentArguments {
       VStack(alignment: .leading, spacing: 4) {
-        Text("City: \(normalizedArguments.city ?? "-")")
-        Text("Unit: \(normalizedArguments.unit ?? "-")")
+        Text("City: \(currentArguments.city ?? "-")")
+        Text("Unit: \(currentArguments.unit ?? "-")")
 
-        if normalizedArguments.isFinal {
+        if currentArguments.isFinal {
           Text("Arguments locked in").font(.caption).foregroundStyle(.secondary)
         }
       }
       .monospacedDigit()
     }
+
+    // 2. Fully validated payload, available once the model finalizes arguments
+    if let finalArguments = run.finalArguments {
+      Text("Resolved location: \(finalArguments.city)")
+        .font(.footnote)
+    }
+
+    // 3. Underlying phase enum if you need to branch on streaming progress
+    switch run.argumentsPhase {
+    case let .partial(partialArguments):
+      Text("Awaiting completion… \(partialArguments.city ?? "-")")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    case let .final(finalArguments):
+      Text("Final: \(finalArguments.city)")
+        .font(.caption)
+        .foregroundStyle(.green)
+    case .none:
+      EmptyView()
+    }
   }
 }
 ```
 
-Structured outputs follow the same pattern with `snapshot.normalizedContent`: you always receive a partially generated projection that updates in place, even after the final payload is available. The Example App’s Agent Playground view leans on these helpers to render incremental suggestions without triggering SwiftUI identity churn.
+Structured outputs follow the same pattern with `snapshot.currentContent`: you always receive a partially generated projection that updates in place, while `finalContent` and `contentPhase` give you access to the completed schema and the streaming status respectively. The Example App’s Agent Playground view leans on these helpers to render incremental suggestions without triggering SwiftUI identity churn.
 
 ## 🌐 Proxy Servers
 

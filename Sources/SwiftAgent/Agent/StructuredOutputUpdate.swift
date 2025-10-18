@@ -9,7 +9,7 @@ import Internal
 /// Updates may be streamed as partial values and completed with a final value.
 /// Each update carries the raw provider payload plus a typed interpretation.
 ///
-/// The `normalizedContent` property provides convenient access to the schema
+/// The `currentContent` property provides convenient access to the schema
 /// regardless of finality. It always exposes a `PartiallyGenerated` view,
 /// making UI development simpler and more predictable by eliminating the need
 /// to branch between partial and final content.
@@ -39,8 +39,8 @@ import Internal
 /// for try await snapshot in session.weatherReport.streamGeneration(
 ///   from: "Weather for San Francisco",
 /// ) {
-///   // Pass the normalized content directly to your SwiftUI view
-///   if let content = snapshot.normalizedContent.content {
+///   // Pass the current content directly to your SwiftUI view
+///   if let content = snapshot.currentContent.content {
 ///     WeatherView(content: content)
 ///   }
 /// }
@@ -75,7 +75,7 @@ import Internal
 /// ```
 public struct StructuredOutputUpdate<Output: StructuredOutput>: Identifiable {
   /// Represents the typed content carried by an update.
-  public enum Content {
+  public enum ContentPhase {
     /// A partially generated value that may be followed by further updates.
     case partial(Output.Schema.PartiallyGenerated)
 
@@ -83,7 +83,7 @@ public struct StructuredOutputUpdate<Output: StructuredOutput>: Identifiable {
     case final(Output.Schema)
   }
 
-  /// A normalized view over update content that always exposes a
+  /// A current view over update content that always exposes a
   /// `PartiallyGenerated` value plus a flag indicating finality.
   ///
   /// Designed for UI rendering: you always receive the partially generated
@@ -92,8 +92,8 @@ public struct StructuredOutputUpdate<Output: StructuredOutput>: Identifiable {
   /// `PartiallyGenerated` so bindings keep working without additional state
   /// switches.
   @dynamicMemberLookup
-  public struct NormalizedContent {
-    /// Whether this normalized content represents the final value.
+  public struct CurrentContent {
+    /// Whether this current content represents the final value.
     public var isFinal: Bool
 
     /// The partially generated representation of the content.
@@ -117,15 +117,15 @@ public struct StructuredOutputUpdate<Output: StructuredOutput>: Identifiable {
   public var rawContent: GeneratedContent
 
   /// The typed content for this update, if decoding succeeded.
-  public var content: Content?
+  public var contentPhase: ContentPhase?
 
-  /// A normalized view over the content, available when `content` is present.
+  /// A current view over the content, available when `contentPhase` is present.
   ///
   /// This always contains a `PartiallyGenerated` view of the schema—even when
   /// the underlying update is final. Final values are converted into their
   /// `PartiallyGenerated` form so that UI code (e.g. SwiftUI views) can bind to
   /// a single, stable model without branching on status.
-  public var normalizedContent: NormalizedContent?
+  public var currentContent: CurrentContent?
 
   public var finalContent: Output.Schema?
 
@@ -133,13 +133,13 @@ public struct StructuredOutputUpdate<Output: StructuredOutput>: Identifiable {
   public var error: GeneratedContent?
 
   /// Creates an update that carries typed content.
-  public init(id: String, content: Content, rawContent: GeneratedContent) {
+  public init(id: String, contentPhase: ContentPhase, rawContent: GeneratedContent) {
     self.id = id
-    self.content = content
+    self.contentPhase = contentPhase
     self.rawContent = rawContent
-    normalizedContent = Self.makeNormalized(from: content, raw: rawContent)
+    currentContent = Self.makeCurrentContent(from: contentPhase, raw: rawContent)
 
-    switch content {
+    switch contentPhase {
     case let .final(final):
       finalContent = final
     default:
@@ -158,14 +158,14 @@ public struct StructuredOutputUpdate<Output: StructuredOutput>: Identifiable {
   public static func partial(id: String, json: String) throws -> StructuredOutputUpdate<Output> {
     let rawContent = try GeneratedContent(json: json)
     let content = try Output.Schema.PartiallyGenerated(rawContent)
-    return StructuredOutputUpdate(id: id, content: .partial(content), rawContent: rawContent)
+    return StructuredOutputUpdate(id: id, contentPhase: .partial(content), rawContent: rawContent)
   }
 
   /// Decodes a final update from a JSON string.
   public static func final(id: String, json: String) throws -> StructuredOutputUpdate<Output> {
     let rawContent = try GeneratedContent(json: json)
     let content = try Output.Schema(rawContent)
-    return StructuredOutputUpdate(id: id, content: .final(content), rawContent: rawContent)
+    return StructuredOutputUpdate(id: id, contentPhase: .final(content), rawContent: rawContent)
   }
 
   /// Creates an update that carries an error payload.
@@ -175,24 +175,24 @@ public struct StructuredOutputUpdate<Output: StructuredOutput>: Identifiable {
 }
 
 private extension StructuredOutputUpdate {
-  /// Produces a normalized view for a given typed content.
-  static func makeNormalized(from content: Content, raw: GeneratedContent) -> NormalizedContent? {
+  /// Produces a current view for a given typed content.
+  static func makeCurrentContent(from content: ContentPhase, raw: GeneratedContent) -> CurrentContent? {
     switch content {
     case let .partial(content):
-      NormalizedContent(isFinal: false, content: content)
+      CurrentContent(isFinal: false, content: content)
     case let .final(content):
-      NormalizedContent(isFinal: true, content: content.asPartiallyGenerated())
+      CurrentContent(isFinal: true, content: content.asPartiallyGenerated())
     }
   }
 }
 
-extension StructuredOutputUpdate.Content: Sendable where Output.Schema: Sendable,
+extension StructuredOutputUpdate.ContentPhase: Sendable where Output.Schema: Sendable,
   Output.Schema.PartiallyGenerated: Sendable {}
-extension StructuredOutputUpdate.Content: Equatable where Output.Schema: Equatable,
+extension StructuredOutputUpdate.ContentPhase: Equatable where Output.Schema: Equatable,
   Output.Schema.PartiallyGenerated: Equatable {}
 extension StructuredOutputUpdate: Sendable where Output.Schema: Sendable,
   Output.Schema.PartiallyGenerated: Sendable {}
-extension StructuredOutputUpdate.NormalizedContent: Sendable where Output.Schema.PartiallyGenerated: Sendable {}
+extension StructuredOutputUpdate.CurrentContent: Sendable where Output.Schema.PartiallyGenerated: Sendable {}
 extension StructuredOutputUpdate: Equatable {
   public static func == (lhs: StructuredOutputUpdate<Output>,
                          rhs: StructuredOutputUpdate<Output>) -> Bool {

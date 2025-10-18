@@ -26,7 +26,7 @@ package extension DecodableTool {
     let arguments = try BaseTool.Arguments(rawArguments)
     let toolRun = try toolRun(
       id: id,
-      arguments: .final(arguments),
+      argumentsPhase: .final(arguments),
       rawArguments: rawArguments,
       rawOutput: rawOutput,
     )
@@ -42,7 +42,7 @@ package extension DecodableTool {
     let arguments = try BaseTool.Arguments.PartiallyGenerated(rawArguments)
     let toolRun = try toolRun(
       id: id,
-      arguments: .partial(arguments),
+      argumentsPhase: .partial(arguments),
       rawArguments: rawArguments,
       rawOutput: rawOutput,
     )
@@ -70,14 +70,14 @@ package extension DecodableTool {
   /// Builds a typed `ToolRun` value from raw arguments and optional output/problem.
   func toolRun(
     id: String,
-    arguments: ToolRun<BaseTool>.ArgumentsPhase,
+    argumentsPhase: ToolRun<BaseTool>.ArgumentsPhase,
     rawArguments: GeneratedContent,
     rawOutput: GeneratedContent?,
   ) throws -> ToolRun<BaseTool> {
     guard let rawOutput else {
       return ToolRun(
         id: id,
-        arguments: arguments,
+        argumentsPhase: argumentsPhase,
         rawArguments: rawArguments,
         rawOutput: rawOutput,
       )
@@ -86,7 +86,7 @@ package extension DecodableTool {
     do {
       return try ToolRun(
         id: id,
-        arguments: arguments,
+        argumentsPhase: argumentsPhase,
         output: BaseTool.Output(rawOutput),
         rawArguments: rawArguments,
         rawOutput: rawOutput,
@@ -98,7 +98,7 @@ package extension DecodableTool {
 
       return ToolRun(
         id: id,
-        arguments: arguments,
+        argumentsPhase: argumentsPhase,
         problem: problem,
         rawArguments: rawArguments,
         rawOutput: rawOutput,

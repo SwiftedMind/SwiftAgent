@@ -32,7 +32,7 @@ import Internal
 ///   switch toolRun {
 ///   case let .calculator(toolRun):
 ///     // Access typed arguments
-///     if let arguments = toolRun.normalizedArguments {
+///     if let arguments = toolRun.currentArguments {
 ///       print("First number: \(arguments.firstNumber)")
 ///       print("Operation: \(arguments.operation)")
 ///       print("Second number: \(arguments.secondNumber)")
@@ -60,7 +60,7 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
   /// ## Example
   ///
   /// ```swift
-  /// switch toolRun.arguments {
+  /// switch toolRun.argumentsPhase {
   /// case let .partial(partialArguments):
   ///   // Arguments are still being generated
   ///   print("First number: \(partialArguments.firstNumber ?? 0)")
@@ -84,7 +84,7 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
 
   /// A UI-stable view of tool arguments that maintains consistent SwiftUI view identity.
   ///
-  /// `NormalizedArguments` provides a stable interface for SwiftUI views by always exposing
+  /// `CurrentArguments` provides a stable interface for SwiftUI views by always exposing
   /// arguments in their `PartiallyGenerated` form, even when the underlying arguments are final.
   /// This prevents view identity changes that occur when switching between partial and final
   /// argument states during streaming.
@@ -99,13 +99,13 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
   ///   let toolRun: ToolRun<CalculatorTool>
   ///
   ///   var body: some View {
-  ///     if let normalizedArguments = toolRun.normalizedArguments {
+  ///     if let currentArguments = toolRun.currentArguments {
   ///       HStack {
-  ///         Text("\(normalizedArguments.firstNumber ?? 0)")
-  ///         Text(normalizedArguments.operation ?? "?")
-  ///         Text("\(normalizedArguments.secondNumber ?? 0)")
+  ///         Text("\(currentArguments.firstNumber ?? 0)")
+  ///         Text(currentArguments.operation ?? "?")
+  ///         Text("\(currentArguments.secondNumber ?? 0)")
   ///
-  ///         if normalizedArguments.isFinal {
+  ///         if currentArguments.isFinal {
   ///           Text("✓")
   ///         }
   ///       }
@@ -114,7 +114,7 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
   /// }
   /// ```
   @dynamicMemberLookup
-  public struct NormalizedArguments {
+  public struct CurrentArguments {
     /// Whether the arguments are in their final, complete state.
     public var isFinal: Bool
     /// The arguments in their partially generated form for UI stability.
@@ -127,7 +127,7 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
 
     /// Provides direct access to argument properties through dynamic member lookup.
     ///
-    /// This allows you to access argument values directly on the `NormalizedArguments`
+    /// This allows you to access argument values directly on the `CurrentArguments`
     /// instance, maintaining a clean API while ensuring UI stability.
     public subscript<Value>(dynamicMember keyPath: KeyPath<Arguments.PartiallyGenerated, Value>) -> Value {
       arguments[keyPath: keyPath]
@@ -154,7 +154,7 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
   /// - `nil`: Arguments failed to decode or are not available
   /// - `.partial`: Arguments are being streamed and may be incomplete
   /// - `.final`: Arguments are complete and validated
-  public var arguments: ArgumentsPhase?
+  public var argumentsPhase: ArgumentsPhase?
 
   /// A UI-stable view of the tool arguments for SwiftUI.
   ///
@@ -164,7 +164,7 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
   ///
   /// Use `isFinal` to determine completion status while accessing argument values
   /// through dynamic member lookup for consistent UI behavior.
-  public var normalizedArguments: NormalizedArguments?
+  public var currentArguments: CurrentArguments?
 
   public var finalArguments: Arguments?
 
@@ -217,21 +217,21 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
 
   public init(
     id: String,
-    arguments: ArgumentsPhase,
+    argumentsPhase: ArgumentsPhase,
     output: Output? = nil,
     problem: Problem? = nil,
     rawArguments: GeneratedContent,
     rawOutput: GeneratedContent? = nil,
   ) {
     self.id = id
-    self.arguments = arguments
+    self.argumentsPhase = argumentsPhase
     self.output = output
     self.problem = problem
     self.rawArguments = rawArguments
     self.rawOutput = rawOutput
-    normalizedArguments = Self.makeNormalizedArguments(from: arguments, rawArguments: rawArguments)
+    currentArguments = Self.makeCurrentArguments(from: argumentsPhase, rawArguments: rawArguments)
 
-    switch arguments {
+    switch argumentsPhase {
     case let .final(final):
       finalArguments = final
     default:
@@ -282,7 +282,7 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     let arguments = try Arguments.PartiallyGenerated(rawArguments)
     return self.init(
       id: id,
-      arguments: .partial(arguments),
+      argumentsPhase: .partial(arguments),
       rawArguments: rawArguments,
     )
   }
@@ -317,7 +317,7 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     let arguments = try Arguments(rawArguments)
     return self.init(
       id: id,
-      arguments: .final(arguments),
+      argumentsPhase: .final(arguments),
       output: output,
       rawArguments: rawArguments,
     )
@@ -357,7 +357,7 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     let arguments = try Arguments(rawArguments)
     return self.init(
       id: id,
-      arguments: .final(arguments),
+      argumentsPhase: .final(arguments),
       problem: problem,
       rawArguments: rawArguments,
     )
@@ -436,22 +436,22 @@ public extension ToolRun {
 }
 
 private extension ToolRun {
-  static func makeNormalizedArguments(
+  static func makeCurrentArguments(
     from phase: ArgumentsPhase,
     rawArguments: GeneratedContent,
-  ) -> NormalizedArguments? {
+  ) -> CurrentArguments? {
     switch phase {
     case let .partial(arguments):
-      NormalizedArguments(isFinal: false, arguments: arguments)
+      CurrentArguments(isFinal: false, arguments: arguments)
     case let .final(arguments):
-      NormalizedArguments(isFinal: true, arguments: arguments.asPartiallyGenerated())
+      CurrentArguments(isFinal: true, arguments: arguments.asPartiallyGenerated())
     }
   }
 }
 
 extension ToolRun.ArgumentsPhase: Sendable
   where ToolRun.Arguments: Sendable, ToolRun.Arguments.PartiallyGenerated: Sendable {}
-extension ToolRun.NormalizedArguments: Sendable
+extension ToolRun.CurrentArguments: Sendable
   where ToolRun.Arguments.PartiallyGenerated: Sendable {}
 extension ToolRun: Sendable
   where ToolRun.Arguments: Sendable, ToolRun.Arguments.PartiallyGenerated: Sendable, ToolRun.Output: Sendable {}

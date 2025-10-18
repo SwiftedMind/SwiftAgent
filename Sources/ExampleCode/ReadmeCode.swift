@@ -285,7 +285,7 @@ public enum ReadmeCode {
       case let .response(response):
         switch response.structuredSegments[0].content {
         case let .weatherReport(weatherReport):
-          switch weatherReport.content {
+          switch weatherReport.contentPhase {
           case let .partial(partialWeatherReport):
             print(partialWeatherReport) // Partially populated object
           case let .final(finalWeatherReport):
@@ -297,6 +297,44 @@ public enum ReadmeCode {
           print("Unknown output")
         }
 
+      default: break
+      }
+    }
+  }
+
+  func streamingStateHelpers() async throws {
+    let sessionSchema = SessionSchema()
+    let session = OpenAISession(
+      schema: sessionSchema,
+      instructions: "You are a helpful assistant.",
+      apiKey: "sk-...",
+    )
+
+    _ = try session.streamResponse(to: "What's the weather like in San Francisco?")
+
+    for entry in try sessionSchema.decode(session.transcript) {
+      switch entry {
+      case let .toolRun(toolRun):
+        switch toolRun {
+        case let .weatherTool(run):
+          if let currentArguments = run.currentArguments {
+            print(currentArguments)
+          }
+
+          if let finalArguments = run.finalArguments {
+            print(finalArguments)
+          }
+
+          switch run.argumentsPhase {
+          case let .partial(partialArguments):
+            print("Partial:", partialArguments)
+          case let .final(finalArguments):
+            print("Final:", finalArguments)
+          case .none:
+            print("None")
+          }
+        default: break
+        }
       default: break
       }
     }

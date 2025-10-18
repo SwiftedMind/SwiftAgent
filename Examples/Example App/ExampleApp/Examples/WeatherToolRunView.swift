@@ -10,7 +10,7 @@ struct WeatherToolRunView: View {
 
   var body: some View {
     GroupBox("Weather") {
-      if let arguments = weatherRun.normalizedArguments {
+      if let arguments = weatherRun.currentArguments {
         VStack(spacing: 12) {
           VStack(spacing: 6) {
             GroupBox("City") {

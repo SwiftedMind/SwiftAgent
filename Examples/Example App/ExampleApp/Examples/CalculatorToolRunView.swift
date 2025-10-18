@@ -10,7 +10,7 @@ struct CalculatorToolRunView: View {
 
   var body: some View {
     GroupBox("Calculator") {
-      if let arguments = calculatorRun.normalizedArguments {
+      if let arguments = calculatorRun.currentArguments {
         VStack(spacing: 5) {
           HStack(spacing: 10) {
             operandView(for: arguments.firstNumber)
