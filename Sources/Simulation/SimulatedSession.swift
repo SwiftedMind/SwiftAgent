@@ -2,158 +2,63 @@
 
 import Foundation
 import FoundationModels
+import Observation
 @_exported import SwiftAgent
 
-public extension LanguageModelProvider {
-  private var simulationAdapter: SimulationAdapter {
-    SimulationAdapter()
+@Observable
+public final class SimulatedSession<
+  SessionSchema: LanguageModelSessionSchema,
+>: LanguageModelProvider, @unchecked Sendable {
+  public typealias Adapter = SimulationAdapter
+
+  @ObservationIgnored public let adapter: SimulationAdapter
+  @ObservationIgnored public var schema: SessionSchema
+
+  @ObservationIgnored public var tools: [any SwiftAgentTool] {
+    adapter.tools
   }
 
-  private func simulationAdapter(with configuration: SimulationAdapter.Configuration) -> SimulationAdapter {
-    SimulationAdapter(configuration: configuration)
+  public var transcript: SwiftAgent.Transcript = Transcript()
+  public var tokenUsage: TokenUsage = .init()
+
+  private var defaultGenerations: [SimulatedGeneration] {
+    adapter.configuration.defaultGenerations
   }
 
-  @discardableResult
-  func simulateResponse(
-    to prompt: String,
-    generations: [SimulatedGeneration<String>],
-    configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-  ) async throws -> AgentResponse<String> {
-    let sourcesData = try schema.encodeGrounding([SessionSchema.DecodedGrounding]())
-    let transcriptPrompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
-    let promptEntry = Transcript.Entry.prompt(transcriptPrompt)
-    await appendTranscript(promptEntry)
+  private var defaultTokenUsage: TokenUsage? {
+    adapter.configuration.tokenUsage
+  }
 
-    let stream = await simulationAdapter(with: configuration).respond(
-      to: transcriptPrompt,
-      generating: String.self,
-      generations: generations,
-    )
-    var responseContent: [String] = []
-    var addedEntities: [Transcript.Entry] = []
-    var aggregatedUsage: TokenUsage?
+  public init<each ToolType>(
+    tools: repeat each ToolType,
+    instructions: String = "",
+    configuration: SimulationAdapter.Configuration,
+  ) where
+    SessionSchema == NoSchema,
+    repeat (each ToolType): FoundationModels.Tool,
+    repeat (each ToolType).Arguments: Generable,
+    repeat (each ToolType).Output: Generable {
+      var wrappedTools: [any SwiftAgentTool] = []
+      _ = (repeat wrappedTools.append(_SwiftAgentToolWrapper(tool: each tools)))
 
-    for try await update in stream {
-      switch update {
-      case let .transcript(entry):
-        await appendTranscript(entry)
-        addedEntities.append(entry)
-
-        if case let .response(response) = entry {
-          for segment in response.segments {
-            switch segment {
-            case let .text(textSegment):
-              responseContent.append(textSegment.content)
-            case .structure:
-              break
-            }
-          }
-        }
-      case let .tokenUsage(usage):
-        if var current = aggregatedUsage {
-          current.merge(usage)
-          aggregatedUsage = current
-        } else {
-          aggregatedUsage = usage
-        }
-      }
+      schema = NoSchema()
+      adapter = SimulationAdapter(
+        tools: wrappedTools,
+        instructions: instructions,
+        configuration: configuration,
+      )
     }
 
-    let transcript = Transcript(entries: addedEntities)
-    return AgentResponse<String>(
-      content: responseContent.joined(separator: "\n"),
-      transcript: transcript,
-      tokenUsage: aggregatedUsage,
+  public init(
+    schema: SessionSchema,
+    instructions: String,
+    configuration: SimulationAdapter.Configuration,
+  ) {
+    self.schema = schema
+    adapter = SimulationAdapter(
+      tools: schema.decodableTools,
+      instructions: instructions,
+      configuration: configuration,
     )
-  }
-
-  @discardableResult
-  func simulateResponse<StructuredOutput: SwiftAgent.StructuredOutput>(
-    to prompt: String,
-    generations: [SimulatedGeneration<StructuredOutput>],
-    configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-  ) async throws -> AgentResponse<StructuredOutput> {
-    let sourcesData = try schema.encodeGrounding([SessionSchema.DecodedGrounding]())
-    let transcriptPrompt = Transcript.Prompt(input: prompt, sources: sourcesData, prompt: prompt)
-    let promptEntry = Transcript.Entry.prompt(transcriptPrompt)
-    await appendTranscript(promptEntry)
-
-    let stream = await simulationAdapter(with: configuration).respond(
-      to: transcriptPrompt,
-      generating: StructuredOutput.self,
-      generations: generations,
-    )
-    var addedEntities: [Transcript.Entry] = []
-    var aggregatedUsage: TokenUsage?
-
-    for try await update in stream {
-      switch update {
-      case let .transcript(entry):
-        await appendTranscript(entry)
-        addedEntities.append(entry)
-
-        if case let .response(response) = entry {
-          for segment in response.segments {
-            switch segment {
-            case .text:
-              break
-            case let .structure(structuredSegment):
-              let transcript = Transcript(entries: addedEntities)
-              return try AgentResponse<StructuredOutput>(
-                content: StructuredOutput.Schema(structuredSegment.content),
-                transcript: transcript,
-                tokenUsage: aggregatedUsage,
-              )
-            }
-          }
-        }
-      case let .tokenUsage(usage):
-        if var current = aggregatedUsage {
-          current.merge(usage)
-          aggregatedUsage = current
-        } else {
-          aggregatedUsage = usage
-        }
-      }
-    }
-
-    let errorContext = GenerationError.UnexpectedStructuredResponseContext()
-    throw GenerationError.unexpectedStructuredResponse(errorContext)
-  }
-
-  @discardableResult
-  func simulateResponse(
-    to prompt: SwiftAgent.Prompt,
-    generations: [SimulatedGeneration<String>],
-    configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-  ) async throws -> AgentResponse<String> {
-    try await simulateResponse(to: prompt.formatted(), generations: generations, configuration: configuration)
-  }
-
-  @discardableResult
-  func simulateResponse<StructuredOutput: SwiftAgent.StructuredOutput>(
-    to prompt: SwiftAgent.Prompt,
-    generations: [SimulatedGeneration<StructuredOutput>],
-    configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-  ) async throws -> AgentResponse<StructuredOutput> {
-    try await simulateResponse(to: prompt.formatted(), generations: generations, configuration: configuration)
-  }
-
-  @discardableResult
-  func simulateResponse(
-    generations: [SimulatedGeneration<String>],
-    configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-    @SwiftAgent.PromptBuilder prompt: () throws -> SwiftAgent.Prompt,
-  ) async throws -> AgentResponse<String> {
-    try await simulateResponse(to: prompt().formatted(), generations: generations, configuration: configuration)
-  }
-
-  @discardableResult
-  func simulateResponse<StructuredOutput: SwiftAgent.StructuredOutput>(
-    generations: [SimulatedGeneration<StructuredOutput>],
-    configuration: SimulationAdapter.Configuration = SimulationAdapter.Configuration(),
-    @SwiftAgent.PromptBuilder prompt: () throws -> SwiftAgent.Prompt,
-  ) async throws -> AgentResponse<StructuredOutput> {
-    try await simulateResponse(to: prompt().formatted(), generations: generations, configuration: configuration)
   }
 }

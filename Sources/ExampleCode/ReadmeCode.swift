@@ -304,26 +304,26 @@ public enum ReadmeCode {
 
   func simulatedSession() async throws {
     let sessionSchema = SessionSchema()
-    let session = OpenAISession(
+
+    let configuration = SimulationAdapter.Configuration(defaultGenerations: [
+      .reasoning(summary: "Simulated Reasoning"),
+      .toolRun(tool: WeatherToolMock(tool: WeatherTool())),
+      .response(text: "It's a beautiful sunny day in San Francisco with 22.5°C!"),
+    ])
+
+    let session = SimulatedSession(
       schema: sessionSchema,
       instructions: "You are a helpful assistant.",
-      apiKey: "sk-...",
+      configuration: configuration,
     )
 
-    let response = try await session.simulateResponse(
-      to: "What's the weather like in San Francisco?",
-      generations: [
-        .reasoning(summary: "Simulated Reasoning"),
-        .toolRun(tool: WeatherToolMock(tool: WeatherTool())),
-        .response("It's a beautiful sunny day in San Francisco with 22.5°C!"),
-      ],
-    )
+    let response = try await session.respond(to: "What's the weather like in San Francisco?")
 
     print(response.content) // "It's a beautiful sunny day in San Francisco with 22.5°C!"
   }
 }
 
-extension ExampleCode {
+extension ReadmeCode {
   struct WeatherTool: Tool {
     let name = "get_weather"
     let description = "Get current weather for a location"

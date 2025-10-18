@@ -155,7 +155,7 @@
 ### Added
 
 - **Simulated Sessions**: Introduced the `SimulatedSession` module for testing and development without API calls. The simulation system includes:
-  - `simulateResponse` methods that mirror the standard `respond` API
+  - A `SimulatedSession` type that conforms to `LanguageModelProvider`, so you call `respond` and `streamResponse` just like with real providers
   - `MockableAgentTool` protocol for creating mock tool calls and outputs
   - `SimulatedGeneration` enum supporting tool runs, reasoning, and text or structured responses, simulating model generations
   - Complete transcript compatibility - simulated responses work on the real transcript object, guaranteeing full compatibility with the actual agent
@@ -166,27 +166,24 @@
   import SimulatedSession
   
   // Create mockable tool wrappers
-  struct WeatherToolMock: MockableAgentTool {
+  struct WeatherToolMock: MockableTool {
     var tool: WeatherTool
     func mockArguments() -> WeatherTool.Arguments { /* mock data */ }
     func mockOutput() async throws -> WeatherTool.Output { /* mock results */ }
   }
   
-  // Create an OpenAI session as normal
-  let session = ModelSession.openAI(
-    tools: [WeatherTool()], // Your actual tool; the mockable tool will be used below
+  // Create a simulated session with scripted generations
+  let session = SimulatedSession(
+    tools: WeatherTool(),
     instructions: "You are a helpful assistant.",
-    apiKey: "sk-...",
-  )
-  
-  // And then use simulateResponse instead of respond
-  let response = try await session.simulateResponse(
-    to: "What's the weather?",
     generations: [
       .toolRun(tool: WeatherToolMock(tool: WeatherTool())),
-      .response(content: "It's sunny!")
+      .response(text: "It's sunny!")
     ]
   )
+  
+  // Call the standard respond API
+  let response = try await session.respond(to: "What's the weather?")
   ```
   
 - The `PromptContext` protocol has been replaced with a generic struct wrapper that provides both user-written input and app or SDK generated context data (like link previews or vector search results). User types now conform to `PromptContextSource` instead of `PromptContext`:

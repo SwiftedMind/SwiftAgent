@@ -4,10 +4,11 @@ import Foundation
 import FoundationModels
 import SwiftAgent
 
-public enum SimulatedGeneration<StructuredOutput: SwiftAgent.StructuredOutput>: @unchecked Sendable {
+public enum SimulatedGeneration: @unchecked Sendable {
   case reasoning(summary: String)
   case toolRun(tool: any MockableTool)
-  case response(StructuredOutput.Schema)
+  case textResponse(String)
+  case structuredResponse(GeneratedContent)
 
   package var toolName: String? {
     switch self {
@@ -16,5 +17,15 @@ public enum SimulatedGeneration<StructuredOutput: SwiftAgent.StructuredOutput>: 
     default:
       nil
     }
+  }
+}
+
+public extension SimulatedGeneration {
+  static func response(text: String) -> SimulatedGeneration {
+    .textResponse(text)
+  }
+
+  static func response(content: some ConvertibleToGeneratedContent) -> SimulatedGeneration {
+    .structuredResponse(content.generatedContent)
   }
 }

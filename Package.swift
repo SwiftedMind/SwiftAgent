@@ -74,6 +74,7 @@ let package = Package(
       dependencies: [
         "OpenAISession",
         "SwiftAgent",
+        "SimulatedSession",
       ],
     ),
     .testTarget(

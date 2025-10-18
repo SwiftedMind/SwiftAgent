@@ -32,7 +32,7 @@ import Internal
 ///   }
 /// }
 /// ```
-public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
+public protocol LanguageModelProvider<SessionSchema>: AnyObject, Sendable {
   /// The transcript type for this session, containing the conversation history.
   typealias Transcript = SwiftAgent.Transcript
   typealias Response<StructuredOutput: SwiftAgent.StructuredOutput> = AgentResponse<StructuredOutput>

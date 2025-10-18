@@ -22,7 +22,7 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
   - [Structured Output Generation](#structured-output-generation)
   - [Custom Generation Options](#custom-generation-options)
   - [Conversation History](#conversation-history)
-  - [Simulated Session](#simulated-session)
+- [Simulated Session](#simulated-session)
 - [🔧 Configuration](#-configuration)
   - [OpenAI Configuration](#openai-configuration)
   - [Logging](#logging)
@@ -558,86 +558,49 @@ for entry in try sessionSchema.decode(session.transcript) {
 
 
 TODO: Streaming
+TODO: Explain this "partial" and "final" thing for the objects, using the "FoundationModels" Generable.PartiallyGenerated object.
 
 TODO: "Best Practices"
 -> "normalized" concept for UI
 
 TODO: Example App walkthrough
 
-TODO: Proxy Servers
 
 
 
+## Proxy Servers
 
-
-
-
-
-
-
-
-
-
-
-
-### Simulated Session
-
-Test and develop your agents without making API calls using the built-in simulation system. Perfect for prototyping, testing, and developing UIs before integrating with live APIs.
+Using an API key directly is great for prototyping, but it should never be shipped to production unless you're deploying it some place you fully control. SwiftAgent comes with the option to route all agent requests through a proxy server (for example, your own backend):
 
 ```swift
-import OpenAISession
-import SimulatedSession
-
-// Create mockable tool wrappers
-struct WeatherToolMock: MockableTool {
-  var tool: WeatherTool
-
-  func mockArguments() -> WeatherTool.Arguments {
-    .init(location: "San Francisco")
-  }
-
-  func mockOutput() async throws -> WeatherTool.Output {
-    .init(
-      location: "San Francisco",
-      temperature: 22.5,
-      condition: "sunny",
-      humidity: 65
-    )
-  }
-}
-
-// Use simulateResponse instead of respond
-let response = try await session.simulateResponse(
-  to: "What's the weather like in San Francisco?",
-  generations: [
-    .toolRun(tool: WeatherToolMock(tool: WeatherTool())),
-    .response(content: "It's a beautiful sunny day in San Francisco with 22.5°C!")
-  ]
-)
-
-print(response.content) // "It's a beautiful sunny day in San Francisco with 22.5°C!"
+let configuration = OpenAIConfiguration.proxy(through: URL(string: "https://api.your-backend.com/proxy")!)
+let session = LanguageModelProvider.openAI(instructions: "...", configuration: configuration)
 ```
 
-The simulation system provides:
-- **Zero API costs** during development and testing
-- **Predictable responses** for consistent UI testing
-- **Tool execution simulation** with mock data
-- **Complete transcript compatibility** - simulated responses work exactly like real ones
-- **Structured output support** - any `@Generable` struct used with `simulateResponse(generating:)` must conform to `MockableGenerable` for mock generation
+The proxy should be able to accept and handle arbitrary requests for OpenAI's Responses API. The SDK will take the proxy url you pass as the base and append the appropriate path, for example:
 
-## 🔧 Configuration
+```bash
+https://api.your-backend.com/proxy/v1/responses
+```
 
-### OpenAI Configuration
+Your backend should then take all the path segments after your proxy url and pass that to OpenAI like so:
 
-- Recommended: `OpenAIConfiguration.proxy(through:)` — route all requests through your own backend. Your backend issues short‑lived, per‑turn tokens. Use `LanguageModelProvider.withAuthorization` to set the token for the current agent turn so every internal request (thinking steps, tool calls, final message) is authorized consistently.
+```bash
+https://api.openai.com/v1/responses
+```
+
+Optionally, your backend can intercept and decode the payload before passing it on, to verify its a legitimate request from your app and contains proper identification (like the user's id), to reduce the likelihood of abuse.
+
+> Note: All requests that the SDK makes will fully conform to the Responses API from OpenAI.
+
+### Authorization
+
+It is recommended to secure that proxy endpoint via short-lived, per-turn authorization tokens that your backend issues. Before every `session.respond` or `session.streamResponse` call, you would ask your backend to generate a short-lived token. You can pass this token to the SDK by calling
+
+Use `LanguageModelProvider.withAuthorization` to set the token for the current agent turn so every internal request (thinking steps, tool calls, final message) is authorized consistently.
 - Prototyping only: `OpenAIConfiguration.direct(apiKey:)` — calls OpenAI directly and embeds an API key in the app bundle. Avoid this in production.
 
 ```swift
-// Proxy configuration (recommended)
-let configuration = OpenAIConfiguration.proxy(through: URL(string: "https://api.your-backend.com")!)
-let session = LanguageModelProvider.openAI(tools: tools, instructions: "...", configuration: configuration)
-
-// Per‑turn authorization
 let token = try await backend.issueTurnToken(for: userId)
 let response = try await session.withAuthorization(token: token) {
   try await session.respond(to: "Summarize yesterday's sales numbers.")
@@ -653,7 +616,55 @@ let refreshed = try await session.withAuthorization(
 }
 ```
 
-### Logging
+## Simulated Session
+
+You can test and develop your agents without making API calls using the built-in simulation system. This is perfect for prototyping, testing, and developing UIs before integrating with live APIs.
+
+```swift
+import OpenAISession
+import SimulatedSession
+
+// Create mockable tool wrappers
+struct WeatherToolMock: MockableTool {
+  var tool: WeatherTool
+
+  func mockArguments() -> WeatherTool.Arguments {
+    .init(city: "San Fransico", unit: "Celsius")
+  }
+
+  func mockOutput() async throws -> WeatherTool.Output {
+    .init(
+      temperature: 22.5,
+      condition: "sunny",
+      humidity: 65
+    )
+  }
+}
+
+@SessionSchema
+struct SessionSchema {
+  @Tool var weatherTool = WeatherTool()
+}
+
+let sessionSchema = SessionSchema()
+let configuration = SimulationAdapter.Configuration(defaultGenerations: [
+  .reasoning(summary: "Simulated Reasoning"),
+  .toolRun(tool: WeatherToolMock(tool: WeatherTool())),
+  .response(text: "It's a beautiful sunny day in San Francisco with 22.5°C!"),
+])
+
+let session = SimulatedSession(
+  schema: sessionSchema,
+  instructions: "You are a helpful assistant.",
+  configuration: configuration,
+)
+
+let response = try await session.respond(to: "What's the weather like in San Francisco?")
+
+print(response.content) // "It's a beautiful sunny day in San Francisco with 22.5°C!"
+```
+
+## Logging
 
 ```swift
 // Enable comprehensive logging
