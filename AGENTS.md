@@ -51,6 +51,19 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
 - agents/swift/swift-testing.md - An overview of the Swift Testing framework
 - agents.local/tests.md - Guidelines on writing unit tests for the SDK
 
+## Documentation Shortcuts
+
+### FoundationModels
+
+These types are defined in Apple’s FoundationModels framework, so you will not find their definitions inside this repository. If you need a refresher on how they behave, call `tool.sosumi__fetchAppleDocumentation` with the relevant path:
+
+- `{"path":"/documentation/foundationmodels/generable"}` for the `Generable` macro protocol.
+- `{"path":"/documentation/foundationmodels/generatedcontent"}` for the `GeneratedContent` structure.
+- `{"path":"/documentation/foundationmodels/convertiblefromgeneratedcontent"}` for `ConvertibleFromGeneratedContent`.
+- `{"path":"/documentation/foundationmodels/convertibletogeneratedcontent"}` for `ConvertibleToGeneratedContent`.
+- `{"path":"/documentation/foundationmodels/generationschema"}` for `GenerationSchema`.
+- `{"path":"/documentation/foundationmodels/tool"}` for the `Tool` protocol.
+
 ## Available MCPs
 
 - `hatch-mcp run-allowed-command` for running `xcodebuild` outside the sandbox (do not use it for anything else)

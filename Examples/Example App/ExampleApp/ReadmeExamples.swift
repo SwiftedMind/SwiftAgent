@@ -230,6 +230,26 @@ enum ReadmeExamples {
   }
 
   func streamingResponses() async throws {
+    let session = OpenAISession(
+      instructions: "You are a helpful assistant.",
+      apiKey: "sk-...",
+    )
+
+    // Create a response
+    let stream = try session.streamResponse(to: "What's the weather like in San Francisco?")
+
+    for try await snapshot in stream {
+      // Once the agent is sending the final response, the snapshot's content will start to populate
+      if let content = snapshot.content {
+        print(content)
+      }
+
+      // You can also access the generated transcript as it is streamed in
+      print(snapshot.transcript)
+    }
+  }
+
+  func streamingResponses_structuredOutputs() async throws {
     let sessionSchema = SessionSchema()
     let session = OpenAISession(
       schema: sessionSchema,
@@ -256,6 +276,28 @@ enum ReadmeExamples {
       let decodedTranscript = try sessionSchema.decode(transcript)
 
       print(transcript, decodedTranscript)
+    }
+
+    // You can also observe the transcript during streaming
+    for entry in try sessionSchema.decode(session.transcript) {
+      switch entry {
+      case let .response(response):
+        switch response.structuredSegments[0].content {
+        case let .weatherReport(weatherReport):
+          switch weatherReport.content {
+          case let .partial(partialWeatherReport):
+            print(partialWeatherReport) // Partially populated object
+          case let .final(finalWeatherReport):
+            print(finalWeatherReport) // Fully populated object
+          default:
+            break // Not yet available
+          }
+        case .unknown:
+          print("Unknown output")
+        }
+
+      default: break
+      }
     }
   }
 }
