@@ -25,18 +25,25 @@ public final class OpenAISession<
   public var transcript: SwiftAgent.Transcript = Transcript()
   public var tokenUsage: TokenUsage = .init()
 
-  public init(
-    tools: [any SwiftAgentTool] = [],
+  public init<each ToolType>(
+    tools: repeat each ToolType,
     instructions: String = "",
     apiKey: String,
-  ) where SessionSchema == NoSchema {
-    schema = NoSchema()
-    adapter = OpenAIAdapter(
-      tools: tools,
-      instructions: instructions,
-      configuration: .direct(apiKey: apiKey),
-    )
-  }
+  ) where
+    SessionSchema == NoSchema,
+    repeat (each ToolType): FoundationModels.Tool,
+    repeat (each ToolType).Arguments: Generable,
+    repeat (each ToolType).Output: Generable {
+      var wrappedTools: [any SwiftAgentTool] = []
+      _ = (repeat wrappedTools.append(_SwiftAgentToolWrapper(tool: each tools)))
+
+      schema = NoSchema()
+      adapter = OpenAIAdapter(
+        tools: wrappedTools,
+        instructions: instructions,
+        configuration: .direct(apiKey: apiKey),
+      )
+    }
 
   public init(
     schema: SessionSchema,
@@ -64,16 +71,22 @@ public final class OpenAISession<
     )
   }
 
-  public init(
-    tools: [any SwiftAgentTool] = [],
+  public init<each ToolType>(
+    tools: repeat each ToolType,
     instructions: String = "",
     configuration: OpenAIConfiguration,
-  ) where SessionSchema == NoSchema {
-    schema = NoSchema()
-    adapter = OpenAIAdapter(
-      tools: tools,
-      instructions: instructions,
-      configuration: configuration,
-    )
-  }
+  ) where SessionSchema == NoSchema,
+    repeat (each ToolType): FoundationModels.Tool,
+    repeat (each ToolType).Arguments: Generable,
+    repeat (each ToolType).Output: Generable {
+      var wrappedTools: [any SwiftAgentTool] = []
+      _ = (repeat wrappedTools.append(_SwiftAgentToolWrapper(tool: each tools)))
+
+      schema = NoSchema()
+      adapter = OpenAIAdapter(
+        tools: wrappedTools,
+        instructions: instructions,
+        configuration: configuration,
+      )
+    }
 }

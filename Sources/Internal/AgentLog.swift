@@ -127,7 +127,9 @@ package enum AgentLog {
 
     do {
       let object = try JSONSerialization.jsonObject(with: data)
-      let pretty = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted])
+      let pretty = try JSONSerialization.data(
+        withJSONObject: object, options: [.prettyPrinted],
+      )
       return String(data: pretty, encoding: .utf8) ?? json
     } catch {
       return json

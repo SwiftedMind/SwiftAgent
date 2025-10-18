@@ -15,7 +15,6 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
 - [🚀 Quick Start](#-quick-start)
   - [Installation](#installation)
   - [Basic Usage](#basic-usage)
-  - [Alternative Configuration Methods](#alternative-configuration-methods)
 - [🛠️ Building Tools](#️-building-tools)
 - [📖 Advanced Usage](#-advanced-usage)
   - [Prompt Context](#prompt-context)
@@ -66,23 +65,18 @@ import OpenAISession
 // Other providers coming soon
 ```
 
-### Basic Usage
+## Basic Usage
 
 ```swift
 import OpenAISession
 
-// Define your session
-@LanguageModelProvider(.openAI)
-final class OpenAISession {}
-
-// Create a new instance of that session
 let session = OpenAISession(
   instructions: "You are a helpful assistant.",
   apiKey: "sk-...",
 )
 
-// Run your agent
-let response = try await session.respond(to: "What's the weather like in San Francisco?")
+// Create a response
+let response = try await session.respond(to: "What's an answer to ANY question?")
 
 // Process response
 print(response.content)
@@ -90,41 +84,35 @@ print(response.content)
 
 > Note: Using an API key directly is great for prototyping, but do not ship it in production apps. For shipping apps, use a secure proxy with per‑turn tokens. See Proxy Setup in [OpenAI Configuration](#openai-configuration).
 
-#### Alternative Configuration Methods
-
-```swift
-// Using custom configuration
-let configuration = OpenAIConfiguration.direct(apiKey: "your-api-key")
-let session = OpenAISession(instructions: "...", configuration: configuration)
-```
-
-## 🛠️ Building Tools
+### 🛠️ Building Tools
 
 Create tools using Apple's `@Generable` macro for type-safe, schema-free tool definitions:
 
 ```swift
+import FoundationModels
+import OpenAISession
+
 struct WeatherTool: Tool {
   let name = "get_weather"
   let description = "Get current weather for a location"
-  
+
   @Generable
   struct Arguments {
     @Guide(description: "City name")
     let city: String
-    
+
     @Guide(description: "Temperature unit")
     let unit: String
   }
-  
+
   @Generable
   struct Output {
     let temperature: Double
     let condition: String
     let humidity: Int
   }
-  
+
   func call(arguments: Arguments) async throws -> Output {
-    // Your weather API implementation
     return Output(
       temperature: 22.5,
       condition: "sunny",
@@ -132,9 +120,21 @@ struct WeatherTool: Tool {
     )
   }
 }
+
+let session = OpenAISession(
+  tools: WeatherTool(),
+  instructions: "You are a helpful assistant.",
+  apiKey: "sk-...",
+)
+
+let response = try await session.respond(to: "What's the weather like in San Francisco?")
+
+print(response.content)
 ```
 
-### Handling Recoverable Tool Errors
+> Note: Unlike Apple's `LanguageModelSession` object, `OpenAISession` takes the `tools` parameter as variadic arguments. So instead of passing an array like `tools: [WeatherTool(), OtherTool()]`, you pass the tools as a list of arguments `tools: WeatherTool(), OtherTool()`.
+
+#### Recoverable Tool Errors
 
 If a tool call fails in a way the agent can correct (such as an unknown identifier or other validation issue), throw a `ToolRunProblem`. SwiftAgent forwards the structured content you provide to the model without aborting the loop so the agent can adjust its next action.
 
@@ -180,178 +180,261 @@ throw ToolRunProblem(
 )
 ```
 
-## 📖 Advanced Usage
+### Structured Outputs
 
-### Prompt Context
+You can force the response to be structured by defining a type conforming to `StructuredOutput` and passing it to the `session.respond` method:
 
-Separate user input from contextual information for cleaner prompt augmentation and better transcript organization:
+```swift
+import FoundationModels
+import OpenAISession
+
+struct WeatherReport: StructuredOutput {
+  static let name: String = "weatherReport"
+
+  @Generable
+  struct Schema {
+    let temperature: Double
+    let condition: String
+    let humidity: Int
+  }
+}
+
+let session = OpenAISession(
+  tools: WeatherTool(),
+  instructions: "You are a helpful assistant.",
+  apiKey: "sk-...",
+)
+
+let response = try await session.respond(
+  to: "What's the weather like in San Francisco?",
+  generating: WeatherReport.self,
+)
+
+// Fully typed response content
+print(response.content.temperature)
+print(response.content.condition)
+print(response.content.humidity)
+```
+
+### Access Tanscripts
+
+Access the session's transcript to retrieve and process the conversation history:
 
 ```swift
 import OpenAISession
 
-// Define your context types
-enum ContextSource: PromptContextSource, PromptRepresentable {
-  case vectorSearchResult(String)
-  case documentContext(String)
-  case searchResults([String])
-  
-  @PromptBuilder
-  var promptRepresentation: Prompt {
-    switch self {
-    case .vectorSearchResult(let content):
-      PromptTag("vector-embedding") { content }
-    case .documentContext(let content):
-      PromptTag("document") { content }
-    case .searchResults(let results):
-      PromptTag("search-results") {
-        for result in results {
-          result
-        }
-      }
-    }
-  }
-}
+let session = OpenAISession(
+  instructions: "You are a helpful assistant.",
+  apiKey: "sk-...",
+)
 
-// Create a session with context support and pass a context source
-let session = LanguageModelProvider.openAI(tools: tools, context: ContextSource.self, apiKey: "sk-...")
-
-// Respond with context - user input and context are kept separated in the transcript
-let response = try await session.respond(
-  to: "What are the key features of SwiftUI?",
-  supplying: [
-    .vectorSearchResult("SwiftUI declarative syntax..."),
-    .documentContext("Apple's official SwiftUI documentation...")
-  ]
-) { input, context in
-  PromptTag("context", items: context.sources)
-  input
-}
-
-// The transcript now clearly separates user input from augmented context
 for entry in session.transcript {
-  if case let .prompt(prompt) = entry {
-    print("User input: \(prompt.input)")
-    print("Context sources: \(prompt.context.sources.count)")
+  switch entry {
+  case let .prompt(prompt):
+    print("Prompt: ", prompt)
+  case let .reasoning(reasoning):
+    print("Reasoning: ", reasoning)
+  case let .toolCalls(toolCalls):
+    print("Tool Calls: ", toolCalls)
+  case let .toolOutput(toolOutput):
+    print("Tool Output: ", toolOutput)
+  case let .response(response):
+    print("Response: ", response)
   }
 }
 ```
 
-### Tool Decoder
+> Note: The `OpenAISession` object is `@Observable`, so you can observe its transcript for changes in real-time. This can be useful for UI applications.
 
-`Transcript.Decoded` rebuilds the transcript you already consume, but replaces each
-`.toolCalls` and `.toolOutput` pair with a `.toolRun` that carries your typed resolution. You still
-walk the transcript the same way, now with a single case per tool.
+### Access Token Usage
+
+Access the session's accumulated token usage:
 
 ```swift
-// Enumerate all tools you want to handle in the UI
-enum ToolRunKind {
-  case weather(ToolRun<WeatherTool>)
-  case calculator(ToolRun<CalculatorTool>)
+import OpenAISession
+
+let session = OpenAISession(
+  instructions: "You are a helpful assistant.",
+  apiKey: "sk-...",
+)
+
+print(session.tokenUsage.inputTokens)
+print(session.tokenUsage.outputTokens)
+print(session.tokenUsage.reasoningTokens)
+print(session.tokenUsage.totalTokens)
+```
+
+> Note: Each individual response also includes token usage information. See `AgentResponse` for more details.
+
+### Prompt Builder
+
+TODO Explanations and examples for the prompt builder result builder
+
+## 📖 Session Schema
+
+The transcript object for the `OpenAISession` contains a lot of generated content packed inside of `GeneratedContent` objects, which are essentially wrappers around JSON objects, making them fairly inconvenient to work with. To solve this, SwiftAgent comes with a mechanism that can decode the transcript into a new object that contains _fully typped_ entries for all your tool calls, structured outputs and more.
+
+```swift
+@SessionSchema
+struct SessionSchema {
+  @Tool var weatherTool = WeatherTool()
+  @Tool var calculatorTool = CalculatorTool()
+
+  @Grounding(Date.self) var currentDate
+  @Grounding(VectorSearchResult.self) var searchResults
+
+  @StructuredOutput(WeatherReport.self) var weatherReport
+  @StructuredOutput(CalculatorOutput .self) var calculatorOutput
+}
+```
+
+// TODO: Explain @Tool @Grounding and @StructuredOutput and what a tool run is etc.
+
+### Tools
+
+```swift
+import FoundationModels
+import OpenAISession
+
+@SessionSchema
+struct SessionSchema {
+  @Tool var weatherTool = WeatherTool()
 }
 
-extension WeatherTool {
-  // Map the raw run into your enum case
-  func decode(_ run: ToolRun<WeatherTool>) -> ToolRunKind {
-    .weather(run)
-  }
-}
+let sessionSchema = SessionSchema()
+let session = OpenAISession(
+  schema: sessionSchema,
+  instructions: "You are a helpful assistant.",
+  apiKey: "sk-...",
+)
 
-let tools: [any SwiftAgentTool<ToolRunKind>] = [WeatherTool(), CalculatorTool()]
-let configuration = OpenAIConfiguration.direct(apiKey: "sk-...")
-let session = LanguageModelProvider.openAI(tools: tools, instructions: "...", configuration: configuration)
+// let response = try await session.respond(to: "What's the weather like in San Francisco?")
+// ...
 
-if let decodedTranscript = session.transcript.decoded(using: tools) {
-  for entry in decodedTranscript {
-    switch entry {
-    case let .toolRun(toolRun):
-      // React to the merged tool run
-      switch toolRun.resolution {
-      case let .weather(run):
-        print("Weather loaded for \(run.arguments.city)")
-      case let .calculator(run):
-        print("Calculator finished: \(run.arguments.expression)")
+for entry in try sessionSchema.decode(session.transcript) {
+  switch entry {
+  case let .toolRun(toolRun):
+    switch toolRun {
+    case let .weatherTool(weatherToolRun):
+      if let arguments = weatherToolRun.finalArguments {
+        print(arguments.city, arguments.city)
+      }
+
+      if let output = weatherToolRun.output {
+        print(output.condition, output.humidity, output.temperature)
       }
     default:
       break
     }
+  default: break
   }
 }
 ```
 
-The decoded transcript rebuilds itself from `Transcript`, so create it when you need to render
-tool runs and discard it afterward.
-
-#### Tool Decoder Instances
-
-Prefer a reusable decoder object when you want to decode individual tool calls on demand.
+### Structured Outputs
 
 ```swift
-enum ToolRunKind {
-  case weather(ToolRun<WeatherTool>)
-  case calculator(ToolRun<CalculatorTool>)
+import FoundationModels
+import OpenAISession
+
+@SessionSchema
+struct SessionSchema {
+  @Tool var weatherTool = WeatherTool()
+  @StructuredOutput(WeatherReport.self) var weatherReport
 }
 
-extension WeatherTool {
-  func decode(_ run: ToolRun<WeatherTool>) -> ToolRunKind {
-    .weather(run)
+let sessionSchema = SessionSchema()
+let session = OpenAISession(
+  schema: sessionSchema,
+  instructions: "You are a helpful assistant.",
+  apiKey: "sk-...",
+)
+
+let response = try await session.respond(
+  to: "What's the weather like in San Francisco?",
+  generating: \.weatherReport, // or schema.weatherReport, or WeatherReport.self
+)
+
+print(response.content) // WeatherReport object
+
+// Access the structured output in the decoded transcript
+for entry in try sessionSchema.decode(session.transcript) {
+  switch entry {
+  case let .response(response):
+    switch response.structuredSegments[0].content {
+    case let .weatherReport(weatherReport):
+      if let weatherReport = weatherReport.finalContent {
+        print(weatherReport.condition, weatherReport.humidity, weatherReport.temperature)
+      }
+    case .unknown:
+      print("Unknown output")
+    }
+
+  default: break
   }
 }
+```
 
-let tools: [any SwiftAgentTool<ToolRunKind>] = [WeatherTool(), CalculatorTool()]
-let configuration = OpenAIConfiguration.direct(apiKey: "sk-...")
-let session = LanguageModelProvider.openAI(tools: tools, instructions: "...", configuration: configuration)
+### Groundings
 
-let toolDecoder = session.transcript.toolDecoder(using: tools)
+```swift
+import FoundationModels
+import OpenAISession
 
-for entry in session.transcript {
-  if case let .toolCalls(toolCalls) = entry {
-    for toolCall in toolCalls {
-      let decodedTool = try toolDecoder.decode(toolCall)
+@SessionSchema
+struct SessionSchema {
+  @Tool var weatherTool = WeatherTool()
+  @Grounding(Date.self) var currentDate
+  @StructuredOutput(WeatherReport.self) var weatherReport
+}
 
-      switch decodedTool {
-      case let .weather(run):
-        print("Weather for: \(run.arguments.city)")
-        if let output = run.output {
-          print("Temperature: \(output.temperature)°")
-        }
-      case let .calculator(run):
-        print("Calculation: \(run.arguments.expression)")
-        if let output = run.output {
-          print("Result: \(output.result)")
-        }
+let sessionSchema = SessionSchema()
+let session = OpenAISession(
+  schema: sessionSchema,
+  instructions: "You are a helpful assistant.",
+  apiKey: "sk-...",
+)
+
+let response = try await session.respond(
+  to: "What's the weather like in San Francisco?",
+  groundingWith: [.currentDate(Date())],
+) { input, sources in
+  PromptTag("context") {
+    for source in sources {
+      switch source {
+      case let .currentDate(date):
+        "The current date is \(date)."
       }
     }
   }
+
+  PromptTag("user-query") {
+    input
+  }
+}
+
+print(response.content)
+
+// Access the input prompt and its groundings separately in the transcript
+for entry in try sessionSchema.decode(session.transcript) {
+  switch entry {
+  case let .prompt(prompt):
+    print(prompt.input) // User input
+
+    // Grounding sources stored alongside the input prompt
+    for source in prompt.sources {
+      switch source {
+      case let .currentDate(date):
+        print("Current date: \(date)")
+      }
+    }
+
+    print(prompt.prompt) // Final prompt sent to the model
+  default: break
+  }
 }
 ```
 
-### Structured Output Generation
-
-Generate structured data directly from agent responses:
-
-```swift
-@Generable
-struct TaskList {
-  let tasks: [Task]
-  let priority: String
-}
-
-@Generable 
-struct Task {
-  let title: String
-  let completed: Bool
-}
-
-let response = try await session.respond(
-  to: "Create a todo list for planning a vacation",
-  generating: TaskList.self
-)
-
-// response.content is now a strongly-typed TaskList
-for task in response.content.tasks {
-  print("- \(task.title)")
-}
-```
 
 ### Custom Generation Options
 
@@ -403,16 +486,16 @@ import SimulatedSession
 // Create mockable tool wrappers
 struct WeatherToolMock: MockableAgentTool {
   var tool: WeatherTool
-  
+
   func mockArguments() -> WeatherTool.Arguments {
     .init(location: "San Francisco")
   }
-  
+
   func mockOutput() async throws -> WeatherTool.Output {
     .init(
-      location: "San Francisco", 
-      temperature: 22.5, 
-      condition: "sunny", 
+      location: "San Francisco",
+      temperature: 22.5,
+      condition: "sunny",
       humidity: 65
     )
   }
@@ -432,7 +515,7 @@ print(response.content) // "It's a beautiful sunny day in San Francisco with 22.
 
 The simulation system provides:
 - **Zero API costs** during development and testing
-- **Predictable responses** for consistent UI testing  
+- **Predictable responses** for consistent UI testing
 - **Tool execution simulation** with mock data
 - **Complete transcript compatibility** - simulated responses work exactly like real ones
 - **Structured output support** - any `@Generable` struct used with `simulateResponse(generating:)` must conform to `MockableGenerable` for mock generation

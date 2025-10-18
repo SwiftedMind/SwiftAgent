@@ -166,6 +166,8 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
   /// through dynamic member lookup for consistent UI behavior.
   public var normalizedArguments: NormalizedArguments?
 
+  public var finalArguments: Arguments?
+
   /// The strongly-typed output from the tool execution.
   ///
   /// This will be `nil` when:
@@ -228,6 +230,13 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     self.rawArguments = rawArguments
     self.rawOutput = rawOutput
     normalizedArguments = Self.makeNormalizedArguments(from: arguments, rawArguments: rawArguments)
+
+    switch arguments {
+    case let .final(final):
+      finalArguments = final
+    default:
+      break
+    }
   }
 
   public init(

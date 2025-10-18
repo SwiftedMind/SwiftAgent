@@ -289,8 +289,6 @@ public extension LanguageModelProvider {
   }
 }
 
-// MARK: - Context-Aware Response Methods
-
 public extension LanguageModelProvider {
   /// Generates a text response with additional context while keeping user input separate.
   ///

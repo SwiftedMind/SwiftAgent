@@ -1,0 +1,9 @@
+scheme=ExampleApp
+
+# platform can be device, sim or mac
+platform=sim
+
+# device name (not required if platform = mac)
+device=iPhone 17 Pro
+
+testtarget=SwiftAgentTests

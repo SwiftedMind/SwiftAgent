@@ -127,6 +127,8 @@ public struct StructuredOutputUpdate<Output: StructuredOutput>: Identifiable {
   /// a single, stable model without branching on status.
   public var normalizedContent: NormalizedContent?
 
+  public var finalContent: Output.Schema?
+
   /// Error payload when the update represents a provider-reported failure.
   public var error: GeneratedContent?
 
@@ -136,6 +138,13 @@ public struct StructuredOutputUpdate<Output: StructuredOutput>: Identifiable {
     self.content = content
     self.rawContent = rawContent
     normalizedContent = Self.makeNormalized(from: content, raw: rawContent)
+
+    switch content {
+    case let .final(final):
+      finalContent = final
+    default:
+      break
+    }
   }
 
   /// Creates an update that represents a provider-reported error.
