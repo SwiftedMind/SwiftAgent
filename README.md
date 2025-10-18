@@ -76,7 +76,7 @@ let session = OpenAISession(
 )
 
 // Create a response
-let response = try await session.respond(to: "What's an answer to ANY question?")
+let response = try await session.respond(to: "What's the weather like in San Francisco?")
 
 // Process response
 print(response.content)
@@ -270,6 +270,32 @@ print(session.tokenUsage.totalTokens)
 
 TODO Explanations and examples for the prompt builder result builder
 
+### Custom Generation Options
+
+You can specify generation options for your responses:
+
+```swift
+import OpenAISession
+
+let session = OpenAISession(
+  instructions: "You are a helpful assistant.",
+  apiKey: "sk-...",
+)
+
+let options = OpenAIGenerationOptions(
+  maxOutputTokens: 1000,
+  temperature: 0.7,
+)
+
+let response = try await session.respond(
+  to: "What's the weather like in San Francisco?",
+  using: .gpt5,
+  options: options,
+)
+
+print(response.content)
+```
+
 ## 📖 Session Schema
 
 The transcript object for the `OpenAISession` contains a lot of generated content packed inside of `GeneratedContent` objects, which are essentially wrappers around JSON objects, making them fairly inconvenient to work with. To solve this, SwiftAgent comes with a mechanism that can decode the transcript into a new object that contains _fully typped_ entries for all your tool calls, structured outputs and more.
@@ -435,45 +461,32 @@ for entry in try sessionSchema.decode(session.transcript) {
 }
 ```
 
+## Streaming Responses
 
-### Custom Generation Options
 
-Specify generation options for your responses:
 
-```swift
-let options = OpenAIGenerationOptions(
-  maxOutputTokens: 1000,
-  temperature: 0.7
-)
+TODO: Streaming
 
-let response = try await session.respond(
-  to: "Help me analyze this data",
-  using: .gpt5,
-  options: options
-)
-```
+TODO: "Best Practices"
+-> "normalized" concept for UI
 
-### Conversation History
+TODO: Example App walkthrough
 
-Access full conversation transcripts:
+TODO: Proxy Servers
 
-```swift
-// Continue conversations naturally
-try await session.respond(to: "What was my first question?")
 
-// Access conversation history
-for entry in session.transcript {
-  switch entry {
-  case .prompt(let prompt):
-    print("User: \(prompt.input)")
-  case .response(let response):
-    print("Agent: \(response.content)")
-  case .toolCalls(let calls):
-    print("Tool calls: \(calls.calls.map(\.toolName))")
-  // ... handle other entry types
-  }
-}
-```
+
+
+
+
+
+
+
+
+
+
+
+
 
 ### Simulated Session
 
@@ -554,7 +567,7 @@ let refreshed = try await session.withAuthorization(
 // Enable comprehensive logging
 SwiftAgentConfiguration.setLoggingEnabled(true)
 
-// Enable full request/response network logging
+// Enable full request/response network logging (very verbose but helpful for debugging)
 SwiftAgentConfiguration.setNetworkLoggingEnabled(true)
 
 // Logs show:

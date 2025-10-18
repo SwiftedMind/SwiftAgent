@@ -96,6 +96,26 @@ enum ReadmeExamples {
     print(session.tokenUsage.totalTokens ?? 0)
   }
 
+  func basicUsage_CustomGenerationOptions() async throws {
+    let session = OpenAISession(
+      instructions: "You are a helpful assistant.",
+      apiKey: "sk-...",
+    )
+
+    let options = OpenAIGenerationOptions(
+      maxOutputTokens: 1000,
+      temperature: 0.7,
+    )
+
+    let response = try await session.respond(
+      to: "What's the weather like in San Francisco?",
+      using: .gpt5,
+      options: options,
+    )
+
+    print(response.content)
+  }
+
   func sessionSchema_tools() async throws {
     let sessionSchema = SessionSchema()
     let session = OpenAISession(
@@ -209,30 +229,33 @@ enum ReadmeExamples {
     }
   }
 
-  func something() async throws {
-    let schema = SessionSchema()
-    let session = OpenAISession(schema: schema, instructions: "", apiKey: "")
-    let response = try await session.respond(to: "String", generating: \.weatherReport)
-    let response2 = try await session.respond(to: "String", generating: schema.weatherReport)
-    let response3 = try await session.respond(
-      to: "String",
-      generating: \.weatherReport,
-      groundingWith: [.currentDate(Date())],
-    ) { input, sources in
-      "String"
-    }
-    print(response.content.generatedContent)
-    print(response2.content.generatedContent)
-    print(response3.content.generatedContent)
+  func streamingResponses() async throws {
+    let sessionSchema = SessionSchema()
+    let session = OpenAISession(
+      schema: sessionSchema,
+      instructions: "You are a helpful assistant.",
+      apiKey: "sk-...",
+    )
 
-    _ = try session.streamResponse(to: "String", generating: \.weatherReport)
-    _ = try session.streamResponse(to: "String", generating: schema.weatherReport)
-    _ = try session.streamResponse(
-      to: "String",
+    // Create a response
+    let stream = try session.streamResponse(
+      to: "What's the weather like in San Francisco?",
       generating: \.weatherReport,
-      groundingWith: [.currentDate(Date())],
-    ) { input, sources in
-      "String"
+    )
+
+    for try await snapshot in stream {
+      // Once the agent is sending the final response, the snapshot's content will start to populate
+      if let weatherReport = snapshot.content {
+        print(weatherReport.condition ?? "Not received yet")
+        print(weatherReport.humidity ?? "Not received yet")
+        print(weatherReport.temperature ?? "Not received yet")
+      }
+
+      // You can also access the generated transcript as it is streamed in
+      let transcript = snapshot.transcript
+      let decodedTranscript = try sessionSchema.decode(transcript)
+
+      print(transcript, decodedTranscript)
     }
   }
 }
