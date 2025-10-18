@@ -20,7 +20,7 @@ import SwiftAgent
 /// ## Example
 ///
 /// ```swift
-/// struct MockWeatherTool: MockableAgentTool {
+/// struct MockWeatherTool: MockableTool {
 ///   let tool = WeatherTool()
 ///
 ///   func mockArguments() -> WeatherTool.Arguments {
@@ -32,12 +32,13 @@ import SwiftAgent
 ///   }
 /// }
 /// ```
-public protocol MockableAgentTool<Tool>: Sendable where Tool.Arguments: Encodable {
+public protocol MockableTool<Tool> where Tool.Arguments: Generable,
+  Tool.Output: Generable {
   /// The associated agent tool type that this mock represents.
   ///
   /// This type must conform to `Tool` and its `Arguments` type must be `Encodable`
   /// to support JSON serialization in the simulation system.
-  associatedtype Tool: SwiftAgentTool
+  associatedtype Tool: FoundationModels.Tool
 
   /// The actual tool instance that this mock wraps.
   ///

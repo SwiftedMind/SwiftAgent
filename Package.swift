@@ -11,6 +11,7 @@ let package = Package(
   ],
   products: [
     .library(name: "OpenAISession", targets: ["OpenAISession", "SimulatedSession", "SwiftAgent"]),
+    .library(name: "ExampleCode", targets: ["ExampleCode"]),
   ],
   dependencies: [
     .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "510.0.0"),
@@ -58,6 +59,15 @@ let package = Package(
         "OpenAI",
       ],
       path: "Sources/Simulation",
+    ),
+    .target(
+      name: "ExampleCode",
+      dependencies: [
+        "SwiftAgent",
+        "Internal",
+        "OpenAISession",
+        "SimulatedSession",
+      ],
     ),
     .testTarget(
       name: "SwiftAgentTests",

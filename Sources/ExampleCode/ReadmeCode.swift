@@ -4,9 +4,10 @@ import Foundation
 import FoundationModels
 import Observation
 import OpenAISession
+import SimulatedSession
 
 @MainActor
-enum ReadmeExamples {
+public enum ReadmeCode {
   @SessionSchema
   struct SessionSchema {
     @Tool var weatherTool = WeatherTool()
@@ -300,9 +301,29 @@ enum ReadmeExamples {
       }
     }
   }
+
+  func simulatedSession() async throws {
+    let sessionSchema = SessionSchema()
+    let session = OpenAISession(
+      schema: sessionSchema,
+      instructions: "You are a helpful assistant.",
+      apiKey: "sk-...",
+    )
+
+    let response = try await session.simulateResponse(
+      to: "What's the weather like in San Francisco?",
+      generations: [
+        .reasoning(summary: "Simulated Reasoning"),
+        .toolRun(tool: WeatherToolMock(tool: WeatherTool())),
+        .response("It's a beautiful sunny day in San Francisco with 22.5°C!"),
+      ],
+    )
+
+    print(response.content) // "It's a beautiful sunny day in San Francisco with 22.5°C!"
+  }
 }
 
-extension ReadmeExamples {
+extension ExampleCode {
   struct WeatherTool: Tool {
     let name = "get_weather"
     let description = "Get current weather for a location"
@@ -326,6 +347,22 @@ extension ReadmeExamples {
     func call(arguments: Arguments) async throws -> Output {
       // Your weather API implementation
       Output(
+        temperature: 22.5,
+        condition: "sunny",
+        humidity: 65,
+      )
+    }
+  }
+
+  struct WeatherToolMock: MockableTool {
+    var tool: WeatherTool
+
+    func mockArguments() -> WeatherTool.Arguments {
+      .init(city: "San Fransico", unit: "Celsius")
+    }
+
+    func mockOutput() async throws -> WeatherTool.Output {
+      .init(
         temperature: 22.5,
         condition: "sunny",
         humidity: 65,

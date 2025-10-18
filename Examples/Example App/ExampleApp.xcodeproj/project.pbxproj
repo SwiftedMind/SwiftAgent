@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		4E933C042E57336000741337 /* OpenAISession in Frameworks */ = {isa = PBXBuildFile; productRef = 4E933C032E57336000741337 /* OpenAISession */; };
+		4EE377FA2EA3EB1A001A888D /* ExampleCode in Frameworks */ = {isa = PBXBuildFile; productRef = 4EE377F92EA3EB1A001A888D /* ExampleCode */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,6 +24,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4EE377FA2EA3EB1A001A888D /* ExampleCode in Frameworks */,
 				4E933C042E57336000741337 /* OpenAISession in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -362,6 +364,10 @@
 		4E933C032E57336000741337 /* OpenAISession */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = OpenAISession;
+		};
+		4EE377F92EA3EB1A001A888D /* ExampleCode */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ExampleCode;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

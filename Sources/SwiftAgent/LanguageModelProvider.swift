@@ -61,8 +61,7 @@ public protocol LanguageModelProvider<Adapter>: AnyObject, Sendable {
   /// Resets the cumulative token usage counter to zero.
   @MainActor func resetTokenUsage()
 
-  @discardableResult
-  nonisolated func withAuthorization<T>(
+  @discardableResult nonisolated func withAuthorization<T>(
     token: String,
     refresh: (@Sendable () async throws -> String)?,
     perform: () async throws -> T,

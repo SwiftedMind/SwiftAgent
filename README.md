@@ -589,7 +589,7 @@ import OpenAISession
 import SimulatedSession
 
 // Create mockable tool wrappers
-struct WeatherToolMock: MockableAgentTool {
+struct WeatherToolMock: MockableTool {
   var tool: WeatherTool
 
   func mockArguments() -> WeatherTool.Arguments {

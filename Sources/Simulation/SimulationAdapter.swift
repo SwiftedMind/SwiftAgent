@@ -116,36 +116,37 @@ public actor SimulationAdapter {
   }
 
   private func handleToolRun(
-    _ toolMock: some MockableAgentTool,
+    _ toolMock: some MockableTool,
     continuation: AsyncThrowingStream<AdapterUpdate, any Error>.Continuation,
   ) async throws {
+    let sendableTool = UnsafelySendableMockTool(mock: toolMock)
+    let toolName = sendableTool.toolName
     let callId = UUID().uuidString
-    let argumentsJSON = try toolMock.mockArguments().jsonString()
-    let arguments = try GeneratedContent(json: argumentsJSON)
+    let arguments = sendableTool.arguments
 
     let toolCall = Transcript.ToolCall(
       id: UUID().uuidString,
       callId: callId,
-      toolName: toolMock.tool.name,
+      toolName: toolName,
       arguments: arguments,
       status: .completed,
     )
 
     AgentLog.toolCall(
-      name: toolMock.tool.name,
+      name: toolName,
       callId: callId,
-      argumentsJSON: argumentsJSON,
+      argumentsJSON: arguments.jsonString,
     )
 
     continuation.yield(.transcript(.toolCalls(Transcript.ToolCalls(calls: [toolCall]))))
 
     do {
-      let output = try await toolMock.mockOutput()
+      let output = try await sendableTool.mockOutput()
 
       let toolOutputEntry = Transcript.ToolOutput(
         id: UUID().uuidString,
         callId: callId,
-        toolName: toolMock.tool.name,
+        toolName: toolName,
         segment: .structure(Transcript.StructuredSegment(content: output)),
         status: .completed,
       )
@@ -154,7 +155,7 @@ public actor SimulationAdapter {
 
       // Try to log as JSON if possible
       AgentLog.toolOutput(
-        name: toolMock.tool.name,
+        name: toolName,
         callId: callId,
         outputJSONOrText: output.generatedContent.jsonString,
       )
@@ -164,7 +165,7 @@ public actor SimulationAdapter {
       let toolOutputEntry = Transcript.ToolOutput(
         id: UUID().uuidString,
         callId: callId,
-        toolName: toolMock.tool.name,
+        toolName: toolName,
         segment: .structure(Transcript.StructuredSegment(content: toolRunProblem.generatedContent)),
         status: .completed,
       )
@@ -172,15 +173,15 @@ public actor SimulationAdapter {
       let transcriptEntry = Transcript.Entry.toolOutput(toolOutputEntry)
 
       AgentLog.toolOutput(
-        name: toolMock.tool.name,
+        name: toolName,
         callId: callId,
         outputJSONOrText: toolRunProblem.generatedContent.jsonString,
       )
 
       continuation.yield(.transcript(transcriptEntry))
     } catch {
-      AgentLog.error(error, context: "tool_call_failed_\(toolMock.tool.name)")
-      throw GenerationError.toolExecutionFailed(toolName: toolMock.tool.name, underlyingError: error)
+      AgentLog.error(error, context: "tool_call_failed_\(toolName)")
+      throw GenerationError.toolExecutionFailed(toolName: toolName, underlyingError: error)
     }
   }
 
@@ -212,5 +213,26 @@ public actor SimulationAdapter {
 
     AgentLog.outputStructured(json: generatedContent.jsonString, status: "completed")
     continuation.yield(.transcript(.response(response)))
+  }
+}
+
+/// Wraps a mockable tool so it can cross `await` boundaries inside the simulation adapter.
+private struct UnsafelySendableMockTool<Mock>: @unchecked Sendable where Mock: MockableTool {
+  let mock: Mock
+
+  init(mock: Mock) {
+    self.mock = mock
+  }
+
+  var arguments: GeneratedContent {
+    mock.mockArguments().generatedContent
+  }
+
+  var toolName: String {
+    mock.tool.name
+  }
+
+  func mockOutput() async throws -> Mock.Tool.Output {
+    try await mock.mockOutput()
   }
 }
