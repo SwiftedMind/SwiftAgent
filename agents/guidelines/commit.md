@@ -1,33 +1,26 @@
 # Commit Guidelines
 
-Keep commits small, buildable, and easy to understand.
+1. Review the workspace state:
+   - Run `git status` to see modified files.
+   - Run `git diff` (optionally with specific paths) and decide which files belong in this commit. Keep the change focused and buildable.
 
-## Core expectations
+2. Apply the project commit rules while preparing the message:
+   - Use a Conventional Commit type (`feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`). Add a scope when it clarifies the area, and mark breaking changes as `type(scope)!` with a `BREAKING CHANGE:` line in the body.
+   - Write an imperative subject no longer than 72 characters and omit the trailing period.
+   - Include a short body explaining why the change is needed whenever it is not obvious from the diff.
+   - **SKIP building or formatting**; always assume those checks have already been handled.
 
-- Make one logical change per commit. Humans should ensure the project still builds before and after the commit; agents must assume this has already been verified and should not attempt to build or run formatting.
-- Use Conventional Commits: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Add a scope when it clarifies the affected area. Mark breaking changes as `type(scope)!` and include a `BREAKING CHANGE:` line in the body.
-- Write an imperative subject line no longer than 72 characters and without a trailing period. Add a short body that explains why the change is needed whenever it is not obvious from the diff.
+3. Stage and commit the files:
+   - Stage only the files for this logical change with `git add`.
+   - Double-check the staged diff using `git diff --staged`.
+   - Run `git commit` with the prepared header and optional body (e.g. `git commit -m "type(scope): concise imperative subject"`). Add references such as `Fixes #123` when relevant.
 
-- **Do not** build the project or run any code-formatting tools as part of this workflow. Assume those checks have already completed and start directly with the commit preparation and creation steps.
+4. Verify the result:
+   - Inspect the commit summary with `git show --stat`.
+   - Confirm the state using `git status`.
 
-## Grouping rules
+5. If `git status` still reports changes, repeat from Step 1 and create additional commits until the working directory is clean, amending when something needs correction.
 
-- Keep dependent changes together: API changes with the call sites, renames with all mechanical updates, code with the assets or configuration it relies on, and build settings with the code they enable.
-- Split out independent updates such as documentation-only edits, formatting cleanups, standalone tests, and dependency bumps (unless the code in the same commit requires them to compile).
-- Follow project hygiene: respect `.gitignore`, do not commit secrets or large generated artifacts, and keep lockfiles in their own `chore(deps)` commit when possible.
-
-## Simple workflow
-
-*skip build/formatting; begin with the Git steps below.*
-
-1. Review the diff (`git status`, `git diff`) and decide which files belong in the same commit.
-2. Pick the Conventional commit type and optional scope that best describe the change.
-3. Stage only the files for that change and double-check the staged diff.
-4. Commit with the chosen header, add context in the body if needed, and finish with references such as `Fixes #123` when relevant.
-5. Verify the result with `git show --stat` and confirm a clean tree using `git status`.
-
-## Examples
-
-- `feat(payments): add card brand display`
-- `fix(networking): retry 504 responses with jitter`
-- `chore(deps): update Stripe SDK`
+## General Notes
+- Do this with minimal exploration. Stop as soon as actionable context is sufficient. The commits do not have to contain every single detail.
+- Whenever possible use `--no-pager` to avoid pager issues
