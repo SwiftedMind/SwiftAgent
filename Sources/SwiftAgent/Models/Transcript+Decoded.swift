@@ -4,19 +4,35 @@ import Foundation
 import FoundationModels
 
 public extension Transcript {
+  /// Transcript materialized into strongly typed entries using a ``SessionSchema``.
+  ///
+  /// Each item mirrors the live transcript but swaps raw `GeneratedContent` blocks for the concrete
+  /// types you registered in your schema. Groundings, tool runs, and structured responses are fully
+  /// decoded so UI layers and tests can work with Swift values instead of JSON.
+  ///
+  /// Use ``Transcript/decoded(using:)`` to obtain this type and display it in your app. The decoded
+  /// view stays lightweight: it preserves ordering, streaming identifiers, and even resolution errors
+  /// when decoding fails so you can surface them to the user.
   struct Decoded<SessionSchema: LanguageModelSessionSchema>: Equatable, Sendable {
-    /// All transcript entries with decoded tool runs attached where available.
+    /// Ordered transcript entries with schema-backed values.
     public package(set) var entries: [Entry]
 
     public init(entries: [Entry]) {
       self.entries = entries
     }
 
-    /// Transcript entry augmented with decoded tool runs.
+    /// One entry in the decoded transcript.
     public enum Entry: Identifiable, Equatable, Sendable {
+      /// Rendered prompt plus typed grounding sources.
       case prompt(Prompt)
+
+      /// Summarized reasoning lines exposed by the provider.
       case reasoning(Reasoning)
+
+      /// Tool invocation paired with typed arguments and outputs.
       case toolRun(SessionSchema.DecodedToolRun)
+
+      /// Model response with typed structured segments and plain text.
       case response(Response)
 
       public var id: String {
@@ -33,11 +49,20 @@ public extension Transcript {
       }
     }
 
+    /// Prompt emitted during the turn with its decoded groundings.
     public struct Prompt: Identifiable, Sendable, Equatable {
       public var id: String
+
+      /// Raw user input collected before rendering the final prompt.
       public var input: String
+
+      /// Grounding payloads resolved through the session schema.
       public var sources: [SessionSchema.DecodedGrounding]
+
+      /// Any errors encountered while reconstructing the prompt and sources.
       public let error: TranscriptDecodingError.PromptResolution?
+
+      /// Final prompt body sent to the provider.
       public var prompt: String
 
       public init(
@@ -64,8 +89,11 @@ public extension Transcript {
       }
     }
 
+    /// Provider reasoning surfaced during the turn with schema-aware status.
     public struct Reasoning: Sendable, Identifiable, Equatable {
       public var id: String
+
+      /// High-level reasoning statements emitted by the provider.
       public var summary: [String]
 
       public init(
@@ -77,9 +105,14 @@ public extension Transcript {
       }
     }
 
+    /// Model response with text segments and decoded structured payloads.
     public struct Response: Sendable, Identifiable, Equatable {
       public var id: String
+
+      /// Ordered response segments.
       public var segments: [Segment]
+
+      /// Completion status reported for the response.
       public var status: Status
 
       public init(
@@ -92,6 +125,7 @@ public extension Transcript {
         self.status = status
       }
 
+      /// Text segments emitted by the response in order.
       public var textSegments: [TextSegment] {
         segments.compactMap { segment in
           switch segment {
@@ -103,6 +137,7 @@ public extension Transcript {
         }
       }
 
+      /// Structured segments decoded with the session schema.
       public var structuredSegments: [StructuredSegment] {
         segments.compactMap { segment in
           switch segment {
@@ -114,6 +149,7 @@ public extension Transcript {
         }
       }
 
+      /// Convenience joined text across all text segments.
       public var text: String? {
         let contents = textSegments.map(\.content)
         if contents.isEmpty { return nil }
@@ -121,8 +157,12 @@ public extension Transcript {
       }
     }
 
+    /// Segment emitted by the model or a tool after decoding.
     public enum Segment: Sendable, Identifiable, Equatable {
+      /// Plain text.
       case text(TextSegment)
+
+      /// Structured payload resolved into schema types.
       case structure(StructuredSegment)
 
       public var id: String {
@@ -135,8 +175,10 @@ public extension Transcript {
       }
     }
 
+    /// Plain text emitted by the response or a tool.
     public struct TextSegment: Sendable, Identifiable, Equatable {
       public var id: String
+
       public var content: String
 
       public init(id: String, content: String) {
@@ -145,9 +187,14 @@ public extension Transcript {
       }
     }
 
+    /// Structured segment resolved into schema-backed content.
     public struct StructuredSegment: Sendable, Identifiable, Equatable {
       public var id: String
+
+      /// Type hint supplied by the session, when available.
       public var typeName: String
+
+      /// Fully decoded structured output from the session schema.
       public var content: SessionSchema.DecodedStructuredOutput
 
       public init(id: String, typeName: String = "", content: SessionSchema.DecodedStructuredOutput) {

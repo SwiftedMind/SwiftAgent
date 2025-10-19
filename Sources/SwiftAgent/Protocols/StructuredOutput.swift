@@ -3,42 +3,36 @@
 import Foundation
 import FoundationModels
 
-/// Describes a named, schema-driven value that a provider can generate directly.
+/// Names a schema SwiftAgent can generate directly as a typed value.
 ///
-/// A type conforming to `StructuredOutput` declares a `Schema` describing the
-/// structure of the generated value and a `name` that is used to identify the
-/// output in transcripts and decoding.
-///
-/// Usage with `@StructuredOutput` on a session type exposes a fluent API to
-/// generate this value from prompts.
-///
-/// ## Example
+/// Conforming types declare a `Schema` using FoundationModels' `@Generable` macro and expose a
+/// stable `name` used to tag transcript segments. Add the type to a `@SessionSchema` type with
+/// `@StructuredOutput` to request the value, stream partial updates, and access decoded results.
 ///
 /// ```swift
-/// struct GreetingReport: StructuredOutput {
-///   static let name = "greeting"
+/// struct WeatherReport: StructuredOutput {
+///   static let name = "weather_report"
 ///
 ///   @Generable
 ///   struct Schema {
-///     let message: String
+///     let condition: String
+///     let temperature: Double
 ///   }
 /// }
 ///
-/// @LanguageModelProvider(.openAI)
-/// final class Session {
-///   @StructuredOutput(GreetingReport.self) var greeting
+/// @SessionSchema
+/// struct SessionSchema {
+///   @StructuredOutput(WeatherReport.self) var weatherReport
 /// }
 ///
-/// // Later:
-/// let session = Session(...)
-/// let response = try await session.greeting.generate(from: "Say hello")
-/// let report = try response.value // GreetingReport.Schema
+/// let session = OpenAISession(schema: SessionSchema(), instructions: "You are a helpful assistant.", apiKey: "sk-...")
+/// let report = try await session.respond(to: "Weather in Lisbon?", generating: \.weatherReport).content
 /// ```
 public protocol StructuredOutput<Schema>: Sendable {
   /// The schema that the model should produce for this output.
   associatedtype Schema: Generable
 
-  /// A short, stable identifier for the output used in transcripts.
+  /// A stable identifier for the output used in transcripts.
   static var name: String { get }
 }
 
@@ -47,6 +41,6 @@ extension String: StructuredOutput {
   /// through the same structured output pipeline.
   public typealias Schema = Self
 
-  /// Human‑readable, stable name for transcript tagging and decoding.
+  /// A stable name for transcript tagging and decoding.
   public static var name: String { "String" }
 }

@@ -3,15 +3,7 @@
 import Foundation
 import FoundationModels
 
-/// A snapshot of the agent's current state during response streaming.
-///
-/// ## Properties
-///
-/// - **content**: The partially generated response from the AI model, may be `nil` if the content is not available yet.
-/// - **transcript**: The current conversation transcript, including the initial prompt, reasoning steps, tool calls,
-/// and partially generated responses.
-/// - **tokenUsage**: Current token usage statistics, may be `nil` if the adapter doesn't provide token usage
-/// information.
+/// A snapshot of the agent's current state during streamed generation.
 ///
 /// ## Example Usage
 ///
@@ -24,13 +16,14 @@ import FoundationModels
 /// }
 /// ```
 public struct AgentSnapshot<StructuredOutput: SwiftAgent.StructuredOutput> {
-  /// The generated response from the AI model.
+  /// The current partially generated response from the AI model.
   ///
   /// This will be `nil` if the content is not available yet.
   ///
   /// For text responses, this will be a `String`. For structured responses,
   /// this will be the `PartiallyGenerated` variant of the requested `@Generable` type.
   public var content: StructuredOutput.Schema.PartiallyGenerated?
+
   /// The current conversation transcript.
   ///
   /// This includes all transcript entries that have been added during the current generation,
@@ -47,9 +40,10 @@ public struct AgentSnapshot<StructuredOutput: SwiftAgent.StructuredOutput> {
   /// Creates a new agent snapshot with the specified transcript and token usage.
   ///
   /// - Parameters:
+  ///   - content: The current partially generated response from the AI model
   ///   - transcript: The current conversation transcript
   ///   - tokenUsage: Current token usage statistics, if available
-  public init(
+  package init(
     content: StructuredOutput.Schema.PartiallyGenerated? = nil,
     transcript: Transcript,
     tokenUsage: TokenUsage? = nil,

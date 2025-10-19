@@ -3,93 +3,56 @@
 import Foundation
 import FoundationModels
 
-/// Represents a single update emitted while generating a structured output.
+/// Captures a single streamed update for a structured output while the agent responds.
 ///
-/// Updates may be streamed as partial values and completed with a final value.
-/// Each update carries the raw provider payload plus a typed interpretation.
+/// Providers deliver partial payloads as tokens arrive, then swap in the final schema once
+/// validation succeeds. Each snapshot bundles the raw `GeneratedContent` with SwiftAgent's typed
+/// interpretation so your UI or logging layer can react immediately without juggling enums or manual
+/// decoding.
 ///
-/// The `currentContent` property provides convenient access to the schema
-/// regardless of finality. It always exposes a `PartiallyGenerated` view,
-/// making UI development simpler and more predictable by eliminating the need
-/// to branch between partial and final content.
+/// Reach for `currentContent` when you want a UI-stable projection that always exposes the
+/// `PartiallyGenerated` representation, and check `finalContent` once the provider confirms the final
+/// schema. `contentPhase` mirrors these states for callers that prefer to switch on enum cases.
 ///
 /// ## Example
 ///
 /// ```swift
-/// // 1) Define the structured output
 /// struct WeatherReport: StructuredOutput {
 ///   static let name = "weatherReport"
+///
 ///   @Generable
 ///   struct Schema {
-///     let temperature: Double
 ///     let condition: String
-///     let humidity: Int
+///     let temperature: Double
 ///   }
 /// }
 ///
-/// // 2) Define a session using the macro and expose generation via @StructuredOutput
-/// @LanguageModelProvider(.openAI)
-/// final class Session {
-///   @StructuredOutput(WeatherReport.self) var weatherReport
-/// }
-///
-/// // 3) Stream a structured response and pass to SwiftUI view
-/// let session = Session()
-/// for try await snapshot in session.weatherReport.streamGeneration(
-///   from: "Weather for San Francisco",
-/// ) {
-///   // Pass the current content directly to your SwiftUI view
-///   if let content = snapshot.currentContent.content {
-///     WeatherView(content: content)
+/// let session = OpenAISession(instructions: "You are a helpful assistant.")
+/// for try await snapshot in session.streamResponse(to: "Weather in Lisbon?", generating: WeatherReport.self) {
+///   if let current = snapshot.currentContent {
+///     WeatherView(content: current.content)
 ///   }
-/// }
-/// struct WeatherView: View {
-///   let content: WeatherReport.Schema.PartiallyGenerated
 ///
-///   var body: some View {
-///     VStack(alignment: .leading, spacing: 12) {
-///       if let condition = content.condition {
-///         Text(condition)
-///           .font(.headline)
-///           .contentTransition(.interpolate)
-///       }
-///
-///       HStack {
-///         if let temperature = content.temperature {
-///           Text("\(temperature, specifier: "%.1f")°C")
-///             .contentTransition(.numericText())
-///         }
-///
-///         if let humidity = content.humidity {
-///           Text("\(humidity)% humidity")
-///             .contentTransition(.numericText())
-///         }
-///       }
-///       .font(.caption)
-///       .foregroundStyle(.secondary)
-///     }
-///     .frame(maxWidth: .infinity, alignment: .leading)
+///   if let final = snapshot.finalContent {
+///     persist(final)
 ///   }
 /// }
 /// ```
 public struct StructuredOutputSnapshot<Output: StructuredOutput>: Identifiable {
   /// Represents the typed content carried by an update.
   public enum ContentPhase {
-    /// A partially generated value that may be followed by further updates.
+    /// Partially generated value that may still receive additional tokens.
     case partial(Output.Schema.PartiallyGenerated)
 
-    /// A final, fully generated value.
+    /// Fully generated value that passed validation for the requested schema.
     case final(Output.Schema)
   }
 
-  /// A current view over update content that always exposes a
-  /// `PartiallyGenerated` value plus a flag indicating finality.
+  /// Stable projection that always surfaces the partially generated schema.
   ///
-  /// Designed for UI rendering: you always receive the partially generated
-  /// representation, keeping your view code stable from the first token to the
-  /// last. When the update is final, the value is still converted to
-  /// `PartiallyGenerated` so bindings keep working without additional state
-  /// switches.
+  /// `CurrentContent` always exposes the partially generated shape of the arguments, even when
+  /// the underlying value is final. That keeps SwiftUI identity steady from the first token to the
+  /// last, while the `isFinal` flag tells you when the agent finished deciding on its inputs.
   @dynamicMemberLookup
   public struct CurrentContent {
     /// Whether this current content represents the final value.
@@ -109,29 +72,29 @@ public struct StructuredOutputSnapshot<Output: StructuredOutput>: Identifiable {
     }
   }
 
-  /// Stable identifier used to correlate updates in the same generation.
+  /// Stable identifier used to correlate snapshots in the same generation.
   public var id: String
 
   /// The raw provider payload from which the structured content was decoded.
   public var rawContent: GeneratedContent
 
-  /// The typed content for this update, if decoding succeeded.
+  /// The current phase of the content (partial or final).
+  ///
+  /// - `nil`: Arguments failed to decode or are not available
+  /// - `.partial`: Arguments are being streamed and may be incomplete
+  /// - `.final`: Arguments are complete and validated
   public var contentPhase: ContentPhase?
 
-  /// A current view over the content, available when `contentPhase` is present.
-  ///
-  /// This always contains a `PartiallyGenerated` view of the schema—even when
-  /// the underlying update is final. Final values are converted into their
-  /// `PartiallyGenerated` form so that UI code (e.g. SwiftUI views) can bind to
-  /// a single, stable model without branching on status.
+  /// UI-stable projection of the snapshot content.
   public var currentContent: CurrentContent?
 
+  /// Fully validated schema returned once the provider finalizes the output.
   public var finalContent: Output.Schema?
 
-  /// Error payload when the update represents a provider-reported failure.
+  /// Error payload when the snapshot represents a provider-reported failure.
   public var error: GeneratedContent?
 
-  /// Creates an update that carries typed content.
+  /// Creates a snapshot backed by decoded content.
   public init(id: String, contentPhase: ContentPhase, rawContent: GeneratedContent) {
     self.id = id
     self.contentPhase = contentPhase
@@ -146,35 +109,35 @@ public struct StructuredOutputSnapshot<Output: StructuredOutput>: Identifiable {
     }
   }
 
-  /// Creates an update that represents a provider-reported error.
+  /// Creates a snapshot that represents a provider-reported error payload.
   public init(id: String, error: GeneratedContent, rawContent: GeneratedContent) {
     self.id = id
     self.error = error
     self.rawContent = rawContent
   }
 
-  /// Decodes a partial update from a JSON string.
+  /// Builds a partial snapshot from the provider's JSON payload.
   public static func partial(id: String, json: String) throws -> StructuredOutputSnapshot<Output> {
     let rawContent = try GeneratedContent(json: json)
     let content = try Output.Schema.PartiallyGenerated(rawContent)
     return StructuredOutputSnapshot(id: id, contentPhase: .partial(content), rawContent: rawContent)
   }
 
-  /// Decodes a final update from a JSON string.
+  /// Builds a final snapshot from the provider's JSON payload.
   public static func final(id: String, json: String) throws -> StructuredOutputSnapshot<Output> {
     let rawContent = try GeneratedContent(json: json)
     let content = try Output.Schema(rawContent)
     return StructuredOutputSnapshot(id: id, contentPhase: .final(content), rawContent: rawContent)
   }
 
-  /// Creates an update that carries an error payload.
+  /// Builds an error snapshot from the provider's JSON payload.
   public static func error(id: String, error: GeneratedContent) throws -> StructuredOutputSnapshot<Output> {
     StructuredOutputSnapshot(id: id, error: error, rawContent: error)
   }
 }
 
 private extension StructuredOutputSnapshot {
-  /// Produces a current view for a given typed content.
+  /// Produces the `CurrentContent` projection for a given phase.
   static func makeCurrentContent(from content: ContentPhase, raw: GeneratedContent) -> CurrentContent? {
     switch content {
     case let .partial(content):

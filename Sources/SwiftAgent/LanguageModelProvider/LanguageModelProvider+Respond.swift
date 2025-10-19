@@ -6,28 +6,29 @@ import FoundationModels
 // MARK: - String Response Methods
 
 public extension LanguageModelProvider {
-  /// Generates a text response to a string prompt.
+  /// Generates a text response to a plain string prompt.
   ///
-  /// This is the most basic response method, taking a plain string prompt and returning
-  /// generated text content. The response is automatically added to the conversation transcript.
+  /// SwiftAgent stores each turn in the transcript so you can revisit prompts, tool runs, and
+  /// responses later.
   ///
   /// ## Example
-  ///
   /// ```swift
-  /// let response = try await session.respond(to: "What is the capital of France?")
-  /// print(response.content) // "The capital of France is Paris."
+  /// import OpenAISession
+  ///
+  /// let session = OpenAISession(
+  ///   instructions: "You are a helpful assistant.",
+  ///   apiKey: "sk-..."
+  /// )
+  ///
+  /// let response = try await session.respond(to: "Weather in Lisbon today?")
+  /// print(response.content)
   /// ```
   ///
   /// - Parameters:
-  ///   - prompt: The text prompt to send to the AI model.
-  ///   - model: The model to use for generation. Defaults to the adapter's default model.
-  ///   - options: Optional generation parameters (temperature, max tokens, etc.).
-  ///     Uses automatic options for the model if not specified.
-  ///
-  /// - Returns: An ``AgentResponse`` containing the generated text, transcript entries,
-  ///   and token usage information.
-  ///
-  /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
+  ///   - prompt: Raw text sent to the model.
+  ///   - model: Optional override for the model identifier.
+  ///   - options: Optional generation overrides such as temperature.
+  /// - Returns: A ``AgentResponse`` containing the final text and transcript metadata.
   @discardableResult
   func respond(
     to prompt: String,
@@ -44,30 +45,31 @@ public extension LanguageModelProvider {
     )
   }
 
-  /// Generates a text response to a structured prompt.
+  /// Generates a text response from a structured ``Prompt``.
   ///
-  /// This method accepts a `Prompt` object built using the `@PromptBuilder` DSL,
-  /// allowing for more complex prompt structures with formatting and embedded content.
+  /// Build prompts ahead of time when you need tags or metadata alongside prose.
   ///
   /// ## Example
-  ///
   /// ```swift
+  /// import OpenAISession
+  ///
+  /// let session = OpenAISession(
+  ///   instructions: "You are a helpful assistant.",
+  ///   apiKey: "sk-..."
+  /// )
+  ///
   /// let prompt = Prompt {
-  ///   "You are a helpful assistant."
-  ///   PromptTag("user-input") { "What is the weather like?" }
-  ///   "Please provide a detailed response."
+  ///   "You are a concise assistant."
+  ///   PromptTag("question") { "List three Swift 6 features." }
   /// }
   /// let response = try await session.respond(to: prompt)
   /// ```
   ///
   /// - Parameters:
-  ///   - prompt: A structured prompt created with `@PromptBuilder`.
-  ///   - model: The model to use for generation. Defaults to the adapter's default model.
-  ///   - options: Optional generation parameters.
-  ///
-  /// - Returns: An ``AgentResponse`` containing the generated text and metadata.
-  ///
-  /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
+  ///   - prompt: Structured prompt built with ``PromptBuilder``.
+  ///   - model: Optional override for the model identifier.
+  ///   - options: Optional generation overrides such as temperature.
+  /// - Returns: A ``AgentResponse`` containing the final text and transcript metadata.
   @discardableResult
   func respond(
     to prompt: Prompt,
@@ -77,30 +79,27 @@ public extension LanguageModelProvider {
     try await respond(to: prompt.formatted(), using: model, options: options)
   }
 
-  /// Generates a text response using a prompt builder closure.
-  ///
-  /// This method allows you to build prompts inline using the `@PromptBuilder` DSL,
-  /// providing a convenient way to create structured prompts without explicitly
-  /// constructing a ``Prompt`` object.
+  /// Generates a text response while constructing the prompt inline with ``PromptBuilder``.
   ///
   /// ## Example
-  ///
   /// ```swift
-  /// let response = try await session.respond(using: .gpt4) {
-  ///   "You are an expert in Swift programming."
-  ///   "Please explain the following concept:"
-  ///   PromptTag("topic") { "Protocol-Oriented Programming" }
+  /// import OpenAISession
+  ///
+  /// let session = OpenAISession(
+  ///   instructions: "You are a helpful assistant.",
+  ///   apiKey: "sk-..."
+  /// )
+  ///
+  /// let response = try await session.respond {
+  ///   "You are a travel assistant."
+  ///   PromptTag("request") { "Suggest a weekend itinerary for Lisbon." }
   /// }
   /// ```
   ///
   /// - Parameters:
-  ///   - model: The model to use for generation. Defaults to the adapter's default model.
-  ///   - options: Optional generation parameters.
-  ///   - prompt: A closure that builds the prompt using `@PromptBuilder` syntax.
-  ///
-  /// - Returns: An ``AgentResponse`` containing the generated text and metadata.
-  ///
-  /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
+  ///   - model: Optional override for the model identifier.
+  ///   - options: Optional generation overrides such as temperature.
+  ///   - prompt: Closure building the prompt content.
   @discardableResult
   func respond(
     using model: Adapter.Model = .default,
@@ -114,38 +113,45 @@ public extension LanguageModelProvider {
 // MARK: - Structured Response Methods
 
 public extension LanguageModelProvider {
-  /// Generates a structured response of the specified type from a string prompt.
+  /// Generates a structured response from a plain string prompt.
   ///
-  /// This method enables structured output generation where the AI returns data conforming
-  /// to a specific `@Generable` type. This is useful for extracting structured data,
-  /// creating objects, or getting formatted responses.
+  /// Pass a ``StructuredOutput`` type to receive validated, strongly typed data.
   ///
   /// ## Example
-  ///
   /// ```swift
-  /// @Generable
-  /// struct WeatherReport {
-  ///   let temperature: Double
-  ///   let condition: String
-  ///   let humidity: Int
+  /// import FoundationModels
+  /// import OpenAISession
+  ///
+  /// struct WeatherReport: StructuredOutput {
+  ///   static let name = "weatherReport"
+  ///
+  ///   @Generable
+  ///   struct Schema {
+  ///     let temperature: Double
+  ///     let condition: String
+  ///     let humidity: Int
+  ///   }
   /// }
   ///
-  /// let response = try await session.respond(
-  ///   to: "Get weather for San Francisco",
-  ///   generating: WeatherReport.self
+  /// let session = OpenAISession(
+  ///   instructions: "You are a helpful assistant.",
+  ///   apiKey: "sk-..."
   /// )
-  /// print(response.content.temperature) // Strongly-typed access
+  ///
+  /// let report = try await session.respond(
+  ///   to: "Summarize today's forecast",
+  ///   generating: WeatherReport.self
+  /// ).content
+  /// print(report.condition)
   /// ```
   ///
   /// - Parameters:
-  ///   - prompt: The text prompt to send to the AI model.
-  ///   - type: The `Generable` type to generate. Can often be inferred from context.
-  ///   - model: The model to use for generation. Defaults to the adapter's default model.
-  ///   - options: Optional generation parameters.
-  ///
-  /// - Returns: An ``AgentResponse`` containing the generated structured content.
-  ///
-  /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
+  ///   - prompt: Raw text sent to the model.
+  ///   - type: Structured output declaration describing the expected schema.
+  ///   - model: Optional override for the model identifier.
+  ///   - options: Optional generation overrides such as temperature.
+  /// - Returns: A response whose ``AgentResponse/content`` matches the schema of
+  ///   `type`.
   @discardableResult
   func respond<StructuredOutput: SwiftAgent.StructuredOutput>(
     to prompt: String,
@@ -158,6 +164,52 @@ public extension LanguageModelProvider {
     return try await processResponse(from: prompt, generating: type, using: model, options: options)
   }
 
+  /// Generates a structured response from a plain string prompt.
+  ///
+  /// Pass a ``StructuredOutput`` type to receive validated, strongly typed data.
+  ///
+  /// ## Example
+  /// ```swift
+  /// import FoundationModels
+  /// import OpenAISession
+  ///
+  /// @SessionSchema
+  /// struct SessionSchema {
+  ///   @StructuredOutput(WeatherReport.self) var weatherReport
+  /// }
+  ///
+  /// struct WeatherReport: StructuredOutput {
+  ///   static let name = "weatherReport"
+  ///
+  ///   @Generable
+  ///   struct Schema {
+  ///     let temperature: Double
+  ///     let condition: String
+  ///     let humidity: Int
+  ///   }
+  /// }
+  ///
+  /// let schema = SessionSchema()
+  /// let session = OpenAISession(
+  ///   schema: schema,
+  ///   instructions: "You are a helpful assistant.",
+  ///   apiKey: "sk-..."
+  /// )
+  ///
+  /// let report = try await session.respond(
+  ///   to: "Summarize today's forecast",
+  ///   generating: \.weatherReport
+  /// ).content
+  /// print(report.condition)
+  /// ```
+  ///
+  /// - Parameters:
+  ///   - prompt: Raw text sent to the model.
+  ///   - type: Structured output declaration describing the expected schema.
+  ///   - model: Optional override for the model identifier.
+  ///   - options: Optional generation overrides such as temperature.
+  /// - Returns: A response whose ``AgentResponse/content`` matches the schema of
+  ///   `type`.
   @discardableResult
   func respond<StructuredOutput: SwiftAgent.StructuredOutput>(
     to prompt: String,
@@ -175,35 +227,48 @@ public extension LanguageModelProvider {
     )
   }
 
-  /// Generates a structured response of the specified type from a structured prompt.
-  ///
-  /// Combines the power of structured prompts with structured output generation.
-  /// Use this when you need both complex prompt formatting and typed response data.
+  /// Generates a structured response from a prebuilt structured ``Prompt``.
   ///
   /// ## Example
-  ///
   /// ```swift
-  /// let prompt = Prompt {
-  ///   "Extract key information from the following text:"
-  ///   PromptTag("document") { documentText }
-  ///   "Format the response as structured data."
+  /// import FoundationModels
+  /// import OpenAISession
+  ///
+  /// let article = "..."
+  ///
+  /// struct WeatherReport: StructuredOutput {
+  ///   static let name = "weatherReport"
+  ///
+  ///   @Generable
+  ///   struct Schema {
+  ///     let temperature: Double
+  ///     let condition: String
+  ///     let humidity: Int
+  ///   }
   /// }
   ///
-  /// let response = try await session.respond(
-  ///   to: prompt,
-  ///   generating: DocumentSummary.self
+  /// let session = OpenAISession(
+  ///   instructions: "You are a helpful assistant.",
+  ///   apiKey: "sk-..."
   /// )
+  ///
+  /// let prompt = Prompt {
+  ///   "Summarize the highlights"
+  ///   PromptTag("document") { article }
+  /// }
+  /// let summary = try await session.respond(
+  ///   to: prompt,
+  ///   generating: WeatherReport.self
+  /// ).content
   /// ```
   ///
   /// - Parameters:
-  ///   - prompt: A structured prompt created with `@PromptBuilder`.
-  ///   - type: The `Generable` type to generate.
-  ///   - model: The model to use for generation. Defaults to the adapter's default model.
-  ///   - options: Optional generation parameters.
-  ///
-  /// - Returns: An ``AgentResponse`` containing the generated structured content.
-  ///
-  /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
+  ///   - prompt: Structured prompt built with ``PromptBuilder``.
+  ///   - type: Structured output declaration describing the expected schema.
+  ///   - model: Optional override for the model identifier.
+  ///   - options: Optional generation overrides.
+  /// - Returns: A response whose ``AgentResponse/content`` matches the schema of
+  ///   `type`.
   @discardableResult
   func respond<StructuredOutput: SwiftAgent.StructuredOutput>(
     to prompt: Prompt,
@@ -219,6 +284,62 @@ public extension LanguageModelProvider {
     )
   }
 
+  /// Generates a structured response using a key-path registration and a prebuilt ``Prompt``.
+  ///
+  /// ## Example
+  /// ```swift
+  /// import FoundationModels
+  /// import OpenAISession
+  ///
+  /// @SessionSchema
+  /// struct SessionSchema {
+  ///   @StructuredOutput(WeatherReport.self) var weatherReport
+  ///   @StructuredOutput(CustomerInsights.self) var customerInsights
+  /// }
+  ///
+  /// struct WeatherReport: StructuredOutput {
+  ///   static let name = "weatherReport"
+  ///
+  ///   @Generable
+  ///   struct Schema {
+  ///     let temperature: Double
+  ///     let condition: String
+  ///     let humidity: Int
+  ///   }
+  /// }
+  ///
+  /// struct CustomerInsights: StructuredOutput {
+  ///   static let name = "customerInsights"
+  ///
+  ///   @Generable
+  ///   struct Schema {
+  ///     let highlights: [String]
+  ///   }
+  /// }
+  ///
+  /// let schema = SessionSchema()
+  /// let session = OpenAISession(
+  ///   schema: schema,
+  ///   instructions: "You are a helpful assistant.",
+  ///   apiKey: "sk-..."
+  /// )
+  ///
+  /// let prompt = Prompt {
+  ///   "Extract customer insights"
+  ///   PromptTag("transcript") { callNotes }
+  /// }
+  /// let insights = try await session.respond(
+  ///   to: prompt,
+  ///   generating: \.customerInsights
+  /// ).content
+  /// ```
+  ///
+  /// - Parameters:
+  ///   - prompt: Structured prompt built with ``PromptBuilder``.
+  ///   - type: Key path pointing to a structured output registered on your schema.
+  ///   - model: Optional override for the model identifier.
+  ///   - options: Optional generation overrides.
+  /// - Returns: A response whose content matches the schema referenced by `type`.
   @discardableResult
   func respond<StructuredOutput: SwiftAgent.StructuredOutput>(
     to prompt: Prompt,
@@ -234,30 +355,40 @@ public extension LanguageModelProvider {
     )
   }
 
-  /// Generates a structured response using a prompt builder closure.
-  ///
-  /// Allows you to build prompts inline while generating structured output,
-  /// combining the convenience of `@PromptBuilder` with typed responses.
+  /// Generates a structured response while building the prompt inline with ``PromptBuilder``.
   ///
   /// ## Example
-  ///
   /// ```swift
-  /// let response = try await session.respond(generating: TaskList.self) {
-  ///   "Create a task list based on the following requirements:"
-  ///   PromptTag("requirements") { userRequirements }
-  ///   "Include priority levels and estimated completion times."
+  /// import FoundationModels
+  /// import OpenAISession
+  ///
+  /// struct WeatherReport: StructuredOutput {
+  ///   static let name = "weatherReport"
+  ///
+  ///   @Generable
+  ///   struct Schema {
+  ///     let temperature: Double
+  ///     let condition: String
+  ///     let humidity: Int
+  ///   }
+  /// }
+  ///
+  /// let session = OpenAISession(
+  ///   instructions: "You are a helpful assistant.",
+  ///   apiKey: "sk-..."
+  /// )
+  ///
+  /// let report = try await session.respond(generating: WeatherReport.self) {
+  ///   "Summarize the extended forecast"
+  ///   PromptTag("city") { "Lisbon" }
   /// }
   /// ```
   ///
   /// - Parameters:
-  ///   - type: The `Generable` type to generate.
-  ///   - model: The model to use for generation. Defaults to the adapter's default model.
-  ///   - options: Optional generation parameters.
-  ///   - prompt: A closure that builds the prompt using `@PromptBuilder` syntax.
-  ///
-  /// - Returns: An ``AgentResponse`` containing the generated structured content.
-  ///
-  /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
+  ///   - type: Structured output declaration describing the expected schema.
+  ///   - model: Optional override for the model identifier.
+  ///   - options: Optional generation overrides.
+  ///   - prompt: Closure building the prompt content.
   @discardableResult
   func respond<StructuredOutput: SwiftAgent.StructuredOutput>(
     generating type: StructuredOutput.Type,
@@ -273,6 +404,58 @@ public extension LanguageModelProvider {
     )
   }
 
+  /// Generates a structured response using a key-path registration while building the prompt inline.
+  ///
+  /// ## Example
+  /// ```swift
+  /// import FoundationModels
+  /// import OpenAISession
+  ///
+  /// @SessionSchema
+  /// struct SessionSchema {
+  ///   @StructuredOutput(WeatherReport.self) var weatherReport
+  ///   @StructuredOutput(MeetingSummary.self) var meetingSummary
+  /// }
+  ///
+  /// struct WeatherReport: StructuredOutput {
+  ///   static let name = "weatherReport"
+  ///
+  ///   @Generable
+  ///   struct Schema {
+  ///     let temperature: Double
+  ///     let condition: String
+  ///     let humidity: Int
+  ///   }
+  /// }
+  ///
+  /// struct MeetingSummary: StructuredOutput {
+  ///   static let name = "meetingSummary"
+  ///
+  ///   @Generable
+  ///   struct Schema {
+  ///     let actionItems: [String]
+  ///     let decisions: [String]
+  ///   }
+  /// }
+  ///
+  /// let schema = SessionSchema()
+  /// let session = OpenAISession(
+  ///   schema: schema,
+  ///   instructions: "You are a helpful assistant.",
+  ///   apiKey: "sk-..."
+  /// )
+  ///
+  /// let summary = try await session.respond(generating: \.meetingSummary) {
+  ///   "Summarize the call transcript"
+  ///   PromptTag("transcript") { callNotes }
+  /// }
+  /// ```
+  ///
+  /// - Parameters:
+  ///   - type: Key path pointing to a structured output registered on your schema.
+  ///   - model: Optional override for the model identifier.
+  ///   - options: Optional generation overrides.
+  ///   - prompt: Closure building the prompt content.
   @discardableResult
   func respond<StructuredOutput: SwiftAgent.StructuredOutput>(
     generating type: KeyPath<SessionSchema.StructuredOutputs, StructuredOutput.Type>,
@@ -290,43 +473,45 @@ public extension LanguageModelProvider {
 }
 
 public extension LanguageModelProvider {
-  /// Generates a text response with additional context while keeping user input separate.
+  /// Generates a text response while injecting grounding data into the prompt.
   ///
-  /// The method automatically extracts URLs from the input and fetches link previews,
-  /// which are included in the context alongside the provided context items.
+  /// Groundings represent supplemental context—such as the current date or search results—and are
+  /// stored alongside the user input.
   ///
   /// ## Example
-  ///
   /// ```swift
+  /// import FoundationModels
+  /// import OpenAISession
+  ///
+  /// @SessionSchema
+  /// struct SessionSchema {
+  ///   @Grounding(Date.self) var currentDate
+  /// }
+  ///
+  /// let schema = SessionSchema()
+  /// let session = OpenAISession(
+  ///   schema: schema,
+  ///   instructions: "You are a helpful assistant.",
+  ///   apiKey: "sk-..."
+  /// )
+  ///
   /// let response = try await session.respond(
-  ///   to: "What are the key features of SwiftUI?",
-  ///   supplying: [
-  ///     .documentContext("SwiftUI is a declarative framework..."),
-  ///     .searchResult("SwiftUI provides state management...")
-  ///   ]
-  /// ) { input, context in
-  ///   "You are a helpful assistant. Use the following context to answer questions."
+  ///   to: "What's happening in the city today?",
+  ///   groundingWith: [.currentDate(Date())]
+  /// ) { input, sources in
   ///   PromptTag("context") {
-  ///     for source in context.sources {
-  ///       source
-  ///     }
+  ///     if case let .currentDate(date) = sources.first { "Today is \(date)" }
   ///   }
   ///   PromptTag("user-question") { input }
   /// }
   /// ```
   ///
   /// - Parameters:
-  ///   - input: The user's input/question as a plain string.
-  ///   - contextItems: Array of context sources that implement ``PromptContextSource``.
-  ///   - model: The model to use for generation. Defaults to the adapter's default model.
-  ///   - options: Optional generation parameters.
-  ///   - prompt: A closure that builds the final prompt by combining input and context.
-  ///     Receives the input string and a `PromptContext` containing sources and link previews.
-  ///
-  /// - Returns: An ``AgentResponse`` containing the generated text and metadata.
-  ///   The transcript entry will maintain separation between input and context.
-  ///
-  /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
+  ///   - input: User-provided text.
+  ///   - model: Optional override for the model identifier.
+  ///   - sources: Grounding items to attach to this turn.
+  ///   - options: Optional generation overrides.
+  ///   - prompt: Prompt builder combining the input text with the supplied groundings.
   @discardableResult
   func respond(
     to input: String,
@@ -346,47 +531,68 @@ public extension LanguageModelProvider {
     return try await processResponse(from: prompt, using: model, options: options)
   }
 
-  /// Generates a structured response with additional context while keeping user input separate.
+  /// Generates a structured response while injecting grounding data into the prompt.
   ///
-  /// Combines context-aware generation with structured output, allowing you to provide
-  /// supplementary information while getting back strongly-typed data. This is particularly
-  /// useful for structured data extraction from contextual information.
-  ///
-  /// Like the text variant, this method automatically handles URL extraction and link preview
-  /// generation from the input text.
+  /// The transcript keeps the grounding values next to the user input and validates the structured
+  /// result against the provided schema.
   ///
   /// ## Example
-  ///
   /// ```swift
-  /// @Generable
-  /// struct ProductSummary {
-  ///   let name: String
-  ///   let features: [String]
-  ///   let price: Double
+  /// import FoundationModels
+  /// import OpenAISession
+  ///
+  /// @SessionSchema
+  /// struct SessionSchema {
+  ///   @StructuredOutput(WeatherReport.self) var weatherReport
+  ///   @Grounding(Date.self) var currentDate
   /// }
   ///
-  /// let response = try await session.respond(
-  ///   to: "Summarize this product",
-  ///   supplying: [.productDescription(productData)],
-  ///   generating: ProductSummary.self
-  /// ) { input, context in
-  ///   "Extract product information from the context below:"
-  ///   PromptTag("context", items: context.sources)
-  ///   "User request: \(input)"
+  /// struct WeatherReport: StructuredOutput {
+  ///   static let name = "weatherReport"
+  ///
+  ///   @Generable
+  ///   struct Schema {
+  ///     let temperature: Double
+  ///     let condition: String
+  ///     let humidity: Int
+  ///   }
   /// }
+  ///
+  /// let schema = SessionSchema()
+  /// let session = OpenAISession(
+  ///   schema: schema,
+  ///   instructions: "You are a helpful assistant.",
+  ///   apiKey: "sk-..."
+  /// )
+  ///
+  /// let report = try await session.respond(
+  ///   to: "What's the weather like in San Francisco?",
+  ///   generating: WeatherReport.self,
+  ///   groundingWith: [.currentDate(Date())]
+  /// ) { input, sources in
+  ///   PromptTag("context") {
+  ///     for source in sources {
+  ///       if case let .currentDate(date) = source {
+  ///         "Today is \(date)."
+  ///       }
+  ///     }
+  ///   }
+  ///
+  ///   PromptTag("user-query") {
+  ///     input
+  ///   }
+  /// }
+  ///
+  /// print(report.content.temperature)
   /// ```
   ///
   /// - Parameters:
-  ///   - input: The user's input/question as a plain string.
-  ///   - contextItems: Array of context sources that implement ``PromptContextSource``.
-  ///   - type: The `Generable` type to generate.
-  ///   - model: The model to use for generation. Defaults to the adapter's default model.
-  ///   - options: Optional generation parameters.
-  ///   - prompt: A closure that builds the final prompt by combining input and context.
-  ///
-  /// - Returns: An ``AgentResponse`` containing the generated structured content and metadata.
-  ///
-  /// - Throws: ``GenerationError`` or adapter-specific errors if generation fails.
+  ///   - input: User-provided text.
+  ///   - type: Structured output declaration describing the expected schema.
+  ///   - model: Optional override for the model identifier.
+  ///   - sources: Grounding items to attach to this turn.
+  ///   - options: Optional generation overrides.
+  ///   - prompt: Prompt builder combining the input text with the supplied groundings.
   @discardableResult
   func respond<StructuredOutput: SwiftAgent.StructuredOutput>(
     to input: String,
@@ -407,6 +613,18 @@ public extension LanguageModelProvider {
     return try await processResponse(from: prompt, generating: type, using: model, options: options)
   }
 
+  /// Generates a structured response while injecting grounding data into the prompt.
+  ///
+  /// The transcript keeps the grounding values next to the user input and validates the structured
+  /// result against the provided schema.
+  ///
+  /// - Parameters:
+  ///   - input: User-provided text.
+  ///   - type: Structured output declaration describing the expected schema.
+  ///   - model: Optional override for the model identifier.
+  ///   - sources: Grounding items to attach to this turn.
+  ///   - options: Optional generation overrides.
+  ///   - prompt: Prompt builder combining the input text with the supplied groundings.
   @discardableResult
   func respond<StructuredOutput: SwiftAgent.StructuredOutput>(
     to input: String,
@@ -424,6 +642,11 @@ public extension LanguageModelProvider {
       sources: sourcesData,
       prompt: prompt(input, sources).formatted(),
     )
-    return try await processResponse(from: prompt, generating: StructuredOutput.self, using: model, options: options)
+    return try await processResponse(
+      from: prompt,
+      generating: StructuredOutput.self,
+      using: model,
+      options: options,
+    )
   }
 }

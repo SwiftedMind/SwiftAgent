@@ -2,7 +2,7 @@
 
 import Foundation
 
-/// Errors that can occur during AI model generation in SwiftAgent.
+/// Errors that can occur during agent generation in SwiftAgent.
 ///
 /// These errors represent various failure scenarios when a `LanguageModelProvider` attempts to generate content,
 /// including tool calling failures, content parsing issues, and model refusals.

@@ -5,6 +5,12 @@ import FoundationModels
 
 public protocol GroundingSupportingSchema {}
 
+/// Describes the schema backing an agent session.
+///
+/// A schema enumerates the tools, groundings, and structured outputs that SwiftAgent should decode
+/// for a session. In typical apps you don't conform to this protocol manually—annotate a type with
+/// the ``SessionSchema`` macro and the compiler will synthesize the required metadata and helper
+/// wrappers for you.
 public protocol LanguageModelSessionSchema {
   /// Your app's type that represents a resolved grounding item emitted by decoding.
   associatedtype DecodedGrounding: SwiftAgent.DecodedGrounding

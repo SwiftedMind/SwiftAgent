@@ -5,9 +5,6 @@ import FoundationModels
 import OpenAI
 import SwiftAgent
 
-// TODO: Write unit tests that test structured output
-// TODO: Add access levels to the macro implementation
-
 extension OpenAIAdapter {
   public func streamResponse(
     to prompt: Transcript.Prompt,

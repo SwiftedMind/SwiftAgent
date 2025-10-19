@@ -28,11 +28,10 @@ public struct Transcript: Sendable, Equatable {
     }
   }
 
-  /// Decodes this transcript using the session's decoder into the provider's
-  /// `DecodedTranscript` representation.
+  /// Decodes this transcript using a ``SessionSchema``.
   ///
   /// - Parameters:
-  ///   - session: The session to use to decode the transcript.
+  ///   - schema: The session schema to use to decode the transcript.
   /// - Returns: The decoded transcript.
   public func decoded<SessionSchema: LanguageModelSessionSchema>(
     using schema: SessionSchema,
@@ -61,33 +60,6 @@ public struct Transcript: Sendable, Equatable {
     }
 
     return response
-  }
-
-  package func structuredOutputFromLastResponse() throws -> LastResponseStructuredOutput? {
-    guard let response = lastResponseEntry() else {
-      return nil
-    }
-
-    // Response is still empty, so data might still be streaming in
-    if response.segments.isEmpty {
-      return nil
-    }
-
-    // Text is forbidden in structured-only mode
-    if !response.textSegments.isEmpty {
-      throw GenerationError.unexpectedTextResponse(.init())
-    }
-
-    // We only ever support one structured segment
-    let structuredSegments = response.structuredSegments
-    if structuredSegments.count != 1 {
-      throw GenerationError.unexpectedStructuredResponse(.init())
-    }
-
-    return LastResponseStructuredOutput(
-      status: response.status,
-      segment: structuredSegments[0],
-    )
   }
 }
 

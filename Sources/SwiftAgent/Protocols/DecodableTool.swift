@@ -3,15 +3,18 @@
 import Foundation
 import FoundationModels
 
-/// A helper protocol that turns a `Tool` into a decodable form for transcripts.
+/// Describes how a tool run is decoded into schema-backed values.
 ///
-/// - Note: You do not conform to this directly in typical apps. The
-///   `@LanguageModelProvider` macro synthesizes these wrappers from your
-///   `@Tool` properties so that tool calls in a transcript can be resolved.
+/// ``SessionSchema`` macros synthesize conformances for every `@Tool` property you declare. Those
+/// generated types turn streaming `ToolRun<BaseTool>` snapshots into concrete `DecodedToolRun`
+/// objects that feed decoded transcripts, UI views, and analytics.
 public protocol DecodableTool<DecodedToolRun>: SwiftAgentTool where BaseTool.Arguments: Generable,
   BaseTool.Output: Generable {
+  /// The tool implementation being decoded.
   associatedtype BaseTool: FoundationModels.Tool
+  /// Schema-specific projection used in decoded transcripts and snapshots.
   associatedtype DecodedToolRun: SwiftAgent.DecodedToolRun
+  /// Converts a typed `ToolRun` into the schema-defined decoded representation.
   func decode(_ run: ToolRun<BaseTool>) -> DecodedToolRun
 }
 
@@ -66,7 +69,7 @@ package extension DecodableTool {
 }
 
 package extension DecodableTool {
-  /// Builds a typed `ToolRun` value from raw arguments and optional output/rejection.
+  /// Builds a typed `ToolRun` value from raw arguments and optional output or rejection.
   func toolRun(
     id: String,
     argumentsPhase: ToolRun<BaseTool>.ArgumentsPhase,

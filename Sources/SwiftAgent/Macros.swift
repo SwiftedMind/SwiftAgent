@@ -2,26 +2,28 @@
 
 import Observation
 
-/// Synthesizes the helper types required by `LanguageModelSessionSchema`, including tool wrappers,
-/// decoding enums, and structured output registrations.
+/// Declares the tools, groundings, and structured outputs your session understands.
 ///
-/// Applying this macro to a struct performs the following:
-/// - Exposes the nested `@Tool`, `@StructuredOutput`, and `@Grounding` property wrappers.
-/// - Generates the stored `decodableTools` collection used by the transcript decoder.
-/// - Synthesizes `DecodedGrounding`, `DecodedToolRun`, and `DecodedStructuredOutput` enums.
-/// - Emits `Decodable<Name>` helper types for tools and structured outputs.
-/// - Adds `LanguageModelSessionSchema` conformance automatically.
-/// - Adds `GroundingSupportingSchema` conformance when grounding properties are present.
+/// Annotate a struct with `@SessionSchema` to generate everything SwiftAgent needs to decode
+/// transcripts, provide typed streaming helpers, and register your tool and structured output
+/// declarations. The macro exposes the property wrappers (`@Tool`, `@Grounding`, `@StructuredOutput`)
+/// and synthesizes the glue code that powers `session.respond`, `streamResponse`, and
+/// `schema.decode`.
 ///
-/// Example:
 /// ```swift
+/// struct WeatherTool: Tool { /* ... */ }
+/// struct WeatherReport: StructuredOutput { /* ... */ }
+///
 /// @SessionSchema
 /// struct SessionSchema {
-///   @Tool var calculator = CalculatorTool()
-///   @Tool var weather = WeatherTool()
+///   @Tool var weatherTool = WeatherTool()
 ///   @Grounding(Date.self) var currentDate
 ///   @StructuredOutput(WeatherReport.self) var weatherReport
 /// }
+///
+/// let schema = SessionSchema()
+/// let session = OpenAISession(schema: schema, instructions: "You are a helpful assistant.", apiKey: "sk-...")
+/// let response = try await session.respond(to: "Weather in Lisbon?", generating: \.weatherReport)
 /// ```
 @attached(member, names: arbitrary)
 @attached(
@@ -32,12 +34,4 @@ import Observation
 public macro SessionSchema() = #externalMacro(
   module: "SwiftAgentMacros",
   type: "SessionSchemaMacro",
-)
-
-/// Marks a property synthesized by `@LanguageModelProvider` as observable and inserts the associated storage.
-@attached(peer, names: prefixed(_))
-@attached(accessor)
-public macro _LanguageModelProviderObserved(initialValue: Any) = #externalMacro(
-  module: "SwiftAgentMacros",
-  type: "LanguageModelProviderObservedMacro",
 )

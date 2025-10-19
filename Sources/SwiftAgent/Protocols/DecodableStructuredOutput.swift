@@ -3,37 +3,38 @@
 import Foundation
 import FoundationModels
 
-/// Allows decoding structured segments from a transcript for a specific provider.
+/// Describes how a schema-defined structured output is decoded from transcript snapshots.
 ///
-/// ## Example
+/// Conforming types are synthesized by ``SessionSchema`` macros when you annotate properties with
+/// `@StructuredOutput`. They bridge the raw `StructuredOutputSnapshot<Base>` emitted during
+/// streaming into the schema-specific `DecodedStructuredOutput` that powers decoded transcripts,
+/// live snapshots, and tooling.
 ///
 /// ```swift
-/// struct NoteSummary: StructuredOutput {
-///   static let name = "note_summary"
+/// struct WeatherReport: StructuredOutput {
+///   static let name = "weather_report"
 ///
 ///   @Generable
 ///   struct Schema {
-///     let summary: String
+///     let condition: String
+///     let temperature: Double
 ///   }
 /// }
 ///
-/// @LanguageModelProvider(.openAI)
-/// final class Session {
-///   // The macro generates a nested decodable representation used internally to
-///   // transform `StructuredOutputSnapshot<NoteSummary>` into a provider-specific value.
-///   @StructuredOutput(NoteSummary.self) var note
+/// @SessionSchema
+/// struct SessionSchema {
+///   @StructuredOutput(WeatherReport.self) var weather
 /// }
 ///
+/// // The macro above generates a type conforming to DecodableStructuredOutput that
+/// // knows how to turn WeatherReport snapshots into schema-backed decoded values.
 /// ```
 ///
-/// - Note: You usually do not implement this protocol manually. When you declare
-/// `@StructuredOutput` properties on a `@LanguageModelProvider` session, the macro
-/// generates a concrete type conforming to `DecodableStructuredOutput` that knows how to
-/// decode your output from transcript updates.
+/// - Note: Most applications never implement this protocol manually; rely on the generated types instead.
 public protocol DecodableStructuredOutput<DecodedStructuredOutput>: Sendable, Equatable {
   /// The user‑declared output type that defines the `Schema` to generate.
   associatedtype Base: StructuredOutput
-  /// The provider for which decoding is performed.
+  /// Concrete decoded output returned to schema consumers.
   associatedtype DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput
   /// Stable name under which segments for this output are recorded in transcripts.
   static var name: String { get }

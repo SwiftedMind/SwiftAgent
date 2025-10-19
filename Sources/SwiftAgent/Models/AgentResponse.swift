@@ -3,18 +3,10 @@
 import Foundation
 import FoundationModels
 
-/// The response returned by ``LanguageModelProvider`` methods, containing generated content and metadata.
+/// The response returned from an agent's generation, containing generated content and metadata.
 ///
 /// ``AgentResponse`` encapsulates the result of an AI generation request, providing access to
 /// the generated content, the transcript and token usage statistics.
-///
-/// ## Properties
-///
-/// - **content**: The generated content, which can be a `String` for text responses or any
-///   `@Generable` type for structured responses.
-/// - **transcript**: The transcript entries that were created during this generation, including the initial prompt.
-/// - **tokenUsage**: Aggregated token consumption across all internal steps, may be `nil` if the adapter doesn't
-/// provide token usage information.
 ///
 /// ## Example Usage
 ///
