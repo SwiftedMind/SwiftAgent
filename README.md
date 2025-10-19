@@ -143,11 +143,11 @@ print(response.content)
 
 > Note: Unlike Apple's `LanguageModelSession` object, `OpenAISession` takes the `tools` parameter as variadic arguments. So instead of passing an array like `tools: [WeatherTool(), OtherTool()]`, you pass the tools as a list of arguments `tools: WeatherTool(), OtherTool()`.
 
-#### Recoverable Tool Errors
+#### Recoverable Tool Rejections
 
-If a tool call fails in a way the agent can correct (such as an unknown identifier or other validation issue), throw a `ToolRunProblem`. SwiftAgent forwards the structured content you provide to the model without aborting the loop so the agent can adjust its next action.
+If a tool call fails in a way the agent can correct (such as an unknown identifier or other validation issue), throw a `ToolRunRejection`. SwiftAgent forwards the structured content you provide to the model without aborting the loop so the agent can adjust its next action.
 
-SwiftAgent always wraps your payload in a standardized envelope that includes `error: true` and the `reason` string so the agent can reliably detect recoverable problems.
+SwiftAgent always wraps your payload in a standardized envelope that includes `error: true` and the `reason` string so the agent can reliably detect recoverable rejections.
 
 For quick cases, attach string-keyed details with the convenience initializer:
 
@@ -155,7 +155,7 @@ For quick cases, attach string-keyed details with the convenience initializer:
 struct CustomerLookupTool: Tool {
   func call(arguments: Arguments) async throws -> Output {
     guard let customer = try await directory.loadCustomer(id: arguments.customerId) else {
-      throw ToolRunProblem(
+      throw ToolRunRejection(
         reason: "Customer not found",
         details: [
           "issue": "customerNotFound",
@@ -173,15 +173,15 @@ For richer payloads, pass any `@Generable` type via the `content:` initializer t
 
 ```swift
 @Generable
-struct CustomerLookupProblemDetails {
+struct CustomerLookupRejectionDetails {
   var issue: String
   var customerId: String
   var suggestions: [String]
 }
 
-throw ToolRunProblem(
+throw ToolRunRejection(
   reason: "Customer not found",
-  content: CustomerLookupProblemDetails(
+  content: CustomerLookupRejectionDetails(
     issue: "customerNotFound",
     customerId: arguments.customerId,
     suggestions: ["Ask the user to confirm the identifier"]

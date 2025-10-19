@@ -592,12 +592,12 @@ extension OpenAIAdapter {
           outputJSONOrText: output.generatedContent.jsonString,
         )
         executedAny = true
-      } catch let toolRunProblem as ToolRunProblem {
+      } catch let toolRunRejection as ToolRunRejection {
         let toolOutputEntry = Transcript.ToolOutput(
           id: state.callIdentifier,
           callId: state.callId,
           toolName: state.toolName,
-          segment: .structure(.init(content: toolRunProblem.generatedContent)),
+          segment: .structure(.init(content: toolRunRejection.generatedContent)),
           status: state.status,
         )
         let transcriptEntry = Transcript.Entry.toolOutput(toolOutputEntry)
@@ -607,7 +607,7 @@ extension OpenAIAdapter {
         AgentLog.toolOutput(
           name: tool.name,
           callId: state.callId,
-          outputJSONOrText: toolRunProblem.generatedContent.jsonString,
+          outputJSONOrText: toolRunRejection.generatedContent.jsonString,
         )
         executedAny = true
       } catch {

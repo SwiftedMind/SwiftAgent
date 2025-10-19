@@ -67,7 +67,7 @@ package extension DecodableTool {
 }
 
 package extension DecodableTool {
-  /// Builds a typed `ToolRun` value from raw arguments and optional output/problem.
+  /// Builds a typed `ToolRun` value from raw arguments and optional output/rejection.
   func toolRun(
     id: String,
     argumentsPhase: ToolRun<BaseTool>.ArgumentsPhase,
@@ -92,32 +92,32 @@ package extension DecodableTool {
         rawOutput: rawOutput,
       )
     } catch {
-      guard let problem = problem(from: rawOutput) else {
+      guard let rejection = rejection(from: rawOutput) else {
         throw error
       }
 
       return ToolRun(
         id: id,
         argumentsPhase: argumentsPhase,
-        problem: problem,
+        rejection: rejection,
         rawArguments: rawArguments,
         rawOutput: rawOutput,
       )
     }
   }
 
-  /// Extracts a structured problem description from generated content (if present).
-  func problem(from generatedContent: GeneratedContent) -> ToolRun<BaseTool>.Problem? {
+  /// Extracts a structured rejection description from generated content (if present).
+  func rejection(from generatedContent: GeneratedContent) -> ToolRun<BaseTool>.Rejection? {
     guard
-      let problemReport = try? ProblemReport(generatedContent),
-      problemReport.error else {
+      let rejectionReport = try? RejectionReport(generatedContent),
+      rejectionReport.error else {
       return nil
     }
 
-    return ToolRun<BaseTool>.Problem(
-      reason: problemReport.reason,
+    return ToolRun<BaseTool>.Rejection(
+      reason: rejectionReport.reason,
       json: generatedContent.jsonString,
-      details: ProblemReportDetailsExtractor.values(from: generatedContent),
+      details: RejectionReportDetailsExtractor.values(from: generatedContent),
     )
   }
 }

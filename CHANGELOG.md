@@ -60,13 +60,13 @@
   }
   ```
 
-- **Recoverable Tool Problems**: Added a `ToolRunProblem` error type so tools can return a recoverable issue back to the agent without stopping the loop; the OpenAI adapter now reads these problem objects to decide when a tool should retry or provide alternate output. `ToolRun` also exposes `problem` and `isAwaitingOutput` so decoders can surface the problem payload forwarded by the adapter whenever `SwiftAgentTool.Output` decoding fails.
+- **Recoverable Tool Rejections**: Added a `ToolRunRejection` error type so tools can return a recoverable issue back to the agent without stopping the loop; the OpenAI adapter now reads these rejection objects to decide when a tool should retry or provide alternate output. `ToolRun` also exposes `rejection` and `isAwaitingOutput` so decoders can surface the rejection payload forwarded by the adapter whenever `SwiftAgentTool.Output` decoding fails.
 
   ```swift
   struct CustomerLookupTool: SwiftAgentTool {
     func call(arguments: Arguments) async throws -> Output {
       guard let customer = try await directory.loadCustomer(id: arguments.customerIdentifier) else {
-        throw ToolRunProblem(
+        throw ToolRunRejection(
           reason: "Customer not found",
           details: [
             "issue" : "customerNotFound",
@@ -100,7 +100,7 @@
 
 ### Fixed
 
-- **Problem Report Validation**: Tool output decoding errors now propagate unless the payload matches the recoverable `ToolRunProblem` report structure, preventing silent failures in custom tools.
+- **Rejection Report Validation**: Tool output decoding errors now propagate unless the payload matches the recoverable `ToolRunRejection` report structure, preventing silent failures in custom tools.
 - **URL Metadata Crash (LPMetadataProvider one-shot)**: Fixed a crash when fetching link preview metadata multiple times where a single `LPMetadataProvider` instance was reused. `LPMetadataProvider` is a one-shot object and must not be started more than once. `URLMetadataProvider` now creates a fresh provider per request, preventing the "Trying to start fetching on an LPMetadataProvider that has already started" error and making concurrent URL fetches safe.
 
 ## [0.6.0]

@@ -204,11 +204,11 @@ private extension SimulationAdapter {
         output: output.generatedContent,
         continuation: continuation,
       )
-    } catch let problem as ToolRunProblem {
+    } catch let rejection as ToolRunRejection {
       try await yieldToolOutput(
         callId: callId,
         toolName: toolName,
-        output: problem.generatedContent,
+        output: rejection.generatedContent,
         continuation: continuation,
       )
     } catch {

@@ -3,8 +3,8 @@
 import Foundation
 import FoundationModels
 
-package enum ProblemReportDetailsExtractor {
-  /// Extracts fallback detail values from problem report generated content.
+package enum RejectionReportDetailsExtractor {
+  /// Extracts fallback detail values from rejection report generated content.
   ///
   /// The extractor keeps recoverable payloads accessible when strongly typed decoding fails.
   package static func values(from generatedContent: GeneratedContent) -> [String: String] {

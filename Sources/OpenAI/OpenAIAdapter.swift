@@ -327,12 +327,12 @@ public actor OpenAIAdapter: Adapter {
 
       generatedTranscript.entries.append(transcriptEntry)
       continuation.yield(.transcript(transcriptEntry))
-    } catch let toolRunProblem as ToolRunProblem {
+    } catch let toolRunRejection as ToolRunRejection {
       let toolOutputEntry = Transcript.ToolOutput(
         id: functionCall.id ?? UUID().uuidString,
         callId: functionCall.callId,
         toolName: functionCall.name,
-        segment: .structure(Transcript.StructuredSegment(content: toolRunProblem.generatedContent)),
+        segment: .structure(Transcript.StructuredSegment(content: toolRunRejection.generatedContent)),
         status: transcriptStatusFromOpenAIStatus(functionCall.status),
       )
 
@@ -341,7 +341,7 @@ public actor OpenAIAdapter: Adapter {
       AgentLog.toolOutput(
         name: tool.name,
         callId: functionCall.callId,
-        outputJSONOrText: toolRunProblem.generatedContent.jsonString,
+        outputJSONOrText: toolRunRejection.generatedContent.jsonString,
       )
 
       generatedTranscript.entries.append(transcriptEntry)

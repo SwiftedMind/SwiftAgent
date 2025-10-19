@@ -176,13 +176,13 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
   /// - No corresponding output was found in the transcript
   public var output: Output?
 
-  /// Information about recoverable problems during tool execution.
+  /// Information about recoverable rejections during tool execution.
   ///
   /// This contains structured error information when a tool execution fails
   /// but returns recoverable data. This typically occurs when a tool throws
-  /// a `ToolRunProblem` and the adapter forwards the error details back to
+  /// a `ToolRunRejection` and the adapter forwards the error details back to
   /// the agent as structured content.
-  public var problem: Problem?
+  public var rejection: Rejection?
 
   /// An error that occurred while decoding or resolving the tool run.
   ///
@@ -197,9 +197,9 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     output != nil
   }
 
-  /// Whether the tool run contains recoverable problem information.
-  public var hasProblem: Bool {
-    problem != nil
+  /// Whether the tool run contains recoverable rejection information.
+  public var hasRejection: Bool {
+    rejection != nil
   }
 
   /// Whether the tool run encountered a decoding or resolution error.
@@ -210,23 +210,23 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
   /// Whether the tool run is still awaiting completion.
   ///
   /// Returns `true` when the tool has been called but hasn't yet produced
-  /// an output, problem, or error.
+  /// an output, rejection, or error.
   public var isPending: Bool {
-    output == nil && problem == nil && error == nil
+    output == nil && rejection == nil && error == nil
   }
 
   public init(
     id: String,
     argumentsPhase: ArgumentsPhase,
     output: Output? = nil,
-    problem: Problem? = nil,
+    rejection: Rejection? = nil,
     rawArguments: GeneratedContent,
     rawOutput: GeneratedContent? = nil,
   ) {
     self.id = id
     self.argumentsPhase = argumentsPhase
     self.output = output
-    self.problem = problem
+    self.rejection = rejection
     self.rawArguments = rawArguments
     self.rawOutput = rawOutput
     currentArguments = Self.makeCurrentArguments(from: argumentsPhase, rawArguments: rawArguments)
@@ -242,14 +242,14 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
   public init(
     id: String,
     output: Output? = nil,
-    problem: Problem? = nil,
+    rejection: Rejection? = nil,
     error: TranscriptDecodingError.ToolRunResolution,
     rawArguments: GeneratedContent,
     rawOutput: GeneratedContent? = nil,
   ) {
     self.id = id
     self.output = output
-    self.problem = problem
+    self.rejection = rejection
     self.error = error
     self.rawArguments = rawArguments
     self.rawOutput = rawOutput
@@ -323,7 +323,7 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     )
   }
 
-  /// Creates a completed tool run with a recoverable problem.
+  /// Creates a completed tool run with a recoverable rejection.
   ///
   /// Use this factory method when the tool execution failed but returned
   /// structured error information that can be recovered.
@@ -331,10 +331,10 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
   /// ## Example
   ///
   /// ```swift
-  /// let problemRun = try ToolRun<CalculatorTool>.completed(
+  /// let rejectionRun = try ToolRun<CalculatorTool>.completed(
   ///   id: "calc-123",
   ///   json: #"{ "firstNumber": 10, "operation": "/", "secondNumber": 0 }"#,
-  ///   problem: ToolRun<CalculatorTool>.Problem(
+  ///   rejection: ToolRun<CalculatorTool>.Rejection(
   ///     reason: "Division by zero",
   ///     json: #"{ "error": "Cannot divide by zero" }"#,
   ///     details: ["error": "Cannot divide by zero"]
@@ -345,20 +345,20 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
   /// - Parameters:
   ///   - id: The unique identifier for this tool run
   ///   - json: The JSON string containing the complete arguments
-  ///   - problem: The structured problem information
-  /// - Returns: A completed tool run with problem information
+  ///   - rejection: The structured rejection information
+  /// - Returns: A completed tool run with rejection information
   /// - Throws: If the JSON cannot be parsed or arguments cannot be decoded
   public static func completed(
     id: String,
     json: String,
-    problem: Problem,
+    rejection: Rejection,
   ) throws -> ToolRun<Tool> {
     let rawArguments = try GeneratedContent(json: json)
     let arguments = try Arguments(rawArguments)
     return self.init(
       id: id,
       argumentsPhase: .final(arguments),
-      problem: problem,
+      rejection: rejection,
       rawArguments: rawArguments,
     )
   }
@@ -390,30 +390,29 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
 }
 
 public extension ToolRun {
-  /// Structured information about recoverable problems during tool execution.
+  /// Structured information about recoverable rejections during tool execution.
   ///
-  /// `Problem` represents situations where a tool execution failed but returned
+  /// `Rejection` represents situations where a tool execution failed but returned
   /// structured error information that can be returned to the agent for another attempt.
-  /// This typically occurs when a tool throws a `ToolRunProblem` and the adapter
+  /// This typically occurs when a tool throws a `ToolRunRejection` and the adapter
   /// forwards the error details back to the agent as structured content.
-  /// ```
-  struct Problem: Sendable, Equatable, Hashable {
+  struct Rejection: Sendable, Equatable, Hashable {
     /// A human-readable description of what went wrong.
     ///
-    /// This provides a clear, agent-friendly explanation of the problem
+    /// This provides a clear, agent-friendly explanation of the rejection
     /// that occurred during tool execution.
     public let reason: String
 
-    /// The raw JSON string containing the problem details.
+    /// The raw JSON string containing the rejection details.
     ///
     /// This contains the original structured data returned by the tool
-    /// when the problem occurred. You can use this to access the full
-    /// problem payload or reconstruct the original `GeneratedContent`.
+    /// when the rejection occurred. You can use this to access the full
+    /// rejection payload or reconstruct the original `GeneratedContent`.
     public let json: String
 
-    /// A flattened key-value representation of the problem details.
+    /// A flattened key-value representation of the rejection details.
     ///
-    /// This provides easy access to specific problem attributes without
+    /// This provides easy access to specific rejection attributes without
     /// needing to parse the JSON manually. Useful for displaying
     /// structured error information in UI components.
     public let details: [String: String]
@@ -424,10 +423,10 @@ public extension ToolRun {
       self.details = details
     }
 
-    /// Reconstructs the original `GeneratedContent` from the problem JSON.
+    /// Reconstructs the original `GeneratedContent` from the rejection JSON.
     ///
     /// This allows you to access the full structured content that was
-    /// returned when the problem occurred, useful for advanced error
+    /// returned when the rejection occurred, useful for advanced error
     /// handling or debugging scenarios.
     public var generatedContent: GeneratedContent? {
       try? GeneratedContent(json: json)
