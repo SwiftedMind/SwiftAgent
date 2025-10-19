@@ -1,6 +1,6 @@
 # Changelog
 
-## [Upcoming]
+## [0.7.0]
 
 ### Breaking Changes
 
