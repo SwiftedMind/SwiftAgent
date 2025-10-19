@@ -42,7 +42,6 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
 - Do the smallest thing that works. Prefer plain, direct code over new layers, patterns, or abstractions.
 - Minimize change. Choose the approach that touches the fewest files and concepts while meeting requirements.
 - Optimize for readability & maintenance. Clear names, small functions, single responsibility, brief doc comments.
-- Defer complexity. Add abstractions only after real repetition/need is proven (rule of three), not “just in case.”
 
 ## Internal Resources
 
