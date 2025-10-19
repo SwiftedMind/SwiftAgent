@@ -2,9 +2,12 @@
 
 import Foundation
 
+/// An error produced when OpenAI generation options omit required reasoning parameters.
 public enum OpenAIGenerationOptionsError: Error, LocalizedError {
+  /// The include parameter for a reasoning model request is missing `.encryptedReasoning`.
   case missingEncryptedReasoningForReasoningModel
 
+  /// A description suitable for presenting the error to the user.
   public var errorDescription: String? {
     switch self {
     case .missingEncryptedReasoningForReasoningModel:
@@ -12,6 +15,7 @@ public enum OpenAIGenerationOptionsError: Error, LocalizedError {
     }
   }
 
+  /// Guidance on how to resolve the error condition.
   public var recoverySuggestion: String? {
     switch self {
     case .missingEncryptedReasoningForReasoningModel:
