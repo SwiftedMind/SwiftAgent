@@ -1,5 +1,6 @@
 // By Dennis Müller
 
+import EventSource
 import Foundation
 
 // MARK: - Public API
@@ -7,14 +8,33 @@ import Foundation
 public protocol HTTPClient: Sendable {
   /// Sends an HTTP request with an Encodable JSON body and decodes the JSON response.
   @discardableResult
-  func send<RequestBody: Encodable, ResponseBody: Decodable>(
+  func send<ResponseBody: Decodable>(
     path: String,
     method: HTTPMethod,
     queryItems: [URLQueryItem]?,
     headers: [String: String]?,
-    body: RequestBody?,
-    responseType: ResponseBody.Type
+    body: (some Encodable & Sendable)?,
+    responseType: ResponseBody.Type,
   ) async throws -> ResponseBody
+
+  /// Streams Server-Sent Events from an HTTP endpoint.
+  func stream(
+    path: String,
+    method: HTTPMethod,
+    headers: [String: String],
+    body: (some Encodable & Sendable)?,
+  ) -> AsyncThrowingStream<EventSource.Event, Error>
+}
+
+public extension HTTPClient {
+  /// Convenience overload that defaults to `.post` and no additional headers.
+  func stream(
+    path: String,
+    headers: [String: String] = [:],
+    body: (some Encodable & Sendable)? = nil,
+  ) -> AsyncThrowingStream<EventSource.Event, Error> {
+    stream(path: path, method: .post, headers: headers, body: body)
+  }
 }
 
 public enum HTTPMethod: String, Sendable {
@@ -28,13 +48,15 @@ public enum HTTPMethod: String, Sendable {
 /// Interceptors to customize request/response handling.
 public struct HTTPClientInterceptors: Sendable {
   /// Allows adding auth headers or other customizations before the request is sent.
-  public var prepareRequest: (@Sendable (inout URLRequest) async -> Void)?
+  public var prepareRequest: (@Sendable (inout URLRequest) async throws -> Void)?
   /// Called on 401 responses. Return true to indicate the request should be retried once (e.g. after refreshing auth).
-  public var onUnauthorized: (@Sendable (_ response: HTTPURLResponse, _ data: Data?, _ originalRequest: URLRequest) async -> Bool)?
+  public var onUnauthorized: (@Sendable (_ response: HTTPURLResponse, _ data: Data?,
+                                         _ originalRequest: URLRequest) async -> Bool)?
 
   public init(
-    prepareRequest: (@Sendable (inout URLRequest) async -> Void)? = nil,
-    onUnauthorized: (@Sendable (_ response: HTTPURLResponse, _ data: Data?, _ originalRequest: URLRequest) async -> Bool)? = nil
+    prepareRequest: (@Sendable (inout URLRequest) async throws -> Void)? = nil,
+    onUnauthorized: (@Sendable (_ response: HTTPURLResponse, _ data: Data?, _ originalRequest: URLRequest) async
+      -> Bool)? = nil,
   ) {
     self.prepareRequest = prepareRequest
     self.onUnauthorized = onUnauthorized
@@ -55,7 +77,7 @@ public struct HTTPClientConfiguration: Sendable {
     timeout: TimeInterval = 60,
     jsonEncoder: JSONEncoder = JSONEncoder(),
     jsonDecoder: JSONDecoder = JSONDecoder(),
-    interceptors: HTTPClientInterceptors = .init()
+    interceptors: HTTPClientInterceptors = .init(),
   ) {
     self.baseURL = baseURL
     self.defaultHeaders = defaultHeaders
@@ -71,27 +93,27 @@ public enum HTTPError: Error, Sendable, LocalizedError {
   case requestFailed(underlying: Error)
   case invalidResponse
   case unacceptableStatus(code: Int, data: Data?)
-  case decodingFailed(underlying: Error, data: Data?)
+  case decodingFailed(underlying: DecodingError, data: Data?)
 
   public var errorDescription: String? {
     switch self {
     case .invalidURL:
-      return "Invalid URL"
+      "Invalid URL"
     case let .requestFailed(underlying):
-      return "Request failed: \(underlying.localizedDescription)"
+      "Request failed: \(underlying.localizedDescription)"
     case .invalidResponse:
-      return "Invalid response"
+      "Invalid response"
     case let .unacceptableStatus(code, data):
       if let data, let msg = HTTPErrorMessageExtractor.extract(from: data) {
-        return "HTTP \(code): \(msg)"
+        "HTTP \(code): \(msg)"
       } else {
-        return "Unacceptable status code: \(code)"
+        "Unacceptable status code: \(code)"
       }
     case let .decodingFailed(underlying, data):
       if let data, let body = HTTPErrorMessageExtractor.string(from: data) {
-        return "Failed to decode response: \(underlying.localizedDescription). Body: \(body)"
+        "Failed to decode response: \(underlying.localizedDescription). Body: \(body)"
       } else {
-        return "Failed to decode response: \(underlying.localizedDescription)"
+        "Failed to decode response: \(underlying.localizedDescription)"
       }
     }
   }
@@ -100,8 +122,8 @@ public enum HTTPError: Error, Sendable, LocalizedError {
 // MARK: - Implementation
 
 public final class URLSessionHTTPClient: HTTPClient {
-  private let configuration: HTTPClientConfiguration
-  private let urlSession: URLSession
+  let configuration: HTTPClientConfiguration
+  let urlSession: URLSession
 
   public init(configuration: HTTPClientConfiguration, session: URLSession? = nil) {
     self.configuration = configuration
@@ -116,13 +138,13 @@ public final class URLSessionHTTPClient: HTTPClient {
     }
   }
 
-  public func send<RequestBody: Encodable, ResponseBody: Decodable>(
+  public func send<ResponseBody: Decodable>(
     path: String,
     method: HTTPMethod,
     queryItems: [URLQueryItem]?,
     headers: [String: String]?,
-    body: RequestBody?,
-    responseType: ResponseBody.Type
+    body: (some Encodable & Sendable)?,
+    responseType: ResponseBody.Type,
   ) async throws -> ResponseBody {
     let url = try makeURL(path: path, queryItems: queryItems)
     var request = URLRequest(url: url)
@@ -144,7 +166,11 @@ public final class URLSessionHTTPClient: HTTPClient {
 
     // Allow caller to inject auth headers etc.
     if let prepare = configuration.interceptors.prepareRequest {
-      await prepare(&request)
+      do {
+        try await prepare(&request)
+      } catch {
+        throw HTTPError.requestFailed(underlying: error)
+      }
     }
 
     // Log the outgoing request
@@ -164,7 +190,11 @@ public final class URLSessionHTTPClient: HTTPClient {
           var retryRequest = request
           // Allow re-preparing the request (e.g. with refreshed token)
           if let prepare = configuration.interceptors.prepareRequest {
-            await prepare(&retryRequest)
+            do {
+              try await prepare(&retryRequest)
+            } catch {
+              throw HTTPError.requestFailed(underlying: error)
+            }
           }
 
           // Log the retry request
@@ -187,7 +217,7 @@ public final class URLSessionHTTPClient: HTTPClient {
 
   // MARK: - Helpers
 
-  private func makeURL(path: String, queryItems: [URLQueryItem]?) throws -> URL {
+  func makeURL(path: String, queryItems: [URLQueryItem]?) throws -> URL {
     guard var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false) else {
       throw HTTPError.invalidURL
     }
@@ -212,15 +242,19 @@ public final class URLSessionHTTPClient: HTTPClient {
   }
 
   private func decode<T: Decodable>(_ type: T.Type, data: Data, response: URLResponse) throws -> T {
-    guard let http = response as? HTTPURLResponse else { throw HTTPError.invalidResponse }
-    guard (200..<300).contains(http.statusCode) else {
-      throw HTTPError.unacceptableStatus(code: http.statusCode, data: data)
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw HTTPError.invalidResponse
+    }
+    guard (200..<300).contains(httpResponse.statusCode) else {
+      throw HTTPError.unacceptableStatus(code: httpResponse.statusCode, data: data)
     }
 
     do {
       return try configuration.jsonDecoder.decode(type, from: data)
+    } catch let decodingError as DecodingError {
+      throw HTTPError.decodingFailed(underlying: decodingError, data: data)
     } catch {
-      throw HTTPError.decodingFailed(underlying: error, data: data)
+      throw error
     }
   }
 }

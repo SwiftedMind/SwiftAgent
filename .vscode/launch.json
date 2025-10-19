@@ -1,0 +1,69 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb-dap",
+      "request": "launch",
+      "name": "Swift Build - SwiftAgent",
+      "program": "/usr/bin/swift",
+      "args": [
+        "build",
+        "--target",
+        "SwiftAgent"
+      ],
+      "env": [],
+      "cwd": "${workspaceRoot}"
+    },
+    {
+      "type": "lldb-dap",
+      "request": "launch",
+      "name": "Swift Build - OpenAISession",
+      "program": "/usr/bin/swift",
+      "args": [
+        "build",
+        "--target",
+        "OpenAISession"
+      ],
+      "env": [],
+      "cwd": "${workspaceRoot}"
+    },
+    {
+      "type": "lldb-dap",
+      "request": "launch",
+      "name": "Swift Build - SimulatedSession",
+      "program": "/usr/bin/swift",
+      "args": [
+        "build",
+        "--target",
+        "SimulatedSession"
+      ],
+      "env": [],
+      "cwd": "${workspaceRoot}"
+    },
+    {
+      "type": "lldb-dap",
+      "request": "launch",
+      "name": "Swift Build - SwiftAgentMacros",
+      "program": "/usr/bin/swift",
+      "args": [
+        "build",
+        "--target",
+        "SwiftAgentMacros"
+      ],
+      "env": [],
+      "cwd": "${workspaceRoot}"
+    },
+    {
+      "type": "lldb-dap",
+      "request": "launch",
+      "name": "Swift Build - All",
+      "program": "/usr/bin/swift",
+      "args": [],
+      "env": [],
+      "cwd": "${workspaceRoot}"
+    }
+  ]
+}

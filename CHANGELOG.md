@@ -1,5 +1,159 @@
 # Changelog
 
+## [0.7.0]
+
+### Breaking Changes
+
+- **OpenAISession Replaces ModelSession**: `ModelSession.openAI(...)` has been removed. Create sessions with `OpenAISession` and pass tools as variadic parameters. `OpenAISession` is `@Observable`, so view code can observe transcripts directly.
+  ```swift
+  // Before
+  let session = ModelSession.openAI(
+    tools: [WeatherTool(), CalculatorTool()],
+    instructions: "You are a helpful assistant.",
+    apiKey: "sk-..."
+  )
+
+  // Now
+  let session = OpenAISession(
+    tools: WeatherTool(), CalculatorTool(),
+    instructions: "You are a helpful assistant.",
+    apiKey: "sk-..."
+  )
+  ```
+
+- **FoundationModels Tool Adoption**: Tools now conform directly to the FoundationModels `Tool` protocol and mocks adopt `MockableTool`. Rename any `AgentTool` or `SwiftAgentTool` conformances.
+  ```swift
+  // Before
+  struct WeatherTool: AgentTool { ... }
+  struct WeatherToolMock: MockableAgentTool { ... }
+
+  // Now
+  struct WeatherTool: Tool { ... } // No custom protocol needed anymore
+  struct WeatherToolMock: MockableTool { ... }
+  ```
+
+- **StructuredOutput Protocol Required for Guided Responses**: Guided generations now require types to conform to `StructuredOutput` with an embedded `Schema`. Replace plain `@Generable` data transfer objects that were passed directly into `respond(generating:)`.
+  ```swift
+  // Before
+  @Generable
+  struct WeatherReport {
+    let temperature: Double
+  }
+
+  let response = try await session.respond(
+    to: "Describe the weather",
+    generating: WeatherReport.self
+  )
+
+  // Now
+  struct WeatherReport: StructuredOutput {
+    static let name: String = "weatherReport"
+
+    @Generable
+    struct Schema {
+      let temperature: Double
+    }
+  }
+
+  let response = try await session.respond(
+    to: "Describe the weather",
+    generating: WeatherReport.self
+  )
+  ```
+
+- **Session Schema Macro Supersedes PromptContext and Tool Resolver**: The `PromptContext`, `toolResolver`, and `transcript.decoded(using:)` helpers have been removed. Declare an `@SessionSchema` with `@Tool`, `@Grounding`, and `@StructuredOutput` wrappers and decode transcripts through it.
+  ```swift
+  // Before
+  enum PromptContext: SwiftAgent.PromptContext { ... }
+  let toolResolver = session.transcript.toolResolver(for: tools)
+
+  // Now
+  @SessionSchema
+  struct SessionSchema {
+    @Tool var weatherTool = WeatherTool()
+    @Grounding(Date.self) var currentDate // Groundings replace "PromptContext"
+    @Grounding([VectorSearchResult].self) var VectorSearchResults
+  }
+
+  let sessionSchema = SessionSchema()
+  let session = OpenAISession(schema: sessionSchema, ...)
+
+  for entry in try sessionSchema.decode(session.transcript) {
+    // Inspect prompts, groundings, and tool runs
+  }
+  ```
+
+- **Simulation Workflow Overhauled**: `ModelSession.simulateResponse` has been removed. Use `SimulatedSession` with a `SessionSchema`, `MockableTool` wrappers, and `SimulationConfiguration` to define scripted turns.
+  ```swift
+  // Before
+  let response = try await session.simulateResponse(
+    to: "What's the weather like in San Francisco?",
+    generations: [
+      .toolRun(tool: WeatherToolMock(tool: WeatherTool())),
+      .response(content: "Sunny!")
+    ]
+  )
+
+  // Now
+  let session = SimulatedSession(
+    schema: SessionSchema(),
+    instructions: "You are a helpful assistant.",
+    configuration: SimulationConfiguration(defaultGenerations: [
+      .toolRun(tool: WeatherToolMock(tool: WeatherTool())),
+      .response(text: "Sunny!")
+    ])
+  )
+  let response = try await session.respond(to: "What's the weather like in San Francisco?")
+  ```
+
+### Added
+
+- **Streaming Responses and Structured Outputs**: `streamResponse` yields snapshots that include partial content, live transcripts, and structured output projections.
+  ```swift
+  let stream = try session.streamResponse(
+    to: "Summarize yesterday's revenue",
+    generating: \.weatherReport
+  )
+
+  for try await snapshot in stream {
+    if let content = snapshot.content {
+      print(content)
+    }
+
+    print(snapshot.transcript)
+  }
+  ```
+
+- **Recoverable Tool Rejections**: Tools can throw `ToolRunRejection` with rich `@Generable` payloads so the agent can adjust without aborting the turn. The rejection surfaces on `ToolRun.rejection` for diagnostics and retry logic.
+
+  ```swift
+  throw ToolRunRejection(
+    reason: "Customer not found",
+    content: CustomerLookupRejectionDetails(
+      issue: "customerNotFound",
+      customerId: arguments.customerId,
+      suggestions: ["Ask the user to confirm the identifier"]
+    )
+  )
+  ```
+
+- **Proxy Configuration and Per-Turn Authorization**: Configure `OpenAIConfiguration.proxy(through:)` to route traffic through your backend and wrap calls with `session.withAuthorization(token:perform:)` to attach per-turn credentials.
+  ```swift
+  let configuration = OpenAIConfiguration.proxy(through: URL(string: "https://api.example.com/proxy")!)
+  let session = OpenAISession(
+    instructions: "You are a helpful assistant.",
+    configuration: configuration
+  )
+
+  let token = try await backend.issueTurnToken(for: userId)
+  let response = try await session.withAuthorization(token: token) {
+    try await session.respond(to: "Draft the status update.")
+  }
+  ```
+
+### Fixed
+- **Rejection Report Validation**: Tool output decoding errors now propagate unless the payload matches the recoverable `ToolRunRejection` report structure, preventing silent failures in custom tools.
+
 ## [0.6.0]
 
 ### Added
@@ -9,10 +163,10 @@
   ```swift
   // Clear the conversation transcript while keeping the session configuration
   session.clearTranscript()
-  
+
   // Reset cumulative token usage counter
   session.resetTokenUsage()
-  
+
   // Both methods can be used independently or together
   session.clearTranscript()
   session.resetTokenUsage()
@@ -22,7 +176,7 @@
 
   ```swift
   let response = try await session.respond(to: "What's the weather?")
-  
+
   // Access aggregated token usage from the individual response
   if let usage = response.tokenUsage {
     print("Response tokens used: \(usage.totalTokens ?? 0)")
@@ -31,12 +185,12 @@
     print("Response cached tokens: \(usage.cachedTokens ?? 0)")
     print("Response reasoning tokens: \(usage.reasoningTokens ?? 0)")
   }
-  
+
   // Access cumulative token usage across the entire session
   print("Session total tokens: \(session.tokenUsage.totalTokens ?? 0)")
   print("Session input tokens: \(session.tokenUsage.inputTokens ?? 0)")
   print("Session output tokens: \(session.tokenUsage.outputTokens ?? 0)")
-  
+
   // Session token usage updates in real-time during streaming responses
   // Perfect for @Observable integration in SwiftUI for live usage monitoring
   ```
@@ -52,40 +206,37 @@
 ### Added
 
 - **Simulated Sessions**: Introduced the `SimulatedSession` module for testing and development without API calls. The simulation system includes:
-  - `simulateResponse` methods that mirror the standard `respond` API
+  - A `SimulatedSession` type that conforms to `LanguageModelProvider`, so you call `respond` and `streamResponse` just like with real providers
   - `MockableAgentTool` protocol for creating mock tool calls and outputs
   - `SimulatedGeneration` enum supporting tool runs, reasoning, and text or structured responses, simulating model generations
   - Complete transcript compatibility - simulated responses work on the real transcript object, guaranteeing full compatibility with the actual agent
   - Zero API costs during development and testing
-  
+
   ```swift
   import OpenAISession
   import SimulatedSession
-  
+
   // Create mockable tool wrappers
-  struct WeatherToolMock: MockableAgentTool {
+  struct WeatherToolMock: MockableTool {
     var tool: WeatherTool
     func mockArguments() -> WeatherTool.Arguments { /* mock data */ }
     func mockOutput() async throws -> WeatherTool.Output { /* mock results */ }
   }
-  
-  // Create an OpenAI session as normal
-  let session = ModelSession.openAI(
-    tools: [WeatherTool()], // Your actual tool; the mockable tool will be used below
+
+  // Create a simulated session with scripted generations
+  let session = SimulatedSession(
+    tools: WeatherTool(),
     instructions: "You are a helpful assistant.",
-    apiKey: "sk-...",
-  )
-  
-  // And then use simulateResponse instead of respond
-  let response = try await session.simulateResponse(
-    to: "What's the weather?",
     generations: [
       .toolRun(tool: WeatherToolMock(tool: WeatherTool())),
-      .response(content: "It's sunny!")
+      .response(text: "It's sunny!")
     ]
   )
+
+  // Call the standard respond API
+  let response = try await session.respond(to: "What's the weather?")
   ```
-  
+
 - The `PromptContext` protocol has been replaced with a generic struct wrapper that provides both user-written input and app or SDK generated context data (like link previews or vector search results). User types now conform to `PromptContextSource` instead of `PromptContext`:
   ```swift
   // Define your context source
@@ -93,10 +244,10 @@
     case vectorSearchResult(String)
     case searchResults([String])
   }
-  
+
   // Create a session with context support and pass the context source
   let session = ModelSession.openAI(tools: tools, context: ContextSource.self, apiKey: "sk-...")
-  
+
   // Respond with context - user input and context are kept separated in the transcript
   let response = try await session.respond(
     to: "What are the key features of SwiftUI?",
@@ -134,7 +285,7 @@
 - **Breaking Change**: Renamed nearly all the types in the SDK to close align with FoundationModels types. `Agent` is now `ModelSession`, and `OpenAIAgent` is now `OpenAISession`:
   ```swift
   import OpenAISession
-  
+
   // Create an OpenAI session through the ModelSession type
   let session = ModelSession.openAI(
     tools: [WeatherTool(), CalculatorTool()],
@@ -142,13 +293,13 @@
     apiKey: "sk-...",
   )
   ```
-  
+
 - **Breaking Change**: Replaced the generic `GenerationOptions` struct with adapter-specific generation options. Each adapter now defines its own `GenerationOptions` type as an associated type, providing better type safety and access to adapter-specific parameters:
   ```swift
   // Before
   let options = GenerationOptions(temperature: 0.7, maximumResponseTokens: 1000)
   let response = try await agent.respond(to: prompt, options: options)
-  
+
   // Now
   let options = OpenAIGenerationOptions(temperature: 0.7, maxOutputTokens: 1000)
   let response = try await session.respond(to: prompt, options: options)
@@ -159,7 +310,7 @@
 ### Fixed
 
 - **Agent Text Response Content Formatting**: Fixed an issue with the agent's text response content formatting that could cause malformed responses
-- **Tool Resolution**: Fixed a critical bug where tools would never be resolved due to mismatched IDs, ensuring proper tool call execution
+- **Tool Resolution**: Fixed a critical bug where tools would never be decoded due to mismatched IDs, ensuring proper tool call execution
 - **Tool Resolution Logging**: Improved logging around tool resolution to better debug tool call issues
 
 ### Enhanced
@@ -181,7 +332,7 @@
   ```swift
   // Before
   let agent = Agent<OpenAIProvider, Context>()
-  
+
   // Now
   let agent = Agent<OpenAIAdapter, Context>()
   ```
@@ -190,8 +341,8 @@
   ```swift
   // Before
   public var transcript: Transcript
-  
-  // Now  
+
+  // Now
   public var transcript: AgentTranscript<Adapter.Metadata, Context>
   ```
 
@@ -203,12 +354,12 @@
     case vectorEmbedding(String)
     case documentContext(String)
   }
-  
+
   let agent = OpenAIAgent(supplying: PromptContext.self, tools: tools)
-  
+
   // User input and context are now separated in the transcript
   let response = try await agent.respond(
-    to: "What is the weather like?", 
+    to: "What is the weather like?",
     supplying: [.vectorEmbedding("relevant weather data")]
   ) { input, context in
     PromptTag("context", items: context)
@@ -216,26 +367,26 @@
   }
   ```
 
-- **Tool Resolver**: Added a powerful type-safe tool resolution system that combines tool calls with their outputs. The `ToolResolver` enables compile-time access to tool arguments and outputs:
+- **Tool Decoder**: Added a powerful type-safe tool resolution system that combines tool calls with their outputs. The `ToolDecoder` enables compile-time access to tool arguments and outputs:
   ```swift
-  // Define a resolved tool run enum
-  enum ResolvedToolRun {
+  // Define a decoded tool run enum
+  enum DecodedToolRun {
     case getFavoriteNumbers(AgentToolRun<GetFavoriteNumbersTool>)
   }
-  
-  // Tools must implement the resolve method
-  func resolve(_ run: AgentToolRun<GetFavoriteNumbersTool>) -> ResolvedToolRun {
+
+  // Tools must implement the decode method
+  func decode(_ run: AgentToolRun<GetFavoriteNumbersTool>) -> DecodedToolRun {
     .getFavoriteNumbers(run)
   }
-  
-  // Use the tool resolver in your UI code
-  let toolResolver = agent.transcript.toolResolver(for: tools)
-  
+
+  // Use the tool decoder in your UI code
+  let toolDecoder = agent.transcript.toolDecoder(for: tools)
+
   for entry in agent.transcript {
     if case let .toolCalls(toolCalls) = entry {
       for toolCall in toolCalls.calls {
-        let resolvedTool = try toolResolver.resolve(toolCall)
-        switch resolvedTool {
+        let decodedTool = try toolDecoder.decode(toolCall)
+        switch decodedTool {
         case let .getFavoriteNumbers(run):
           print("Count:", run.arguments.count)
           if let output = run.output {
@@ -251,18 +402,18 @@
   ```swift
   // Simplified initialization with typealias
   let agent = OpenAIAgent(supplying: PromptContext.self, tools: tools)
-  
+
   // No context needed
   let agent = OpenAIAgent(tools: tools)
-  
+
   // Even simpler for basic usage
   let agent = OpenAIAgent()
   ```
 
 ### Enhanced
 
-- **AgentTool Protocol**: Extended the `AgentTool` protocol with an optional `ResolvedToolRun` associated type to support the new tool resolver system
-- **Type Safety**: Improved compile-time type safety for tool argument and output access through the tool resolver
+- **AgentTool Protocol**: Extended the `AgentTool` protocol with an optional `DecodedToolRun` associated type to support the new tool decoder system
+- **Type Safety**: Improved compile-time type safety for tool argument and output access through the tool decoder
 - **Transcript Organization**: Better separation of concerns in transcript entries, with user input and context clearly distinguished
 
 ### Migration Guide
@@ -270,5 +421,5 @@
 1. **Update Provider references**: Replace all instances of `Provider` with `Adapter` in your code
 2. **Update Transcript references**: Replace `Transcript` with `AgentTranscript` where needed
 3. **Consider adopting PromptContext**: If you're currently building prompts with embedded context outside the agent, consider migrating to the new `PromptContext` system for cleaner separation
-4. **Adopt Tool Resolver**: For better type safety in UI code that displays tool runs, implement the `resolve` method in your tools and use the transcript's `toolResolver`
+4. **Adopt Tool Decoder**: For better type safety in UI code that displays tool runs, implement the `decode` method in your tools and use the transcript's `toolDecoder`
 5. **Use convenience initializers**: Simplify your agent initialization code using the new `OpenAIAgent` typealias and convenience initializers

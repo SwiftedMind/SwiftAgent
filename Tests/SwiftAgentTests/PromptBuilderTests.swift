@@ -30,7 +30,7 @@ struct PromptBuilderTests {
         "Alternative line"
       }
     }
-    
+
     #expect(prompt.formatted() == """
     First line
     Second line
@@ -43,7 +43,7 @@ struct PromptBuilderTests {
     let section = PromptSection("Introduction") {
       "Welcome to the guide"
     }
-    
+
     let formatted = section.promptRepresentation.formatted()
     #expect(formatted == """
     # Introduction
@@ -60,15 +60,15 @@ struct PromptBuilderTests {
       }
       "Final content"
     }
-    
+
     let formatted = section.promptRepresentation.formatted()
     #expect(formatted == """
     # Main Section
     Main content
-    
+
     ## Subsection
     Nested content
-    
+
     Final content
     """)
   }
@@ -78,7 +78,7 @@ struct PromptBuilderTests {
     let tag = PromptTag("example") {
       "Tag content"
     }
-    
+
     let formatted = tag.promptRepresentation.formatted()
     #expect(formatted == """
     <example>
@@ -122,7 +122,7 @@ struct PromptBuilderTests {
     #expect(result == """
     # Instructions
     Follow these guidelines:
-    
+
     <rules>
       Be concise
       Be accurate

@@ -85,13 +85,13 @@ enum HTTPErrorMessageExtractor {
     var description: String {
       switch self {
       case let .string(s):
-        return s
+        s
       case let .number(n):
-        return String(n)
+        String(n)
       case let .bool(b):
-        return String(b)
+        String(b)
       case .null:
-        return "null"
+        "null"
       }
     }
   }
@@ -143,7 +143,7 @@ enum HTTPErrorMessageExtractor {
           !text.isEmpty else {
       return nil
     }
+
     return text
   }
 }
-

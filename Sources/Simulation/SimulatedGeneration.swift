@@ -4,17 +4,28 @@ import Foundation
 import FoundationModels
 import SwiftAgent
 
-public enum SimulatedGeneration<Content>: Sendable where Content: Generable, Content: Sendable {
+public enum SimulatedGeneration: @unchecked Sendable {
   case reasoning(summary: String)
-  case toolRun(tool: any MockableAgentTool)
-  case response(content: Content)
+  case toolRun(tool: any MockableTool)
+  case textResponse(String)
+  case structuredResponse(GeneratedContent)
 
   package var toolName: String? {
     switch self {
     case let .toolRun(tool):
-      return tool.tool.name
+      tool.tool.name
     default:
-      return nil
+      nil
     }
+  }
+}
+
+public extension SimulatedGeneration {
+  static func response(text: String) -> SimulatedGeneration {
+    .textResponse(text)
+  }
+
+  static func response(content: some ConvertibleToGeneratedContent) -> SimulatedGeneration {
+    .structuredResponse(content.generatedContent)
   }
 }

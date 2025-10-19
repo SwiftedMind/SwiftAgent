@@ -31,7 +31,7 @@ public enum NetworkLog {
       \(headers)
       Body:
       \(body)
-      """
+      """,
     )
   }
 
@@ -58,7 +58,7 @@ public enum NetworkLog {
       \(headers)
       Body:
       \(body)
-      """
+      """,
     )
   }
 
@@ -99,7 +99,7 @@ public enum NetworkLog {
   }
 
   private static func formatResponseBody(_ data: Data?) -> String {
-    return formatBody(data)
+    formatBody(data)
   }
 
   private static func tryPrettyPrintJSON(_ data: Data) -> String? {

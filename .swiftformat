@@ -52,7 +52,7 @@
 --mark-categories true
 --mark-extensions always
 --mark-types always
---max-width none
+--max-width 120
 --modifier-order 
 --never-trailing 
 --nil-init remove

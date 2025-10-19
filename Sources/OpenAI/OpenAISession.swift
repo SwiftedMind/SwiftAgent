@@ -1,182 +1,123 @@
 // By Dennis Müller
 
-import Foundation
 import FoundationModels
-@_exported import SwiftAgent
+import Observation
+import SwiftAgent
+import SwiftUI
 
-/// A convenience type alias for creating contextual OpenAI-powered ModelSession instances.
+/// High-level client for working with OpenAI's Responses API using SwiftAgent.
 ///
-/// This type alias represents a ModelSession configured with the OpenAI adapter and a specific
-/// context type that conforms to ``PromptContextSource``. Use this when you need to inject
-/// context data into your prompts for more sophisticated AI interactions.
-///
-/// Example usage with custom context:
-/// ```swift
-/// struct UserContext: PromptContextSource {
-///   let userName: String
-///   let preferences: [String]
-/// }
-///
-/// let session: OpenAIContextualSession<UserContext> = .openAI(
-///   tools: [WeatherTool()],
-///   instructions: "You are a helpful assistant",
-///   context: UserContext.self,
-///   apiKey: "your-api-key"
-/// )
-/// ```
-public typealias OpenAIContextualSession<Context: PromptContextSource> = ModelSession<OpenAIAdapter, Context>
+/// `OpenAISession` pairs an ``OpenAIAdapter`` with your tools or schema so you can request
+/// completions, stream updates, and inspect transcripts without wiring adapters by hand. Supply a
+/// ``SessionSchema`` when you need typed transcripts, or pass tools directly for quick prototypes.
+@Observable
+public final class OpenAISession<
+  SessionSchema: LanguageModelSessionSchema,
+>: LanguageModelProvider, @unchecked Sendable {
+  public typealias Adapter = OpenAIAdapter
 
-/// A convenience type alias for creating simple OpenAI-powered ModelSession instances without context.
-///
-/// This type alias represents a ModelSession configured with the OpenAI adapter and no context
-/// injection. Use this for straightforward AI interactions that don't require additional context data.
-///
-/// Example usage:
-/// ```swift
-/// let session: OpenAISession = .openAI(
-///   tools: [CalculatorTool()],
-///   instructions: "You are a math assistant",
-///   apiKey: "your-api-key"
-/// )
-/// ```
-public typealias OpenAISession = OpenAIContextualSession<NoContext>
+  /// Adapter that performs network requests against OpenAI's Responses API.
+  @ObservationIgnored public let adapter: OpenAIAdapter
 
-public extension ModelSession {
-  // MARK: - NoContext Initializers
+  @ObservationIgnored public var schema: SessionSchema
 
-  /// Creates a simple OpenAI-powered ModelSession without context using an API key.
-  ///
-  /// This is the most straightforward way to create an OpenAI session for basic interactions.
-  /// The session will be configured with a direct connection to OpenAI's API using the provided API key.
-  ///
-  /// - Parameter tools: An array of tools the AI agent can use during conversations. Defaults to an empty array.
-  /// - Parameter instructions: System instructions that define the AI's behavior and personality. Defaults to an empty string.
-  /// - Parameter apiKey: Your OpenAI API key for authentication.
-  /// - Returns: A configured ``OpenAISession`` ready for AI interactions.
-  ///
-  /// Example:
-  /// ```swift
-  /// let session = ModelSession.openAI(
-  ///   tools: [WeatherTool(), CalculatorTool()],
-  ///   instructions: "You are a helpful assistant that can check weather and do calculations.",
-  ///   apiKey: "sk-your-api-key-here"
-  /// )
-  /// ```
-  @MainActor static func openAI(
-    tools: [any AgentTool] = [],
-    instructions: String = "",
-    apiKey: String
-  ) -> OpenAISession where Adapter == OpenAIAdapter, Context == NoContext {
-    let configuration = OpenAIConfiguration.direct(apiKey: apiKey)
-    let adapter = OpenAIAdapter(tools: tools, instructions: instructions, configuration: configuration)
-    return OpenAISession(adapter: adapter)
+  /// Registered tools available to the model during a session.
+  @ObservationIgnored public var tools: [any SwiftAgentTool] {
+    adapter.tools
   }
 
-  /// Creates a simple OpenAI-powered ModelSession without context using a custom configuration.
-  ///
-  /// This method allows you to create an OpenAI session with advanced configuration options,
-  /// such as custom endpoints, models, or proxy settings. Use this when you need more control
-  /// over the OpenAI connection than the basic API key method provides.
-  ///
-  /// - Parameter tools: An array of tools the AI agent can use during conversations. Defaults to an empty array.
-  /// - Parameter instructions: System instructions that define the AI's behavior and personality. Defaults to an empty string.
-  /// - Parameter configuration: A custom ``OpenAIConfiguration`` that defines how to connect to OpenAI services.
-  /// - Returns: A configured ``OpenAISession`` ready for AI interactions.
-  ///
-  /// Example:
-  /// ```swift
-  /// let configuration = OpenAIConfiguration.direct(apiKey: "your-api-key")
-  /// let session = ModelSession.openAI(
-  ///   tools: [DatabaseTool()],
-  ///   instructions: "You are a database assistant",
-  ///   configuration: configuration
-  /// )
-  /// ```
-  @MainActor static func openAI(
-    tools: [any AgentTool] = [],
-    instructions: String = "",
-    configuration: OpenAIConfiguration,
-  ) -> OpenAISession where Adapter == OpenAIAdapter, Context == NoContext {
-    let adapter = OpenAIAdapter(tools: tools, instructions: instructions, configuration: configuration)
-    return OpenAISession(adapter: adapter)
-  }
+  /// Transcript of the session, including prompts, tool calls, and model outputs.
+  public var transcript: SwiftAgent.Transcript = Transcript()
 
-  // MARK: - Context Initializers
+  /// Aggregated token accounting reported by OpenAI for the active session.
+  public var tokenUsage: TokenUsage = .init()
 
-  /// Creates a contextual OpenAI-powered ModelSession with custom configuration.
+  /// Creates a session that exposes the provided tools without defining a schema.
   ///
-  /// This method creates an OpenAI session that supports context injection, allowing you to
-  /// provide additional data to your prompts through a type that conforms to ``PromptContextSource``.
-  /// This is useful for sophisticated AI interactions that require user data, preferences,
-  /// or other contextual information to be available to the AI.
-  ///
-  /// - Parameter tools: An array of tools the AI agent can use during conversations. Defaults to an empty array.
-  /// - Parameter instructions: System instructions that define the AI's behavior and personality. Defaults to an empty string.
-  /// - Parameter context: The type of context that will be injected into prompts. Must conform to `PromptContextSource`.
-  /// - Parameter configuration: A custom ``OpenAIConfiguration`` that defines how to connect to OpenAI services.
-  /// - Returns: A configured ``OpenAIContextualSession` ready for AI interactions with context injection.
-  ///
-  /// Example:
-  /// ```swift
-  /// struct UserContext: PromptContextSource {
-  ///   let userName: String
-  ///   let preferences: [String]
-  /// }
-  ///
-  /// let configuration = OpenAIConfiguration.direct(apiKey: "your-api-key")
-  /// let session = ModelSession.openAI(
-  ///   tools: [PersonalizedTool()],
-  ///   instructions: "You are a personalized assistant",
-  ///   context: UserContext.self,
-  ///   configuration: configuration
-  /// )
-  /// ```
-  @MainActor static func openAI(
-    tools: [any AgentTool] = [],
+  /// - Parameters:
+  ///   - tools: Variadic list of tools available to the model.
+  ///   - instructions: Default instructions applied to every turn.
+  ///   - apiKey: OpenAI API key used for direct authentication.
+  public init<each ToolType>(
+    tools: repeat each ToolType,
     instructions: String = "",
-    context: Context.Type,
-    configuration: OpenAIConfiguration,
-  ) -> OpenAIContextualSession<Context> where Adapter == OpenAIAdapter {
-    let adapter = OpenAIAdapter(tools: tools, instructions: instructions, configuration: configuration)
-    return OpenAIContextualSession(adapter: adapter)
-  }
-
-  /// Creates a contextual OpenAI-powered ModelSession using an API key.
-  ///
-  /// This is the most convenient way to create a contextual OpenAI session for sophisticated
-  /// AI interactions. The session supports context injection through a type that conforms to
-  /// ``PromptContextSource``, and will be configured with a direct connection to OpenAI's API
-  /// using the provided API key.
-  ///
-  /// - Parameter tools: An array of tools the AI agent can use during conversations. Defaults to an empty array.
-  /// - Parameter instructions: System instructions that define the AI's behavior and personality. Defaults to an empty string.
-  /// - Parameter context: The type of context that will be injected into prompts. Must conform to `PromptContextSource`.
-  /// - Parameter apiKey: Your OpenAI API key for authentication.
-  /// - Returns: A configured ``OpenAIContextualSession`` ready for AI interactions with context injection.
-  ///
-  /// Example:
-  /// ```swift
-  /// struct AppContext: PromptContextSource {
-  ///   let currentUser: User
-  ///   let appVersion: String
-  ///   let systemSettings: [String: Any]
-  /// }
-  ///
-  /// let session = ModelSession.openAI(
-  ///   tools: [UserManagementTool(), SystemInfoTool()],
-  ///   instructions: "You are an app assistant with access to user and system information",
-  ///   context: AppContext.self,
-  ///   apiKey: "sk-your-api-key-here"
-  /// )
-  /// ```
-  @MainActor static func openAI(
-    tools: [any AgentTool] = [],
-    instructions: String = "",
-    context: Context.Type,
     apiKey: String,
-  ) -> OpenAIContextualSession<Context> where Adapter == OpenAIAdapter {
-    let configuration = OpenAIConfiguration.direct(apiKey: apiKey)
-    let adapter = OpenAIAdapter(tools: tools, instructions: instructions, configuration: configuration)
-    return OpenAIContextualSession(adapter: adapter)
+  ) where
+    SessionSchema == NoSchema,
+    repeat (each ToolType): FoundationModels.Tool,
+    repeat (each ToolType).Arguments: Generable,
+    repeat (each ToolType).Output: Generable {
+      var wrappedTools: [any SwiftAgentTool] = []
+      _ = (repeat wrappedTools.append(_SwiftAgentToolWrapper(tool: each tools)))
+
+      schema = NoSchema()
+      adapter = OpenAIAdapter(
+        tools: wrappedTools,
+        instructions: instructions,
+        configuration: .direct(apiKey: apiKey),
+      )
+    }
+
+  /// Creates a schema-backed session using a direct API key.
+  ///
+  /// - Parameters:
+  ///   - schema: The schema that enumerates tools, structured outputs, and groundings.
+  ///   - instructions: Default instructions applied to every turn.
+  ///   - apiKey: OpenAI API key used for direct authentication.
+  public init(
+    schema: SessionSchema,
+    instructions: String,
+    apiKey: String,
+  ) {
+    self.schema = schema
+    adapter = OpenAIAdapter(
+      tools: schema.decodableTools,
+      instructions: instructions,
+      configuration: .direct(apiKey: apiKey),
+    )
   }
+
+  /// Creates a schema-backed session with a custom configuration (for proxies or advanced options).
+  ///
+  /// - Parameters:
+  ///   - schema: The schema that enumerates tools, structured outputs, and groundings.
+  ///   - instructions: Default instructions applied to every turn.
+  ///   - configuration: OpenAI configuration describing routing and authentication.
+  public init(
+    schema: SessionSchema,
+    instructions: String,
+    configuration: OpenAIConfiguration,
+  ) {
+    self.schema = schema
+    adapter = OpenAIAdapter(
+      tools: schema.decodableTools,
+      instructions: instructions,
+      configuration: configuration,
+    )
+  }
+
+  /// Creates a tool-only session backed by a custom configuration.
+  ///
+  /// - Parameters:
+  ///   - tools: Variadic list of tools available to the model.
+  ///   - instructions: Default instructions applied to every turn.
+  ///   - configuration: OpenAI configuration describing routing and authentication.
+  public init<each ToolType>(
+    tools: repeat each ToolType,
+    instructions: String = "",
+    configuration: OpenAIConfiguration,
+  ) where SessionSchema == NoSchema,
+    repeat (each ToolType): FoundationModels.Tool,
+    repeat (each ToolType).Arguments: Generable,
+    repeat (each ToolType).Output: Generable {
+      var wrappedTools: [any SwiftAgentTool] = []
+      _ = (repeat wrappedTools.append(_SwiftAgentToolWrapper(tool: each tools)))
+
+      schema = NoSchema()
+      adapter = OpenAIAdapter(
+        tools: wrappedTools,
+        instructions: instructions,
+        configuration: configuration,
+      )
+    }
 }
