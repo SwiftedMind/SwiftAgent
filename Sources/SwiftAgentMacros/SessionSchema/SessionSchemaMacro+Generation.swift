@@ -266,7 +266,7 @@ extension SessionSchemaMacro {
       let cases = outputs
         .map { output in
           let caseName = output.identifier.text
-          return "  case \(caseName)(SwiftAgent.StructuredOutputUpdate<\(output.typeName)>)"
+          return "  case \(caseName)(SwiftAgent.StructuredOutputSnapshot<\(output.typeName)>)"
         }
         .joined(separator: "\n")
       sections.append(cases)
@@ -307,7 +307,7 @@ extension SessionSchemaMacro {
           typealias Base = \(raw: schemaType)
 
           static func decode(
-            _ structuredOutput: SwiftAgent.StructuredOutputUpdate<\(raw: output.typeName)>
+            _ structuredOutput: SwiftAgent.StructuredOutputSnapshot<\(raw: output.typeName)>
           ) -> DecodedStructuredOutput {
             .\(raw: caseName)(structuredOutput)
           }

@@ -21,7 +21,7 @@ import Internal
 /// @LanguageModelProvider(.openAI)
 /// final class Session {
 ///   // The macro generates a nested decodable representation used internally to
-///   // transform `StructuredOutputUpdate<NoteSummary>` into a provider-specific value.
+///   // transform `StructuredOutputSnapshot<NoteSummary>` into a provider-specific value.
 ///   @StructuredOutput(NoteSummary.self) var note
 /// }
 ///
@@ -39,7 +39,7 @@ public protocol DecodableStructuredOutput<DecodedStructuredOutput>: Sendable, Eq
   /// Stable name under which segments for this output are recorded in transcripts.
   static var name: String { get }
   /// Decode a structured update into the provider's concrete decoded output type.
-  static func decode(_ structuredOutput: StructuredOutputUpdate<Base>) -> DecodedStructuredOutput
+  static func decode(_ structuredOutput: StructuredOutputSnapshot<Base>) -> DecodedStructuredOutput
 }
 
 public extension DecodableStructuredOutput {

@@ -73,7 +73,7 @@ import Internal
 ///   }
 /// }
 /// ```
-public struct StructuredOutputUpdate<Output: StructuredOutput>: Identifiable {
+public struct StructuredOutputSnapshot<Output: StructuredOutput>: Identifiable {
   /// Represents the typed content carried by an update.
   public enum ContentPhase {
     /// A partially generated value that may be followed by further updates.
@@ -155,26 +155,26 @@ public struct StructuredOutputUpdate<Output: StructuredOutput>: Identifiable {
   }
 
   /// Decodes a partial update from a JSON string.
-  public static func partial(id: String, json: String) throws -> StructuredOutputUpdate<Output> {
+  public static func partial(id: String, json: String) throws -> StructuredOutputSnapshot<Output> {
     let rawContent = try GeneratedContent(json: json)
     let content = try Output.Schema.PartiallyGenerated(rawContent)
-    return StructuredOutputUpdate(id: id, contentPhase: .partial(content), rawContent: rawContent)
+    return StructuredOutputSnapshot(id: id, contentPhase: .partial(content), rawContent: rawContent)
   }
 
   /// Decodes a final update from a JSON string.
-  public static func final(id: String, json: String) throws -> StructuredOutputUpdate<Output> {
+  public static func final(id: String, json: String) throws -> StructuredOutputSnapshot<Output> {
     let rawContent = try GeneratedContent(json: json)
     let content = try Output.Schema(rawContent)
-    return StructuredOutputUpdate(id: id, contentPhase: .final(content), rawContent: rawContent)
+    return StructuredOutputSnapshot(id: id, contentPhase: .final(content), rawContent: rawContent)
   }
 
   /// Creates an update that carries an error payload.
-  public static func error(id: String, error: GeneratedContent) throws -> StructuredOutputUpdate<Output> {
-    StructuredOutputUpdate(id: id, error: error, rawContent: error)
+  public static func error(id: String, error: GeneratedContent) throws -> StructuredOutputSnapshot<Output> {
+    StructuredOutputSnapshot(id: id, error: error, rawContent: error)
   }
 }
 
-private extension StructuredOutputUpdate {
+private extension StructuredOutputSnapshot {
   /// Produces a current view for a given typed content.
   static func makeCurrentContent(from content: ContentPhase, raw: GeneratedContent) -> CurrentContent? {
     switch content {
@@ -186,16 +186,16 @@ private extension StructuredOutputUpdate {
   }
 }
 
-extension StructuredOutputUpdate.ContentPhase: Sendable where Output.Schema: Sendable,
+extension StructuredOutputSnapshot.ContentPhase: Sendable where Output.Schema: Sendable,
   Output.Schema.PartiallyGenerated: Sendable {}
-extension StructuredOutputUpdate.ContentPhase: Equatable where Output.Schema: Equatable,
+extension StructuredOutputSnapshot.ContentPhase: Equatable where Output.Schema: Equatable,
   Output.Schema.PartiallyGenerated: Equatable {}
-extension StructuredOutputUpdate: Sendable where Output.Schema: Sendable,
+extension StructuredOutputSnapshot: Sendable where Output.Schema: Sendable,
   Output.Schema.PartiallyGenerated: Sendable {}
-extension StructuredOutputUpdate.CurrentContent: Sendable where Output.Schema.PartiallyGenerated: Sendable {}
-extension StructuredOutputUpdate: Equatable {
-  public static func == (lhs: StructuredOutputUpdate<Output>,
-                         rhs: StructuredOutputUpdate<Output>) -> Bool {
+extension StructuredOutputSnapshot.CurrentContent: Sendable where Output.Schema.PartiallyGenerated: Sendable {}
+extension StructuredOutputSnapshot: Equatable {
+  public static func == (lhs: StructuredOutputSnapshot<Output>,
+                         rhs: StructuredOutputSnapshot<Output>) -> Bool {
     lhs.id == rhs.id && lhs.rawContent == rhs.rawContent
   }
 }

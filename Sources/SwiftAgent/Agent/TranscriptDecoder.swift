@@ -186,8 +186,8 @@ public struct TranscriptDecoder<SessionSchema: LanguageModelSessionSchema> {
     with resolvableType: DecodableType.Type,
   ) -> SessionSchema.DecodedStructuredOutput
     where DecodableType.DecodedStructuredOutput == SessionSchema.DecodedStructuredOutput {
-    var contentPhase: StructuredOutputUpdate<DecodableType.Base>.ContentPhase?
-    var structuredOutput: StructuredOutputUpdate<DecodableType.Base>
+    var contentPhase: StructuredOutputSnapshot<DecodableType.Base>.ContentPhase?
+    var structuredOutputSnapshot: StructuredOutputSnapshot<DecodableType.Base>
 
     do {
       switch status {
@@ -203,20 +203,20 @@ public struct TranscriptDecoder<SessionSchema: LanguageModelSessionSchema> {
     }
 
     if let contentPhase {
-      structuredOutput = StructuredOutputUpdate<DecodableType.Base>(
+      structuredOutputSnapshot = StructuredOutputSnapshot<DecodableType.Base>(
         id: structuredSegment.id,
         contentPhase: contentPhase,
         rawContent: structuredSegment.content,
       )
     } else {
-      structuredOutput = StructuredOutputUpdate<DecodableType.Base>(
+      structuredOutputSnapshot = StructuredOutputSnapshot<DecodableType.Base>(
         id: structuredSegment.id,
         error: structuredSegment.content,
         rawContent: structuredSegment.content,
       )
     }
 
-    return DecodableType.decode(structuredOutput)
+    return DecodableType.decode(structuredOutputSnapshot)
   }
 
   // MARK: Groundings

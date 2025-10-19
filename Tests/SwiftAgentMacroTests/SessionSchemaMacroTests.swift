@@ -70,7 +70,7 @@ struct SessionSchemaMacroTests {
         }
 
         internal enum DecodedStructuredOutput: SwiftAgent.DecodedStructuredOutput, @unchecked Sendable {
-          case weatherReport(SwiftAgent.StructuredOutputUpdate<WeatherReport>)
+          case weatherReport(SwiftAgent.StructuredOutputSnapshot<WeatherReport>)
           case unknown(SwiftAgent.Transcript.StructuredSegment)
 
           internal static func makeUnknown(segment: SwiftAgent.Transcript.StructuredSegment) -> Self {
@@ -150,7 +150,7 @@ struct SessionSchemaMacroTests {
           typealias Base = WeatherReport
 
           static func decode(
-            _ structuredOutput: SwiftAgent.StructuredOutputUpdate<WeatherReport>
+            _ structuredOutput: SwiftAgent.StructuredOutputSnapshot<WeatherReport>
           ) -> DecodedStructuredOutput {
             .weatherReport(structuredOutput)
           }
