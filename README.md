@@ -91,7 +91,7 @@ let response = try await session.respond(to: "What's the weather like in San Fra
 print(response.content)
 ```
 
-> Note: Using an API key directly is great for prototyping, but do not ship it in production apps. For shipping apps, use a secure proxy with per‑turn tokens. See Proxy Setup in [OpenAI Configuration](#openai-configuration).
+> Note: Using an API key directly is great for prototyping, but do not ship it in production apps. For shipping apps, use a secure proxy with per‑turn tokens. See [Proxy Servers](#-proxy-servers) for more information.
 
 ### Building Tools
 
@@ -346,7 +346,7 @@ struct SessionSchema {
   @StructuredOutput(CalculatorOutput .self) var calculatorOutput
 }
 
-// Pass the scema to your session object
+// Pass the schema to your session object
 let sessionSchema = SessionSchema()
 let session = OpenAISession(
   schema: sessionSchema,
@@ -662,51 +662,38 @@ Structured outputs follow the same pattern with `snapshot.currentContent`: you a
 
 ## 🌐 Proxy Servers
 
-Using an API key directly is great for prototyping, but it should never be shipped to production unless you're deploying it some place you fully control. SwiftAgent comes with the option to route all agent requests through a proxy server (for example, your own backend):
+Sending your OpenAI API key from the device is fine while sketching ideas, but it is not acceptable once you ship. Point the SDK at a proxy you control so the app never sees the provider credential:
 
 ```swift
 let configuration = OpenAIConfiguration.proxy(through: URL(string: "https://api.your-backend.com/proxy")!)
-let session = LanguageModelProvider.openAI(instructions: "...", configuration: configuration)
+let session = OpenAISession(
+  instructions: "You are a helpful assistant.",
+  configuration: configuration
+)
 ```
 
-The proxy should be able to accept and handle arbitrary requests for OpenAI's Responses API. The SDK will take the proxy url you pass as the base and append the appropriate path, for example:
+SwiftAgent reuses the base URL you provide and appends the normal Responses API route, for example `https://api.your-backend.com/proxy/v1/responses`. Your backend should forward that path to OpenAI, attach its secret API key, and return the upstream response. In practice a robust proxy will:
 
-```bash
-https://api.your-backend.com/proxy/v1/responses
-```
+- Validate the catch-all path so only the expected `/v1/responses` endpoint is reachable.
+- Decode and inspect the body before relaying it (for example, enforce a `safety_identifier`, limit models, or reject obviously abusive payloads).
+- Stream the request to OpenAI and pass the response straight through, optionally recording token usage for billing.
 
-Your backend should then take all the path segments after your proxy url and pass that to OpenAI like so:
+Every request emitted by the SDK already matches the Responses API schema, so the proxy does not need to reshape payloads.
 
-```bash
-https://api.openai.com/v1/responses
-```
+### Per-turn Authorization
 
-Optionally, your backend can intercept and decode the payload before passing it on, to verify its a legitimate request from your app and contains proper identification (like the user's id), to reduce the likelihood of abuse.
-
-> Note: All requests that the SDK makes will fully conform to the Responses API from OpenAI.
-
-### Authorization
-
-It is recommended to secure that proxy endpoint via short-lived, per-turn authorization tokens that your backend issues. Before every `session.respond` or `session.streamResponse` call, you would ask your backend to generate a short-lived token. You can pass this token to the SDK by calling
-
-Use `LanguageModelProvider.withAuthorization` to set the token for the current agent turn so every internal request (thinking steps, tool calls, final message) is authorized consistently.
-- Prototyping only: `OpenAIConfiguration.direct(apiKey:)` — calls OpenAI directly and embeds an API key in the app bundle. Avoid this in production.
+Protect the proxy with short-lived tokens instead of static API keys. Before each call to `respond` or `streamResponse`, ask your backend for a token that identifies the signed-in user and expires after one turn:
 
 ```swift
-let token = try await backend.issueTurnToken(for: userId)
-let response = try await session.withAuthorization(token: token) {
+let turnToken = try await backend.issueTurnToken(for: userId)
+let response = try await session.withAuthorization(token: turnToken) {
   try await session.respond(to: "Summarize yesterday's sales numbers.")
 }
-
-// Optional: automatic token refresh on 401
-let initial = try await backend.issueTurnToken(for: userId)
-let refreshed = try await session.withAuthorization(
-  token: initial,
-  refresh: { try await backend.refreshTurnToken(for: userId) }
-) {
-  try await session.respond(to: "Plan a team offsite agenda.")
-}
 ```
+
+`withAuthorization` installs the token in a task-local context so that every internal request for the turn—draft reasoning, tool calls, and the final answer—inherits the same bearer token.
+
+For quick prototypes you can still use `OpenAIConfiguration.direct(apiKey:)`, but remove it before release.
 
 ## 🧠 Simulated Session
 
