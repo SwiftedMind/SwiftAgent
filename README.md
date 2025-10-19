@@ -8,6 +8,59 @@
 
 SwiftAgent simplifies AI agent development by providing a clean, intuitive API that handles all the complexity of agent loops, tool execution, and adapter communication. Inspired by Apple's FoundationModels framework, it brings the same elegant, declarative approach to cross-platform AI agent development.
 
+## 🔮 SwiftAgent in Action
+
+```swift
+import OpenAISession
+
+@SessionSchema
+struct CityExplorerSchema {
+  @Tool var cityFacts = CityFactsTool()
+  @Tool var reservation = ReservationTool()
+
+  @Grounding(Date.self) var travelDate
+  @Grounding([String].self) var mustVisitIdeas
+
+  @StructuredOutput(ItinerarySummary.self) var itinerary
+}
+
+@MainActor
+func planCopenhagenWeekend() async throws {
+  let schema = CityExplorerSchema()
+  let session = OpenAISession(
+    schema: schema,
+    instructions: "Design cinematic weekends. Call tools for local intel and reservations.",
+    apiKey: "sk-..."
+  )
+
+  let response = try await session.respond(
+    to: "Coffee, design, and dinner plans for two days in Copenhagen.",
+    groundingWith: [
+      .travelDate(Date(timeIntervalSinceNow: 86_400)),
+      .mustVisitIdeas([
+        "Coffee Collective, Nørrebro",
+        "Designmuseum Denmark",
+        "Kødbyens Fiskebar"
+      ])
+    ],
+    generating: \.itinerary
+  )
+
+  print(response.content.headline)
+  print(response.content.mustTry.joined(separator: " → "))
+
+  for entry in try schema.decode(session.transcript) {
+    if case let .toolRun(.cityFacts(run)) = entry, let output = run.output {
+      print("Local picks:", output)
+    }
+
+    if case let .prompt(prompt) = entry {
+      print("Groundings:", prompt.sources)
+    }
+  }
+}
+```
+
 ## 🧭 Table of Contents
 
 - [✨ Features](#-features)
