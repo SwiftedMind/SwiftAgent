@@ -2,7 +2,6 @@
 
 import Foundation
 import FoundationModels
-import Internal
 import OpenAI
 import OSLog
 import SwiftAgent

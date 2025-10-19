@@ -2,7 +2,6 @@
 
 import Foundation
 import FoundationModels
-import Internal
 
 /// A unified representation of a tool call and its output, providing type-safe access to arguments and results.
 ///

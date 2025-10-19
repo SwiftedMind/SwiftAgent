@@ -2,7 +2,7 @@
 
 import Foundation
 
-public extension GenerationError {
+package extension GenerationError {
   /// Maps a generic `HTTPError` produced by the networking layer to a `GenerationError`.
   ///
   /// - Parameters:

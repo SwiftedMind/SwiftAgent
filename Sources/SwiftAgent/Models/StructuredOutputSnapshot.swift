@@ -2,7 +2,6 @@
 
 import Foundation
 import FoundationModels
-import Internal
 
 /// Represents a single update emitted while generating a structured output.
 ///

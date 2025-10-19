@@ -31,12 +31,8 @@ let package = Package(
       ],
     ),
     .target(
-      name: "Internal",
-    ),
-    .target(
       name: "SwiftAgent",
       dependencies: [
-        "Internal",
         "SwiftAgentMacros",
         "EventSource",
       ],
@@ -55,7 +51,6 @@ let package = Package(
       name: "SimulatedSession",
       dependencies: [
         "SwiftAgent",
-        "Internal",
         "OpenAI",
       ],
       path: "Sources/Simulation",
@@ -64,7 +59,6 @@ let package = Package(
       name: "ExampleCode",
       dependencies: [
         "SwiftAgent",
-        "Internal",
         "OpenAISession",
         "SimulatedSession",
       ],

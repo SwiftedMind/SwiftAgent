@@ -2,7 +2,6 @@
 
 import Foundation
 import FoundationModels
-import Internal
 
 /// A snapshot of the agent's current state during response streaming.
 ///

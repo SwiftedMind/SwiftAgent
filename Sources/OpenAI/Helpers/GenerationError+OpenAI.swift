@@ -1,7 +1,6 @@
 // By Dennis Müller
 
 import Foundation
-import Internal
 import OpenAI
 import SwiftAgent
 

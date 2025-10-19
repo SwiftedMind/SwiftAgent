@@ -1,7 +1,6 @@
 // By Dennis Müller
 
 import Foundation
-import Internal
 
 public enum OpenAIGenerationOptionsError: Error, LocalizedError {
   case missingEncryptedReasoningForReasoningModel

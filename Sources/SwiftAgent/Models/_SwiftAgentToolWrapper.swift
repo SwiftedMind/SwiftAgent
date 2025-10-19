@@ -2,7 +2,6 @@
 
 import Foundation
 import FoundationModels
-import Internal
 
 /// A wrapper around a `FoundationModels.Tool` that conforms to the `SwiftAgentTool` protocol.
 ///

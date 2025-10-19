@@ -2,7 +2,6 @@
 
 import Foundation
 import FoundationModels
-import Internal
 
 /// A helper protocol that turns a `Tool` into a decodable form for transcripts.
 ///

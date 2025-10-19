@@ -2,7 +2,6 @@
 
 import Foundation
 import FoundationModels
-import Internal
 
 /// The response returned by ``LanguageModelProvider`` methods, containing generated content and metadata.
 ///

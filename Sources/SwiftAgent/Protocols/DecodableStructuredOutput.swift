@@ -2,7 +2,6 @@
 
 import Foundation
 import FoundationModels
-import Internal
 
 /// Allows decoding structured segments from a transcript for a specific provider.
 ///

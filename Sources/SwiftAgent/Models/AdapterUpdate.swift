@@ -1,7 +1,6 @@
 // By Dennis Müller
 
 import Foundation
-import Internal
 
 /// Internal stream updates emitted by adapters while generating.
 ///

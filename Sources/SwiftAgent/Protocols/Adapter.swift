@@ -2,7 +2,6 @@
 
 import Foundation
 import FoundationModels
-import Internal
 
 public protocol Adapter: Actor {
   associatedtype GenerationOptions: AdapterGenerationOptions<Model>

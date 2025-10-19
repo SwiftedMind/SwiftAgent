@@ -2,7 +2,6 @@
 
 import Foundation
 import FoundationModels
-import Internal
 import SwiftAgent
 
 public struct OpenAIConfiguration: AdapterConfiguration {

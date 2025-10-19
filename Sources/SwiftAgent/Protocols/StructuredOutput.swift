@@ -2,7 +2,6 @@
 
 import Foundation
 import FoundationModels
-import Internal
 
 /// Describes a named, schema-driven value that a provider can generate directly.
 ///

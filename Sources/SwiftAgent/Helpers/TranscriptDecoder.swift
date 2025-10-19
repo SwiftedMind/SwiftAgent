@@ -2,7 +2,6 @@
 
 import Foundation
 import FoundationModels
-import Internal
 import OSLog
 
 /// Decodes raw transcript entries into your app's domain types.

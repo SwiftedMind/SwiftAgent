@@ -1,7 +1,6 @@
 // By Dennis Müller
 
 import Foundation
-@testable import Internal
 @testable import OpenAISession
 @testable import SwiftAgent
 

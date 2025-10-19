@@ -2,7 +2,6 @@
 
 import Foundation
 import FoundationModels
-import Internal
 
 public protocol GroundingSupportingSchema {}
 

@@ -17,6 +17,6 @@ private func jsonString(
 
 package extension Encodable {
   func jsonString(pretty: Bool = false) throws -> String {
-    try Internal.jsonString(from: self, pretty: pretty)
+    try SwiftAgent.jsonString(from: self, pretty: pretty)
   }
 }
