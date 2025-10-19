@@ -14,7 +14,7 @@ let package = Package(
     .library(name: "ExampleCode", targets: ["ExampleCode"]),
   ],
   dependencies: [
-    .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "510.0.0"),
+    .package(url: "https://github.com/swiftlang/swift-syntax.git", "600.0.0"..<"603.0.0"),
     .package(url: "https://github.com/MacPaw/OpenAI.git", branch: "main"),
     .package(url: "https://github.com/mattt/EventSource", from: "1.2.0"),
     .package(url: "https://github.com/pointfreeco/swift-macro-testing", from: "0.6.4"),
