@@ -89,7 +89,8 @@ let response = try await session.respond(to: "What's the weather like in San Fra
 print(response.content)
 ```
 
-> Note: Using an API key directly is great for prototyping, but do not ship it in production apps. For shipping apps, use a secure proxy with per‑turn tokens. See [Proxy Servers](#-proxy-servers) for more information.
+> [!NOTE]
+> Using an API key directly is great for prototyping, but do not ship it in production apps. For shipping apps, use a secure proxy with per‑turn tokens. See [Proxy Servers](#-proxy-servers) for more information.
 
 ### Building Tools
 
@@ -139,7 +140,8 @@ let response = try await session.respond(to: "What's the weather like in San Fra
 print(response.content)
 ```
 
-> Note: Unlike Apple's `LanguageModelSession` object, `OpenAISession` takes the `tools` parameter as variadic arguments. So instead of passing an array like `tools: [WeatherTool(), OtherTool()]`, you pass the tools as a list of arguments `tools: WeatherTool(), OtherTool()`.
+> [!NOTE]
+> Unlike Apple's `LanguageModelSession` object, `OpenAISession` takes the `tools` parameter as variadic arguments. So instead of passing an array like `tools: [WeatherTool(), OtherTool()]`, you pass the tools as a list of arguments `tools: WeatherTool(), OtherTool()`.
 
 #### Recoverable Tool Rejections
 
@@ -253,7 +255,8 @@ for entry in session.transcript {
 }
 ```
 
-> Note: The `OpenAISession` object is `@Observable`, so you can observe its transcript for changes in real-time. This can be useful for UI applications.
+> [!NOTE]
+> The `OpenAISession` object is `@Observable`, so you can observe its transcript for changes in real-time. This can be useful for UI applications.
 
 ### Access Token Usage
 
