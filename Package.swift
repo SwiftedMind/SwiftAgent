@@ -45,7 +45,6 @@ let package = Package(
         "SwiftAgentMacros",
         "EventSource",
       ],
-      path: "Sources/OpenAI",
     ),
     .target(
       name: "SimulatedSession",
@@ -53,7 +52,6 @@ let package = Package(
         "SwiftAgent",
         "OpenAI",
       ],
-      path: "Sources/Simulation",
     ),
     .target(
       name: "ExampleCode",

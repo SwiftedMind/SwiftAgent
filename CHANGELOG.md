@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.1]
+
+### Fixed
+
+- Fixed some imports in the example app
+
 ## [0.7.0]
 
 ### Breaking Changes

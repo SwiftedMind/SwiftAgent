@@ -2,7 +2,7 @@
 
 import Foundation
 import struct FoundationModels.GeneratedContent
-import SimulatedSession
+import OpenAISession
 import SwiftUI
 
 struct CalculatorToolRunView: View {

@@ -1,7 +1,6 @@
 // By Dennis Müller
 
 import OpenAISession
-import SimulatedSession
 import SwiftUI
 import UIKit
 
