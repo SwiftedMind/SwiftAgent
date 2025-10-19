@@ -29,6 +29,7 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
 - Check if you should read a resource or guideline related to your task
 - When asked to commit changes to the repository, always read and understand the commit guidelines before doing anything!
 - When asked to update the changelog, always read and understand the changelog guidelines before doing anything!
+- When asked to write documentation or docstrings, always read and understand the docc guidelines before doing anything!
 
 ### When you are done
 
@@ -50,6 +51,7 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
 - agents/swift/swiftui.md - Guidelines on modern SwiftUI and how to build things with it
 - agents/swift/swift-testing.md - An overview of the Swift Testing framework
 - agents.local/tests.md - Guidelines on writing unit tests for the SDK
+- agents/swift/docc.md - Guidelines on writing docstrings in Swift
 
 ## Documentation Shortcuts
 
