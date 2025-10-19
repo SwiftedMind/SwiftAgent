@@ -4,41 +4,11 @@ import Foundation
 import FoundationModels
 import Internal
 
-/// The central protocol that represents an AI agent session.
-///
-/// - Note: You normally do not conform to this protocol manually. It is
-///   synthesized for your session class by applying `@LanguageModelProvider(...)`
-///   from `SwiftAgentMacros`. The macro wires up the adapter, tools, transcript
-///   observation, and structured outputs based on your annotated properties
-///   (e.g. `@Tool`, `@StructuredOutput`, `@Grounding`).
-///
-/// ## Defining a Tool and a Session
-///
-/// ```swift
-/// @LanguageModelProvider(.openAI)
-/// final class MySession {
-///   @Tool var calculator = Calculator()
-/// }
-///
-/// struct Calculator: Tool {
-///   let name = "calculator"
-///   let description = "Adds two numbers"
-///
-///   @Generable struct Arguments { let a: Int; let b: Int }
-///   @Generable struct Output { let result: Int }
-///
-///   func call(arguments: Arguments) async throws -> Output {
-///     Output(result: arguments.a + arguments.b)
-///   }
-/// }
-/// ```
 public protocol LanguageModelProvider<SessionSchema>: AnyObject, Sendable {
-  /// The transcript type for this session, containing the conversation history.
   typealias Transcript = SwiftAgent.Transcript
   typealias Response<StructuredOutput: SwiftAgent.StructuredOutput> = AgentResponse<StructuredOutput>
   typealias Snapshot<StructuredOutput: SwiftAgent.StructuredOutput> = AgentSnapshot<StructuredOutput>
 
-  /// The concrete adapter used to talk to a model provider (e.g. OpenAI).
   associatedtype Adapter: SwiftAgent.Adapter & SendableMetatype
   associatedtype SessionSchema: LanguageModelSessionSchema = SwiftAgent.NoSchema
 
@@ -68,25 +38,12 @@ public protocol LanguageModelProvider<SessionSchema>: AnyObject, Sendable {
   ) async rethrows -> T
 }
 
-/// A decoded grounding item produced from the raw transcript.
-///
-/// Conform your app's types to this protocol to represent resolved grounding sources
-/// (for example, selected documents or domain entities) after decoding.
 public protocol DecodedGrounding: Sendable, Equatable, Codable {}
 
-/// A decoded structured output produced from a model response.
-///
-/// Your app defines a concrete type conforming to this protocol to represent the
-/// structured content you want to render or persist. Unknown types are provided
-/// via `makeUnknown(segment:)`.
 public protocol DecodedStructuredOutput: Sendable, Equatable {
   static func makeUnknown(segment: Transcript.StructuredSegment) -> Self
 }
 
-/// A decoded representation of a tool invocation.
-///
-/// Conform a type to this protocol to model tool runs for your UI or state. Unknown
-/// tool names are handled via `makeUnknown(toolCall:)`.
 public protocol DecodedToolRun: Identifiable, Equatable, Sendable where ID == String {
   var id: String { get }
   static func makeUnknown(toolCall: Transcript.ToolCall) -> Self
