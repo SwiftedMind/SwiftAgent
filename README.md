@@ -32,6 +32,7 @@ SwiftAgent simplifies AI agent development by providing a clean, intuitive API t
 - [🧠 Simulated Session](#-simulated-session)
 - [📝 Logging](#-logging)
 - [🧪 Development Status](#-development-status)
+- [📱 Example App](#-example-app)
 - [📄 License](#-license)
 - [🙏 Acknowledgments](#-acknowledgments)
 
@@ -763,6 +764,16 @@ SwiftAgentConfiguration.setNetworkLoggingEnabled(true)
 ## 🧪 Development Status
 
 **⚠️ Work in Progress**: SwiftAgent is under active development. APIs may change, and breaking updates are expected. Use in production with caution.
+
+## 📱 Example App
+
+SwiftAgent ships with a SwiftUI demo that showcases the SDK in action. Open the project at `Examples/Example App/ExampleApp` to explore an agent playground that:
+
+- Configures an `OpenAISession` with the bundled `SessionSchema`, calculator tool, weather tool, and a structured weather report output.
+- Streams responses while rendering prompts, reasoning summaries, tool runs, and final replies in a chat-style transcript UI.
+- Demonstrates tool-specific views (calculator and weather) with live argument updates, results, and SwiftUI previews backed by `SimulatedSession` scenarios.
+
+Use the app to experiment with SwiftAgent locally or as a starting point for integrating the SDK into your own SwiftUI experience.
 
 ## 📄 License
 
