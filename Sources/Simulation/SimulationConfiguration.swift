@@ -6,7 +6,7 @@ import Internal
 import OSLog
 import SwiftAgent
 
-public struct SimulationConfiguration: Sendable {
+public struct SimulationConfiguration: Sendable, AdapterConfiguration {
   public var generationDelay: Duration
   public var tokenUsage: TokenUsage?
   public var defaultGenerations: [SimulatedGeneration]

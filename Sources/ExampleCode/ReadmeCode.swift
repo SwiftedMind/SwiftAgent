@@ -343,7 +343,7 @@ public enum ReadmeCode {
   func simulatedSession() async throws {
     let sessionSchema = SessionSchema()
 
-    let configuration = SimulationAdapter.Configuration(defaultGenerations: [
+    let configuration = SimulationConfiguration(defaultGenerations: [
       .reasoning(summary: "Simulated Reasoning"),
       .toolRun(tool: WeatherToolMock(tool: WeatherTool())),
       .response(text: "It's a beautiful sunny day in San Francisco with 22.5°C!"),

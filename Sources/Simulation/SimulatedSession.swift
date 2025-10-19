@@ -32,7 +32,7 @@ public final class SimulatedSession<
   public init<each ToolType>(
     tools: repeat each ToolType,
     instructions: String = "",
-    configuration: SimulationAdapter.Configuration,
+    configuration: SimulationConfiguration,
   ) where
     SessionSchema == NoSchema,
     repeat (each ToolType): FoundationModels.Tool,
@@ -52,7 +52,7 @@ public final class SimulatedSession<
   public init(
     schema: SessionSchema,
     instructions: String,
-    configuration: SimulationAdapter.Configuration,
+    configuration: SimulationConfiguration,
   ) {
     self.schema = schema
     adapter = SimulationAdapter(

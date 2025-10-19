@@ -74,8 +74,6 @@ public actor SimulationAdapter: Adapter {
   }
 }
 
-extension SimulationAdapter.Configuration: AdapterConfiguration {}
-
 private extension SimulationAdapter {
   func resolveOptions(for options: SimulationGenerationOptions) throws -> SimulationGenerationOptions {
     if !options.simulatedGenerations.isEmpty {
