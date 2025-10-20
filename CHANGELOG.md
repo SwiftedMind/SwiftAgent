@@ -1,5 +1,17 @@
 # Changelog
 
+# Changelog
+
+## [Upcoming]
+
+### Added
+
+### Enhanced
+
+### Fixed
+
+- **Stable GeneratedContent JSON**: Added `GeneratedContent.stableJsonString` to reserialize payloads with sorted keys, improving cache hit rates while Apple addresses FB20745786.
+
 ## [0.7.1]
 
 ### Fixed

@@ -79,7 +79,7 @@ These types are defined in Apple’s FoundationModels framework, so you will not
 ### Building and Testing (use `hatch-mcp` for `xcodebuild`)
 
 - Only run `xcodebuild` through `hatch-mcp run-allowed-command`; it is approved solely for `xcodebuild` so do not execute any other tool with it. Pass the command below directly to `--command`.
-- Always include the `-quiet` flag to keep logs readable. Remove it only when debugging a failing build.
+- Always include the `-quiet` flag to keep logs readable. When you want to make a call without it, you MUST ask first!
 - Replace {working_directory} with the current project directory
 - There is no need to `cd` into the project first
 

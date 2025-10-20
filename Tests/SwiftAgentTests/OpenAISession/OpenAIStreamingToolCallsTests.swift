@@ -122,7 +122,7 @@ struct OpenAIStreamingToolCallsTests {
     #expect(functionCall.id == "fc_68d9303fe7fc819ea999bda43617404203aa6e5a972b3b23")
     #expect(functionCall.callId == "call_5dp5Uj0Loqn1YcyIpqSq6sLX")
     #expect(functionCall.name == "get_weather")
-    #expect(functionCall.arguments == #"{"location": "New York City, USA"}"#)
+    #expect(functionCall.arguments == #"{"location":"New York City, USA"}"#)
 
     // Validate fourth item (function call output)
     guard case let .item(.functionCallOutputItemParam(functionOutput)) = secondItems[3] else {
@@ -162,7 +162,7 @@ struct OpenAIStreamingToolCallsTests {
     #expect(toolCalls.calls[0].callId == "call_5dp5Uj0Loqn1YcyIpqSq6sLX")
     #expect(toolCalls.calls[0].toolName == "get_weather")
     let expectedArguments = try GeneratedContent(json: #"{ "location": "New York City, USA" }"#)
-    #expect(toolCalls.calls[0].arguments.jsonString == expectedArguments.jsonString)
+    #expect(toolCalls.calls[0].arguments.stableJsonString == expectedArguments.stableJsonString)
 
     guard case let .toolOutput(toolOutput) = generatedTranscript[3] else {
       Issue.record("Third transcript entry is not .toolOutput")

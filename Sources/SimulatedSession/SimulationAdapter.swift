@@ -188,7 +188,7 @@ private extension SimulationAdapter {
     AgentLog.toolCall(
       name: toolName,
       callId: callId,
-      argumentsJSON: arguments.jsonString,
+      argumentsJSON: arguments.stableJsonString,
     )
 
     continuation.yield(.transcript(.toolCalls(Transcript.ToolCalls(calls: [toolCall]))))
@@ -231,7 +231,7 @@ private extension SimulationAdapter {
     AgentLog.toolOutput(
       name: toolName,
       callId: callId,
-      outputJSONOrText: output.jsonString,
+      outputJSONOrText: output.stableJsonString,
     )
 
     continuation.yield(.transcript(.toolOutput(toolOutputEntry)))
@@ -261,7 +261,7 @@ private extension SimulationAdapter {
       status: .completed,
     )
 
-    AgentLog.outputStructured(json: content.jsonString, status: "completed")
+    AgentLog.outputStructured(json: content.stableJsonString, status: "completed")
     continuation.yield(.transcript(.response(response)))
   }
 }

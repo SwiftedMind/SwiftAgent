@@ -321,7 +321,7 @@ public actor OpenAIAdapter: Adapter {
       AgentLog.toolOutput(
         name: tool.name,
         callId: functionCall.callId,
-        outputJSONOrText: output.generatedContent.jsonString,
+        outputJSONOrText: output.generatedContent.stableJsonString,
       )
 
       generatedTranscript.entries.append(transcriptEntry)
@@ -340,7 +340,7 @@ public actor OpenAIAdapter: Adapter {
       AgentLog.toolOutput(
         name: tool.name,
         callId: functionCall.callId,
-        outputJSONOrText: toolRunRejection.generatedContent.jsonString,
+        outputJSONOrText: toolRunRejection.generatedContent.stableJsonString,
       )
 
       generatedTranscript.entries.append(transcriptEntry)
@@ -557,7 +557,7 @@ public actor OpenAIAdapter: Adapter {
             _type: .functionCall,
             callId: toolCall.callId,
             name: toolCall.toolName,
-            arguments: toolCall.arguments.jsonString,
+            arguments: toolCall.arguments.stableJsonString,
             status: transcriptStatusToFunctionCallStatus(toolCall.status),
           )
 
@@ -568,7 +568,7 @@ public actor OpenAIAdapter: Adapter {
         case let .text(textSegment):
           textSegment.content
         case let .structure(structuredSegment):
-          structuredSegment.content.generatedContent.jsonString
+          structuredSegment.content.generatedContent.stableJsonString
         }
 
         let item = Components.Schemas.FunctionCallOutputItemParam(
@@ -601,7 +601,7 @@ public actor OpenAIAdapter: Adapter {
                 .OutputTextContent(
                   Components.Schemas.OutputTextContent(
                     _type: .outputText,
-                    text: structuredSegment.content.generatedContent.jsonString,
+                    text: structuredSegment.content.generatedContent.stableJsonString,
                     annotations: [],
                   ),
                 )

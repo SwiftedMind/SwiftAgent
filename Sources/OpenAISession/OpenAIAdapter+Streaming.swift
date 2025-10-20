@@ -585,7 +585,7 @@ extension OpenAIAdapter {
         AgentLog.toolOutput(
           name: tool.name,
           callId: state.callId,
-          outputJSONOrText: output.generatedContent.jsonString,
+          outputJSONOrText: output.generatedContent.stableJsonString,
         )
         executedAny = true
       } catch let toolRunRejection as ToolRunRejection {
@@ -603,7 +603,7 @@ extension OpenAIAdapter {
         AgentLog.toolOutput(
           name: tool.name,
           callId: state.callId,
-          outputJSONOrText: toolRunRejection.generatedContent.jsonString,
+          outputJSONOrText: toolRunRejection.generatedContent.stableJsonString,
         )
         executedAny = true
       } catch {

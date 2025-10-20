@@ -118,7 +118,7 @@ package extension DecodableTool {
 
     return ToolRun<BaseTool>.Rejection(
       reason: rejectionReport.reason,
-      json: generatedContent.jsonString,
+      json: generatedContent.stableJsonString,
       details: RejectionReportDetailsExtractor.values(from: generatedContent),
     )
   }

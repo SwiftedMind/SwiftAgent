@@ -8,7 +8,7 @@ import FoundationModels
 /// The transcript is an ordered log of prompts, tool activity, and model
 /// responses produced during a session. Use it to inspect streaming progress,
 /// pretty‑print for debugging, or decode provider‑specific structured output.
-public struct Transcript: Sendable, Equatable {
+public struct Transcript: Sendable, Equatable, Codable {
   /// The ordered entries that make up the transcript. New entries are appended
   /// at the end as the session progresses.
   public var entries: [Entry]
@@ -104,7 +104,7 @@ extension Transcript: RandomAccessCollection, RangeReplaceableCollection {
 public extension SwiftAgent.Transcript {
   /// A single unit in a transcript. Entries are identified by a stable `id`
   /// to support updates during streaming.
-  enum Entry: Sendable, Identifiable, Equatable {
+  enum Entry: Sendable, Identifiable, Equatable, Codable {
     /// The final rendered prompt that was sent to the model.
     case prompt(Prompt)
     /// A summarized reasoning trace, if provided by the model.
@@ -135,7 +135,7 @@ public extension SwiftAgent.Transcript {
 
   /// The final rendered prompt that was sent to the model, alongside the
   /// original input and prompt sources used to construct it.
-  struct Prompt: Sendable, Identifiable, Equatable {
+  struct Prompt: Sendable, Identifiable, Equatable, Codable {
     /// Identifier for this prompt instance.
     public var id: String
     /// The user's raw input used to build the prompt.
@@ -159,7 +159,7 @@ public extension SwiftAgent.Transcript {
   }
 
   /// A lightweight summary of the model's private reasoning, when available.
-  struct Reasoning: Sendable, Identifiable, Equatable {
+  struct Reasoning: Sendable, Identifiable, Equatable, Codable {
     /// Identifier for this reasoning instance.
     public var id: String
     /// High‑level reasoning summary lines.
@@ -183,7 +183,7 @@ public extension SwiftAgent.Transcript {
   }
 
   /// The lifecycle state of a response or step.
-  enum Status: Sendable, Identifiable, Equatable {
+  enum Status: Sendable, Identifiable, Equatable, Codable {
     /// The operation finished successfully.
     case completed
     /// The operation ended before completion.
@@ -196,7 +196,7 @@ public extension SwiftAgent.Transcript {
   }
 
   /// A collection of tool calls emitted in a single turn.
-  struct ToolCalls: Sendable, Identifiable, Equatable {
+  struct ToolCalls: Sendable, Identifiable, Equatable, Codable {
     /// Identifier for this group of tool calls.
     public var id: String
     /// The ordered tool calls.
@@ -242,7 +242,7 @@ extension Transcript.ToolCalls: RandomAccessCollection, RangeReplaceableCollecti
 
 public extension Transcript {
   /// A single tool invocation requested by the model.
-  struct ToolCall: Sendable, Identifiable, Equatable {
+  struct ToolCall: Sendable, Identifiable, Equatable, Codable {
     /// Identifier for this tool call record.
     public var id: String
     /// Correlation identifier supplied by the model.
@@ -270,7 +270,7 @@ public extension Transcript {
   }
 
   /// Output produced by a tool in response to a call.
-  struct ToolOutput: Sendable, Identifiable, Equatable {
+  struct ToolOutput: Sendable, Identifiable, Equatable, Codable {
     /// Identifier for this tool output record.
     public var id: String
     /// Correlation identifier matching the originating tool call.
@@ -298,7 +298,7 @@ public extension Transcript {
   }
 
   /// The model's response for a single turn.
-  struct Response: Sendable, Identifiable, Equatable {
+  struct Response: Sendable, Identifiable, Equatable, Codable {
     /// Identifier for this response.
     public var id: String
     /// Ordered response segments (text and/or structured).
@@ -349,7 +349,7 @@ public extension Transcript {
   }
 
   /// A response or tool output segment.
-  enum Segment: Sendable, Identifiable, Equatable {
+  enum Segment: Sendable, Identifiable, Equatable, Codable {
     /// A unit of plain text.
     case text(TextSegment)
     /// A unit of structured content.
@@ -367,7 +367,7 @@ public extension Transcript {
   }
 
   /// A unit of plain text produced by the model or a tool.
-  struct TextSegment: Sendable, Identifiable, Equatable {
+  struct TextSegment: Sendable, Identifiable, Equatable, Codable {
     /// Identifier for this segment.
     public var id: String
     /// The textual content.
@@ -380,7 +380,7 @@ public extension Transcript {
   }
 
   /// A unit of structured content produced by the model or a tool.
-  struct StructuredSegment: Sendable, Identifiable, Equatable {
+  struct StructuredSegment: Sendable, Identifiable, Equatable, Codable {
     /// Identifier for this segment.
     public var id: String
     /// Optional type hint for the structured payload.
@@ -399,6 +399,77 @@ public extension Transcript {
       self.typeName = typeName
       self.content = content.generatedContent
     }
+  }
+}
+
+// MARK: - Transcript Codable Support
+
+public extension Transcript.ToolCall {
+  private enum CodingKeys: String, CodingKey {
+    case id
+    case callId
+    case toolName
+    case arguments
+    case status
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+
+    id = try container.decode(String.self, forKey: .id)
+    callId = try container.decode(String.self, forKey: .callId)
+    toolName = try container.decode(String.self, forKey: .toolName)
+    let argumentsJSONString = try container.decode(String.self, forKey: .arguments)
+
+    do {
+      arguments = try GeneratedContent(json: argumentsJSONString)
+    } catch {
+      let description = "Failed to decode GeneratedContent from arguments JSON string: \(error)"
+      throw DecodingError.dataCorruptedError(forKey: .arguments, in: container, debugDescription: description)
+    }
+
+    status = try container.decodeIfPresent(Transcript.Status.self, forKey: .status)
+  }
+
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+
+    try container.encode(id, forKey: .id)
+    try container.encode(callId, forKey: .callId)
+    try container.encode(toolName, forKey: .toolName)
+    try container.encode(arguments.stableJsonString, forKey: .arguments)
+    try container.encodeIfPresent(status, forKey: .status)
+  }
+}
+
+public extension Transcript.StructuredSegment {
+  private enum CodingKeys: String, CodingKey {
+    case id
+    case typeName
+    case content
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+
+    id = try container.decode(String.self, forKey: .id)
+    typeName = try container.decodeIfPresent(String.self, forKey: .typeName) ?? ""
+    let contentJSONString = try container.decode(String.self, forKey: .content)
+
+    do {
+      content = try GeneratedContent(json: contentJSONString)
+    } catch {
+      let description = "Failed to decode GeneratedContent from content JSON string: \(error)"
+      throw DecodingError.dataCorruptedError(forKey: .content, in: container, debugDescription: description)
+    }
+  }
+
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+
+    try container.encode(id, forKey: .id)
+    try container.encode(typeName, forKey: .typeName)
+    try container.encode(content.stableJsonString, forKey: .content)
   }
 }
 
@@ -746,7 +817,7 @@ private func transcriptPrettyValue(
 }
 
 private func transcriptPrettyJSONString(from generatedContent: GeneratedContent) -> String {
-  let rawJSONString = generatedContent.jsonString
+  let rawJSONString = generatedContent.stableJsonString
   guard let data = rawJSONString.data(using: .utf8) else {
     return rawJSONString
   }

@@ -9,9 +9,9 @@ package enum RejectionReportDetailsExtractor {
   /// The extractor keeps recoverable payloads accessible when strongly typed decoding fails.
   package static func values(from generatedContent: GeneratedContent) -> [String: String] {
     guard
-      let jsonData = generatedContent.jsonString.data(using: .utf8),
+      let jsonData = generatedContent.stableJsonString.data(using: .utf8),
       let jsonObject = try? JSONSerialization.jsonObject(with: jsonData) else {
-      return ["value": generatedContent.jsonString]
+      return ["value": generatedContent.stableJsonString]
     }
 
     return values(fromJSONObject: jsonObject)
