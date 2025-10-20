@@ -49,7 +49,7 @@ func planCopenhagenWeekend() async throws {
   print(response.content.headline)
   print(response.content.mustTry.joined(separator: " → "))
 
-  for entry in try schema.decode(session.transcript) {
+  for entry in try schema.resolve(session.transcript) {
     if case let .toolRun(.cityFacts(run)) = entry, let output = run.output {
       print("Local picks:", output)
     }
@@ -439,7 +439,7 @@ let session = OpenAISession(
 // let response = try await session.respond(to: "What's the weather like in San Francisco?")
 // ...
 
-for entry in try sessionSchema.decode(session.transcript) {
+for entry in try sessionSchema.resolve(session.transcript) {
   switch entry {
   case let .toolRun(toolRun):
     switch toolRun {
@@ -487,8 +487,8 @@ let response = try await session.respond(
 
 print(response.content) // WeatherReport object
 
-// Access the structured output in the decoded transcript
-for entry in try sessionSchema.decode(session.transcript) {
+// Access the structured output in the resolved transcript
+for entry in try sessionSchema.resolve(session.transcript) {
   switch entry {
   case let .response(response):
     switch response.structuredSegments[0].content {
@@ -548,7 +548,7 @@ let response = try await session.respond(
 print(response.content)
 
 // Access the input prompt and its groundings separately in the transcript
-for entry in try sessionSchema.decode(session.transcript) {
+for entry in try sessionSchema.resolve(session.transcript) {
   switch entry {
   case let .prompt(prompt):
     print(prompt.input) // User input
@@ -639,14 +639,14 @@ for try await snapshot in stream {
 
   // You can also access the generated transcript as it is streamed in
   let transcript = snapshot.transcript
-  let decodedTranscript = try sessionSchema.decode(transcript)
+  let resolvedTranscript = try sessionSchema.resolve(transcript)
 
-  print(transcript, decodedTranscript)
+  print(transcript, resolvedTranscript)
 }
 
 
 // You can also observe the transcript during streaming
-for entry in try sessionSchema.decode(session.transcript) {
+for entry in try sessionSchema.resolve(session.transcript) {
   switch entry {
   case let .response(response):
     switch response.structuredSegments[0].content {

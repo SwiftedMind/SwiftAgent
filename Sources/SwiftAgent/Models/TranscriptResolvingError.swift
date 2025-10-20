@@ -4,10 +4,10 @@ import Foundation
 
 /// Errors thrown while materializing a transcript into schema-backed types.
 ///
-/// When ``Transcript/decoded(using:)`` encounters payloads it cannot interpret with the supplied
-/// ``SessionSchema``, the decoder surfaces one of these errors. Each case carries context you can
+/// When ``Transcript/resolved(using:)`` encounters payloads it cannot interpret with the supplied
+/// ``SessionSchema``, the resolver surfaces one of these errors. Each case carries context you can
 /// surface in logs or UI to explain which element failed and why.
-public enum TranscriptDecodingError: Error, LocalizedError, Sendable, Equatable {
+public enum TranscriptResolvingError: Error, LocalizedError, Sendable, Equatable {
   /// Prompt reconstruction failed, usually because grounding payloads did not match the schema.
   case prompt(PromptResolution)
 
@@ -23,20 +23,20 @@ public enum TranscriptDecodingError: Error, LocalizedError, Sendable, Equatable 
     }
   }
 
-  /// Context describing why a prompt failed to decode.
+  /// Context describing why a prompt failed to resolve.
   public enum PromptResolution: Error, LocalizedError, Sendable, Equatable {
     /// A grounding value could not be converted into the schema's declared type.
-    case groundingDecodingFailed(description: String)
+    case groundingResolutionFailed(description: String)
 
     public var errorDescription: String? {
       switch self {
-      case let .groundingDecodingFailed(description):
-        "Prompt grounding decoding failed: \(description)"
+      case let .groundingResolutionFailed(description):
+        "Prompt grounding resolution failed: \(description)"
       }
     }
   }
 
-  /// Context describing why a tool run failed to decode.
+  /// Context describing why a tool run failed to resolve.
   public enum ToolRunResolution: Error, LocalizedError, Sendable, Equatable {
     /// The transcript referenced a tool name not registered in the session schema.
     case unknownTool(name: String)

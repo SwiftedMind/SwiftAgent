@@ -49,7 +49,7 @@ Roadmap/Ideas. There aren't set in stone. They are more about brainstorming idea
 
 ## 9) Testing & Quality
 
-- Unit tests: Agent loop (tool calls, refusals), TranscriptDecoder, JSON post‑processing, HTTP error map.
+- Unit tests: Agent loop (tool calls, refusals), TranscriptResolver, JSON post‑processing, HTTP error map.
 - Adapter tests: mock `HTTPClient` to simulate provider responses and edge cases.
 - Contract tests: ensure schema and transcript mapping remain stable across changes.
 

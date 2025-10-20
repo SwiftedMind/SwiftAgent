@@ -4,11 +4,11 @@ import Observation
 
 /// Declares the tools, groundings, and structured outputs your session understands.
 ///
-/// Annotate a struct with `@SessionSchema` to generate everything SwiftAgent needs to decode
+/// Annotate a struct with `@SessionSchema` to generate everything SwiftAgent needs to resolve
 /// transcripts, provide typed streaming helpers, and register your tool and structured output
 /// declarations. The macro exposes the property wrappers (`@Tool`, `@Grounding`, `@StructuredOutput`)
 /// and synthesizes the glue code that powers `session.respond`, `streamResponse`, and
-/// `schema.decode`.
+/// `schema.resolve`.
 ///
 /// ```swift
 /// struct WeatherTool: Tool { /* ... */ }

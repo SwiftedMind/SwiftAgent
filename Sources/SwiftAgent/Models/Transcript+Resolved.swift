@@ -8,12 +8,12 @@ public extension Transcript {
   ///
   /// Each item mirrors the live transcript but swaps raw `GeneratedContent` blocks for the concrete
   /// types you registered in your schema. Groundings, tool runs, and structured responses are fully
-  /// decoded so UI layers and tests can work with Swift values instead of JSON.
+  /// resolved so UI layers and tests can work with Swift values instead of JSON.
   ///
-  /// Use ``Transcript/decoded(using:)`` to obtain this type and display it in your app. The decoded
+  /// Use ``Transcript/resolved(using:)`` to obtain this type and display it in your app. The resolved
   /// view stays lightweight: it preserves ordering, streaming identifiers, and even resolution errors
-  /// when decoding fails so you can surface them to the user.
-  struct Decoded<SessionSchema: LanguageModelSessionSchema>: Equatable, Sendable {
+  /// when resolving fails so you can surface them to the user.
+  struct Resolved<SessionSchema: LanguageModelSessionSchema>: Equatable, Sendable {
     /// Ordered transcript entries with schema-backed values.
     public package(set) var entries: [Entry]
 
@@ -21,7 +21,7 @@ public extension Transcript {
       self.entries = entries
     }
 
-    /// One entry in the decoded transcript.
+    /// One entry in the resolved transcript.
     public enum Entry: Identifiable, Equatable, Sendable {
       /// Rendered prompt plus typed grounding sources.
       case prompt(Prompt)
@@ -49,7 +49,7 @@ public extension Transcript {
       }
     }
 
-    /// Prompt emitted during the turn with its decoded groundings.
+    /// Prompt emitted during the turn with its resolved groundings.
     public struct Prompt: Identifiable, Sendable, Equatable {
       public var id: String
 
@@ -60,7 +60,7 @@ public extension Transcript {
       public var sources: [SessionSchema.DecodedGrounding]
 
       /// Any errors encountered while reconstructing the prompt and sources.
-      public let error: TranscriptDecodingError.PromptResolution?
+      public let error: TranscriptResolvingError.PromptResolution?
 
       /// Final prompt body sent to the provider.
       public var prompt: String
@@ -70,7 +70,7 @@ public extension Transcript {
         input: String,
         sources: [SessionSchema.DecodedGrounding],
         prompt: String,
-        error: TranscriptDecodingError.PromptResolution? = nil,
+        error: TranscriptResolvingError.PromptResolution? = nil,
       ) {
         self.id = id
         self.input = input
@@ -105,7 +105,7 @@ public extension Transcript {
       }
     }
 
-    /// Model response with text segments and decoded structured payloads.
+    /// Model response with text segments and resolved structured payloads.
     public struct Response: Sendable, Identifiable, Equatable {
       public var id: String
 
@@ -137,7 +137,7 @@ public extension Transcript {
         }
       }
 
-      /// Structured segments decoded with the session schema.
+      /// Structured segments resolved with the session schema.
       public var structuredSegments: [StructuredSegment] {
         segments.compactMap { segment in
           switch segment {
@@ -157,7 +157,7 @@ public extension Transcript {
       }
     }
 
-    /// Segment emitted by the model or a tool after decoding.
+    /// Segment emitted by the model or a tool after resolving.
     public enum Segment: Sendable, Identifiable, Equatable {
       /// Plain text.
       case text(TextSegment)
@@ -194,7 +194,7 @@ public extension Transcript {
       /// Type hint supplied by the session, when available.
       public var typeName: String
 
-      /// Fully decoded structured output from the session schema.
+      /// Fully resolved structured output from the session schema.
       public var content: SessionSchema.DecodedStructuredOutput
 
       public init(id: String, typeName: String = "", content: SessionSchema.DecodedStructuredOutput) {
@@ -206,7 +206,7 @@ public extension Transcript {
   }
 }
 
-extension Transcript.Decoded: RandomAccessCollection, RangeReplaceableCollection {
+extension Transcript.Resolved: RandomAccessCollection, RangeReplaceableCollection {
   public var startIndex: Int { entries.startIndex }
   public var endIndex: Int { entries.endIndex }
 

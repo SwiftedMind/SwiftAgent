@@ -4,26 +4,26 @@ import Foundation
 import FoundationModels
 import OSLog
 
-/// Decodes raw transcript entries into your app's domain types.
+/// Resolves raw transcript entries into your app's domain types.
 ///
-/// This utility reads a ``Transcript`` and produces the `Provider.DecodedTranscript`
+/// This utility reads a ``Transcript`` and produces the `SessionSchema.Transcript`
 /// by resolving tool runs, structured outputs, and groundings using the
 /// automatically generated `decodableTools` and `structuredOutputs` from your
 /// `@LanguageModelProvider` session.
 ///
-/// - Note: You typically create this via `session.decoder()`; the macro wires
+/// - Note: You typically create this via `session.resolver()`; the macro wires
 ///   up everything needed. You rarely construct it manually.
-public struct TranscriptDecoder<SessionSchema: LanguageModelSessionSchema> {
+public struct TranscriptResolver<SessionSchema: LanguageModelSessionSchema> {
   /// The tool call type from the associated transcript.
   public typealias ToolCall = Transcript.ToolCall
 
   /// Dictionary mapping tool names to their implementations for fast lookup.
   private let toolsByName: [String: any DecodableTool<SessionSchema.DecodedToolRun>]
 
-  /// The provider that is used to decode the transcript.
+  /// The provider that is used to resolve the transcript.
   private let provider: SessionSchema
 
-  /// Creates a new decoder for the given provider instance.
+  /// Creates a new resolver for the given provider instance.
   ///
   /// - Parameter provider: The session whose tools and structured outputs are used
   ///   to resolve transcript entries.
@@ -32,34 +32,34 @@ public struct TranscriptDecoder<SessionSchema: LanguageModelSessionSchema> {
     toolsByName = Dictionary(uniqueKeysWithValues: provider.decodableTools.map { ($0.name, $0) })
   }
 
-  /// Decodes a full transcript into the provider's decoded representation.
+  /// Resolves a full transcript into the provider's resolved representation.
   ///
   /// This walks the transcript in order and resolves prompts, responses,
   /// tool calls and outputs, and structured segments.
-  public func decode(_ transcript: Transcript) throws -> SessionSchema.Transcript {
-    var decodedTranscript = SessionSchema.Transcript()
+  public func resolve(_ transcript: Transcript) throws -> SessionSchema.Transcript {
+    var resolvedTranscript = SessionSchema.Transcript()
 
     for (index, entry) in transcript.entries.enumerated() {
       switch entry {
       case let .prompt(prompt):
-        var decodedSources: [SessionSchema.DecodedGrounding] = []
-        var errorContext: TranscriptDecodingError.PromptResolution?
+        var resolvedSources: [SessionSchema.DecodedGrounding] = []
+        var errorContext: TranscriptResolvingError.PromptResolution?
 
         do {
-          decodedSources = try decodeGrounding(from: prompt.sources)
+          resolvedSources = try resolveGroundings(from: prompt.sources)
         } catch {
-          errorContext = .groundingDecodingFailed(description: error.localizedDescription)
+          errorContext = .groundingResolutionFailed(description: error.localizedDescription)
         }
 
-        decodedTranscript.append(.prompt(SessionSchema.Transcript.Prompt(
+        resolvedTranscript.append(.prompt(SessionSchema.Transcript.Prompt(
           id: prompt.id,
           input: prompt.input,
-          sources: decodedSources,
+          sources: resolvedSources,
           prompt: prompt.prompt,
           error: errorContext,
         )))
       case let .reasoning(reasoning):
-        decodedTranscript.append(.reasoning(SessionSchema.Transcript.Reasoning(
+        resolvedTranscript.append(.reasoning(SessionSchema.Transcript.Reasoning(
           id: reasoning.id,
           summary: reasoning.summary,
         )))
@@ -74,7 +74,7 @@ public struct TranscriptDecoder<SessionSchema: LanguageModelSessionSchema> {
               content: text.content,
             )))
           case let .structure(structure):
-            let content = decode(structure, status: response.status)
+            let content = resolve(structure, status: response.status)
             segments.append(.structure(SessionSchema.Transcript.StructuredSegment(
               id: structure.id,
               typeName: structure.typeName,
@@ -83,7 +83,7 @@ public struct TranscriptDecoder<SessionSchema: LanguageModelSessionSchema> {
           }
         }
 
-        decodedTranscript.append(.response(SessionSchema.Transcript.Response(
+        resolvedTranscript.append(.response(SessionSchema.Transcript.Response(
           id: response.id,
           segments: segments,
           status: response.status,
@@ -91,8 +91,8 @@ public struct TranscriptDecoder<SessionSchema: LanguageModelSessionSchema> {
       case let .toolCalls(toolCalls):
         for call in toolCalls {
           let rawOutput = findOutput(for: call, startingAt: index + 1, in: transcript.entries)
-          let decodedToolRun = decode(call, rawOutput: rawOutput)
-          decodedTranscript.append(.toolRun(decodedToolRun))
+          let resolvedToolRun = resolve(call, rawOutput: rawOutput)
+          resolvedTranscript.append(.toolRun(resolvedToolRun))
         }
       case .toolOutput:
         // Handled already by the .toolCalls cases
@@ -100,18 +100,18 @@ public struct TranscriptDecoder<SessionSchema: LanguageModelSessionSchema> {
       }
     }
 
-    return decodedTranscript
+    return resolvedTranscript
   }
 
-  /// Decodes a single tool call (optionally with its raw output) into your app's type.
+  /// Resolves a single tool call (optionally with its raw output) into your app's type.
   ///
   /// - Parameters:
   ///   - call: The tool call entry to resolve
   ///   - rawOutput: The raw generated content produced by the tool, if found
-  /// - Returns: A decoded tool run. Unknown tools are mapped to `Provider.DecodedToolRun.makeUnknown`.
-  public func decode(_ call: ToolCall, rawOutput: GeneratedContent?) -> SessionSchema.DecodedToolRun {
+  /// - Returns: A resolved tool run. Unknown tools are mapped to `Provider.DecodedToolRun.makeUnknown`.
+  public func resolve(_ call: ToolCall, rawOutput: GeneratedContent?) -> SessionSchema.DecodedToolRun {
     guard let tool = toolsByName[call.toolName] else {
-      let error = TranscriptDecodingError.ToolRunResolution.unknownTool(name: call.toolName)
+      let error = TranscriptResolvingError.ToolRunResolution.unknownTool(name: call.toolName)
       AgentLog.error(error, context: "Tool resolution failed")
       return SessionSchema.DecodedToolRun.makeUnknown(toolCall: call)
     }
@@ -164,8 +164,8 @@ public struct TranscriptDecoder<SessionSchema: LanguageModelSessionSchema> {
 
   // MARK: - Structured Outputs
 
-  /// Decodes a structured segment into the provider's `DecodedStructuredOutput` type.
-  public func decode(
+  /// Resolves a structured segment into the provider's `DecodedStructuredOutput` type.
+  public func resolve(
     _ structuredSegment: Transcript.StructuredSegment,
     status: Transcript.Status,
   ) -> SessionSchema.DecodedStructuredOutput {
@@ -175,11 +175,11 @@ public struct TranscriptDecoder<SessionSchema: LanguageModelSessionSchema> {
       return SessionSchema.DecodedStructuredOutput.makeUnknown(segment: structuredSegment)
     }
 
-    return decode(structuredSegment, status: status, with: structuredOutput)
+    return resolve(structuredSegment, status: status, with: structuredOutput)
   }
 
-  /// Decodes a structured segment using a specific decodable structured output type.
-  private func decode<DecodableType: DecodableStructuredOutput>(
+  /// Resolves a structured segment using a specific decodable structured output type.
+  private func resolve<DecodableType: DecodableStructuredOutput>(
     _ structuredSegment: Transcript.StructuredSegment,
     status: Transcript.Status,
     with resolvableType: DecodableType.Type,
@@ -220,8 +220,8 @@ public struct TranscriptDecoder<SessionSchema: LanguageModelSessionSchema> {
 
   // MARK: Groundings
 
-  /// Decodes grounding data previously encoded via `LanguageModelProvider.encodeGrounding`.
-  public func decodeGrounding(from data: Data) throws -> [SessionSchema.DecodedGrounding] {
+  /// Resolves grounding data previously encoded via `LanguageModelProvider.encodeGrounding`.
+  public func resolveGroundings(from data: Data) throws -> [SessionSchema.DecodedGrounding] {
     try JSONDecoder().decode([SessionSchema.DecodedGrounding].self, from: data)
   }
 }

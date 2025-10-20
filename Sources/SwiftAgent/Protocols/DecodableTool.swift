@@ -7,12 +7,12 @@ import FoundationModels
 ///
 /// ``SessionSchema`` macros synthesize conformances for every `@Tool` property you declare. Those
 /// generated types turn streaming `ToolRun<BaseTool>` snapshots into concrete `DecodedToolRun`
-/// objects that feed decoded transcripts, UI views, and analytics.
+/// objects that feed resolved transcripts, UI views, and analytics.
 public protocol DecodableTool<DecodedToolRun>: SwiftAgentTool where BaseTool.Arguments: Generable,
   BaseTool.Output: Generable {
   /// The tool implementation being decoded.
   associatedtype BaseTool: FoundationModels.Tool
-  /// Schema-specific projection used in decoded transcripts and snapshots.
+  /// Schema-specific projection used in resolved transcripts and snapshots.
   associatedtype DecodedToolRun: SwiftAgent.DecodedToolRun
   /// Converts a typed `ToolRun` into the schema-defined decoded representation.
   func decode(_ run: ToolRun<BaseTool>) -> DecodedToolRun
@@ -54,7 +54,7 @@ package extension DecodableTool {
   /// Decodes a failed tool run with an associated resolution error.
   func decodeFailed(
     id: String,
-    error: TranscriptDecodingError.ToolRunResolution,
+    error: TranscriptResolvingError.ToolRunResolution,
     rawArguments: GeneratedContent,
     rawOutput: GeneratedContent?,
   ) throws -> DecodedToolRun {

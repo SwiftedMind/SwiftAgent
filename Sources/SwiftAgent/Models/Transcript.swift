@@ -7,7 +7,7 @@ import FoundationModels
 ///
 /// The transcript is an ordered log of prompts, tool activity, and model
 /// responses produced during a session. Use it to inspect streaming progress,
-/// pretty‑print for debugging, or decode provider‑specific structured output.
+/// pretty‑print for debugging, or resolve provider‑specific structured output.
 public struct Transcript: Sendable, Equatable, Codable {
   /// The ordered entries that make up the transcript. New entries are appended
   /// at the end as the session progresses.
@@ -28,16 +28,16 @@ public struct Transcript: Sendable, Equatable, Codable {
     }
   }
 
-  /// Decodes this transcript using a ``SessionSchema``.
+  /// Resolves this transcript using a ``SessionSchema``.
   ///
   /// - Parameters:
-  ///   - schema: The session schema to use to decode the transcript.
-  /// - Returns: The decoded transcript.
-  public func decoded<SessionSchema: LanguageModelSessionSchema>(
+  ///   - schema: The session schema to use to resolve the transcript.
+  /// - Returns: The resolved transcript.
+  public func resolved<SessionSchema: LanguageModelSessionSchema>(
     using schema: SessionSchema,
   ) throws -> SessionSchema.Transcript {
-    let decoder = TranscriptDecoder(for: schema)
-    return try decoder.decode(self)
+    let resolver = TranscriptResolver(for: schema)
+    return try resolver.resolve(self)
   }
 
   /// Returns the structured output and status from the most recent response

@@ -79,7 +79,7 @@
   )
   ```
 
-- **Session Schema Macro Supersedes PromptContext and Tool Resolver**: The `PromptContext`, `toolResolver`, and `transcript.decoded(using:)` helpers have been removed. Declare an `@SessionSchema` with `@Tool`, `@Grounding`, and `@StructuredOutput` wrappers and decode transcripts through it.
+- **Session Schema Macro Supersedes PromptContext and Tool Resolver**: The `PromptContext`, `toolResolver`, and `transcript.resolved(using:)` helpers have been removed. Declare an `@SessionSchema` with `@Tool`, `@Grounding`, and `@StructuredOutput` wrappers and resolve transcripts through it.
   ```swift
   // Before
   enum PromptContext: SwiftAgent.PromptContext { ... }
@@ -96,7 +96,7 @@
   let sessionSchema = SessionSchema()
   let session = OpenAISession(schema: sessionSchema, ...)
 
-  for entry in try sessionSchema.decode(session.transcript) {
+  for entry in try sessionSchema.resolve(session.transcript) {
     // Inspect prompts, groundings, and tool runs
   }
   ```

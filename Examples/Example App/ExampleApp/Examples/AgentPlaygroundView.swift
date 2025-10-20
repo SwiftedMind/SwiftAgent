@@ -10,8 +10,8 @@ struct AgentPlaygroundView: View {
   multiply the temperature by 5 and finally answer with a short story (1-2 paragraphs) involving the tool call
   outputs in some funny way.
   """
-  @State private var transcript: Transcript.Decoded<SessionSchema> = .init()
-  @State private var streamingTranscript: Transcript.Decoded<SessionSchema> = .init()
+  @State private var transcript: Transcript.Resolved<SessionSchema> = .init()
+  @State private var streamingTranscript: Transcript.Resolved<SessionSchema> = .init()
   @State private var sessionSchema = SessionSchema()
   @State private var session: OpenAISession<SessionSchema>?
 
@@ -142,9 +142,9 @@ struct AgentPlaygroundView: View {
         }
       }
 
-      let decoder = sessionSchema.transcriptDecoder()
+      let resolver = sessionSchema.transcriptResolver()
       for try await snapshot in stream {
-        streamingTranscript = try decoder.decode(snapshot.transcript)
+        streamingTranscript = try resolver.resolve(snapshot.transcript)
       }
 
       transcript += streamingTranscript
@@ -161,7 +161,7 @@ struct AgentPlaygroundView: View {
 // MARK: - Entry Views
 
 private struct PromptEntryView: View {
-  let prompt: Transcript.Decoded<SessionSchema>.Prompt
+  let prompt: Transcript.Resolved<SessionSchema>.Prompt
 
   var body: some View {
     Text(prompt.input)
@@ -169,7 +169,7 @@ private struct PromptEntryView: View {
 }
 
 private struct ReasoningEntryView: View {
-  let reasoning: Transcript.Decoded<SessionSchema>.Reasoning
+  let reasoning: Transcript.Resolved<SessionSchema>.Reasoning
 
   var body: some View {
     Text(reasoning.summary.joined(separator: ", "))
@@ -196,7 +196,7 @@ private struct ToolRunEntryView: View {
 }
 
 private struct ResponseEntryView: View {
-  let response: Transcript.Decoded<SessionSchema>.Response
+  let response: Transcript.Resolved<SessionSchema>.Response
 
   var body: some View {
     if let text = response.text {

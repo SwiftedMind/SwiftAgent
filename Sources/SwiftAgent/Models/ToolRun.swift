@@ -131,7 +131,7 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
   public var rejection: Rejection?
 
   /// An error that occurred while decoding or resolving the tool run.
-  public var error: TranscriptDecodingError.ToolRunResolution?
+  public var error: TranscriptResolvingError.ToolRunResolution?
 
   /// Whether the tool run has successfully produced a typed output.
   public var hasOutput: Bool {
@@ -181,7 +181,7 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
     id: String,
     output: Output? = nil,
     rejection: Rejection? = nil,
-    error: TranscriptDecodingError.ToolRunResolution,
+    error: TranscriptResolvingError.ToolRunResolution,
     rawArguments: GeneratedContent,
     rawOutput: GeneratedContent? = nil,
   ) {
@@ -309,7 +309,7 @@ public struct ToolRun<Tool: FoundationModels.Tool>: Identifiable where Tool.Argu
   /// - Returns: A tool run in error state
   public static func error(
     id: String,
-    error: TranscriptDecodingError.ToolRunResolution,
+    error: TranscriptResolvingError.ToolRunResolution,
   ) throws -> ToolRun<Tool> {
     self.init(id: id, error: error, rawArguments: GeneratedContent(kind: .null))
   }
