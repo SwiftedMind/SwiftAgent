@@ -10,8 +10,13 @@ let package = Package(
     .macOS(.v26),
   ],
   products: [
-    .library(name: "OpenAISession", targets: ["OpenAISession", "SimulatedSession", "SwiftAgent"]),
-    .library(name: "AnthropicSession", targets: ["AnthropicSession", "SimulatedSession", "SwiftAgent"]),
+    // NOTE (ADSwift fork): SimulatedSession removed from these product bundles.
+    // Its actor's sync init initializes a `var` property, which under
+    // Swift 6.2 conflicts with the Adapter protocol's sync-init requirement
+    // ('nonisolated' on an actor's synchronous initializer is invalid).
+    // Consumers who need SimulatedSession can depend on the target directly.
+    .library(name: "OpenAISession", targets: ["OpenAISession", "SwiftAgent"]),
+    .library(name: "AnthropicSession", targets: ["AnthropicSession", "SwiftAgent"]),
     .library(name: "ExampleCode", targets: ["ExampleCode"]),
   ],
   dependencies: [
