@@ -102,7 +102,7 @@ enum AnthropicMessageBuilder {
 
         append(
           role: .user,
-          content: .toolResult(toolOutput.callId, output, nil, nil),
+          content: .toolResult(toolOutput.callId, output, isError: nil, cacheControl: nil),
         )
 
       case let .reasoning(reasoning):
