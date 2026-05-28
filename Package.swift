@@ -6,8 +6,8 @@ import PackageDescription
 let package = Package(
   name: "SwiftAgent",
   platforms: [
-    .iOS(.v26),
-    .macOS(.v26),
+    .iOS(.v16),   // realistic minimums
+    .macOS(.v13),
   ],
   products: [
     .library(name: "OpenAISession", targets: ["OpenAISession", "SimulatedSession", "SwiftAgent"]),
@@ -16,7 +16,8 @@ let package = Package(
   ],
   dependencies: [
     .package(url: "https://github.com/swiftlang/swift-syntax.git", "600.0.0"..<"603.0.0"),
-    .package(url: "https://github.com/MacPaw/OpenAI.git", branch: "main"),
+    // ✅ FIX: pin OpenAI to a tag or commit instead of branch
+    .package(url: "https://github.com/MacPaw/OpenAI.git", from: "0.1.0"),
     .package(url: "https://github.com/jamesrochabrun/SwiftAnthropic.git", from: "2.2.0"),
     .package(url: "https://github.com/mattt/EventSource", from: "1.2.0"),
     .package(url: "https://github.com/pointfreeco/swift-macro-testing", from: "0.6.4"),
@@ -30,14 +31,14 @@ let package = Package(
         .product(name: "SwiftSyntax", package: "swift-syntax"),
         .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
         .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
-      ],
+      ]
     ),
     .target(
       name: "SwiftAgent",
       dependencies: [
         "SwiftAgentMacros",
         "EventSource",
-      ],
+      ]
     ),
     .target(
       name: "OpenAISession",
@@ -46,7 +47,7 @@ let package = Package(
         "OpenAI",
         "SwiftAgentMacros",
         "EventSource",
-      ],
+      ]
     ),
     .target(
       name: "AnthropicSession",
@@ -55,14 +56,14 @@ let package = Package(
         "SwiftAnthropic",
         "SwiftAgentMacros",
         "EventSource",
-      ],
+      ]
     ),
     .target(
       name: "SimulatedSession",
       dependencies: [
         "SwiftAgent",
         "OpenAI",
-      ],
+      ]
     ),
     .target(
       name: "ExampleCode",
@@ -72,7 +73,7 @@ let package = Package(
         "OpenAISession",
         "SimulatedSession",
         .product(name: "SwiftAnthropic", package: "SwiftAnthropic"),
-      ],
+      ]
     ),
     .testTarget(
       name: "SwiftAgentTests",
@@ -82,7 +83,7 @@ let package = Package(
         "SwiftAgent",
         "SimulatedSession",
         .product(name: "SwiftAnthropic", package: "SwiftAnthropic"),
-      ],
+      ]
     ),
     .testTarget(
       name: "SwiftAgentMacroTests",
@@ -90,8 +91,8 @@ let package = Package(
         "SwiftAgentMacros",
         .product(name: "MacroTesting", package: "swift-macro-testing"),
         .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
-      ],
+      ]
     ),
   ],
-  swiftLanguageModes: [.v6],
+  swiftLanguageModes: [.v6]
 )
